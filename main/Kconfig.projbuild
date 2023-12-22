@@ -1,0 +1,53 @@
+menu "My Project Config"
+
+    menu "LCD Config"
+        comment "config spi display stuff."
+        choice SPI_DISPLAY_TYPE
+        prompt "LCD Display Type:"
+            default SPI_DISPLAY_SSD1680_1IN54
+            help
+                  Select the display driver type.
+            config SPI_DISPLAY_SSD1680_1IN54
+                bool "SPI_DISPLAY_SSD1680_1IN54"
+            config SPI_DISPLAY_SSD1680_1IN54_V1
+                bool "SPI_DISPLAY_SSD1680_1IN54_V1"
+            config SPI_DISPLAY_ST7789
+                bool "SPI_DISPLAY_ST7789"
+        endchoice
+    endmenu
+
+    menu "BLE Device Config"
+        comment "config ble device"
+
+        config ENABLE_BLE_DEVICES
+            bool "enable ble devices"
+    endmenu
+
+    menu "WIFI Config"
+
+        config WIFI_SSID
+            string "WiFi SSID"
+            default "smart_box"
+            help
+                AP Mode SSID (network name).
+
+        config WIFI_PASSWORD
+            string "WiFi Password"
+            default "12345678"
+            help
+                WiFi password.
+        config WIFI_CHANNEL
+            int "WiFi Channel"
+            range 1 13
+            default 1
+            help
+                WiFi channel (network channel).
+
+        config MAX_STA_CONN
+            int "Maximal STA connections"
+            default 2
+            help
+                Max number of the STA connects to AP.
+    endmenu
+
+endmenu

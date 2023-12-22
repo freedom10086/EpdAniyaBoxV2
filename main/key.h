@@ -27,7 +27,7 @@ static gpio_num_t key_num_list[KEY_COUNT] = {
  * key click event
  */
 typedef enum {
-    KEY_1_SHORT_CLICK,
+    KEY_1_SHORT_CLICK = 0,
     KEY_1_LONG_CLICK,
     KEY_2_SHORT_CLICK,
     KEY_2_LONG_CLICK,
@@ -36,6 +36,17 @@ typedef enum {
     KEY_4_SHORT_CLICK,
     KEY_4_LONG_CLICK,
 } key_event_id_t;
+
+typedef enum {
+    KEY_UP_SHORT_CLICK = KEY_1_SHORT_CLICK,
+    KEY_UP_LONG_CLICK = KEY_1_LONG_CLICK,
+    KEY_DOWN_SHORT_CLICK = KEY_2_SHORT_CLICK,
+    KEY_DOWN_LONG_CLICK = KEY_2_LONG_CLICK,
+    KEY_CANCEL_SHORT_CLICK = KEY_3_SHORT_CLICK,
+    KEY_CANCEL_LONG_CLICK = KEY_3_LONG_CLICK,
+    KEY_OK_SHORT_CLICK = KEY_4_SHORT_CLICK,
+    KEY_OK_LONG_CLICK = KEY_4_LONG_CLICK,
+} human_key_event_id_t;
 
 static key_event_id_t key_event_map[KEY_COUNT][2] = {
         {KEY_1_SHORT_CLICK, KEY_1_LONG_CLICK},

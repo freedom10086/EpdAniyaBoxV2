@@ -167,15 +167,19 @@ bool setting_list_page_key_click(key_event_id_t key_event_type) {
         ESP_LOGW(TAG, "handle pre click ignore %d", key_event_type);
         return true;
     }
+
     switch (key_event_type) {
-        case KEY_1_SHORT_CLICK:
+        case KEY_OK_SHORT_CLICK:
             handle_click_event();
             break;
-        case KEY_2_SHORT_CLICK:
+        case KEY_DOWN_SHORT_CLICK:
             change_select(true);
             break;
-        case KEY_2_LONG_CLICK:
+        case KEY_UP_SHORT_CLICK:
             change_select(false);
+            break;
+        case KEY_CANCEL_SHORT_CLICK:
+            page_manager_close_page();
             break;
         default:
             return false;

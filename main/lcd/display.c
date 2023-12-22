@@ -91,8 +91,9 @@ void enter_deep_sleep(int sleep_ts, lcd_ssd1680_panel_t *panel) {
     }
     //esp_sleep_enable_ext1_wakeup(1 << KEY_1_NUM, ESP_EXT1_WAKEUP_ALL_LOW);
     const gpio_config_t config = {
-            .pin_bit_mask = 1 << KEY_1_NUM,
+            .pin_bit_mask = 1 << KEY_1_NUM | 1 << KEY_2_NUM | KEY_3_NUM,
             .mode = GPIO_MODE_INPUT,
+            .pull_up_en = 1
     };
     ESP_ERROR_CHECK(gpio_config(&config));
     ESP_ERROR_CHECK(esp_deep_sleep_enable_gpio_wakeup(1 << KEY_1_NUM, ESP_GPIO_WAKEUP_GPIO_LOW));
@@ -291,11 +292,19 @@ static void key_click_event_handler(void *event_handler_arg, esp_event_base_t ev
 
     // finally pass here
     switch (event_id) {
-        case KEY_1_SHORT_CLICK:
+        case KEY_UP_SHORT_CLICK:
             break;
-        case KEY_2_SHORT_CLICK:
+        case KEY_DOWN_SHORT_CLICK:
             break;
-        case KEY_1_LONG_CLICK:
+        case KEY_CANCEL_SHORT_CLICK:
+            if (page_manager_has_menu()) {
+                page_manager_close_menu();
+                page_manager_request_update(false);
+            } else {
+                page_manager_close_page();
+            }
+            break;
+        case KEY_OK_LONG_CLICK:
             if (page_manager_has_menu()) {
                 page_manager_close_menu();
                 page_manager_request_update(false);
@@ -304,7 +313,8 @@ static void key_click_event_handler(void *event_handler_arg, esp_event_base_t ev
                 page_manager_request_update(false);
             }
             break;
-        case KEY_2_LONG_CLICK:
+        case KEY_UP_LONG_CLICK:
+        case KEY_DOWN_LONG_CLICK:
             if (page_manager_get_current_index() == TEMP_PAGE_INDEX) {
                 page_manager_switch_page("image");
                 page_manager_request_update(false);

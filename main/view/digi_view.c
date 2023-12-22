@@ -199,8 +199,9 @@ digi_view_t *digi_view_create(int x, int y, int digi_width, int digi_thick, int 
     return view;
 }
 
-void digi_view_set_text(digi_view_t *digi_view, int number, int decimal, uint8_t decimal_len) {
+void digi_view_set_text(digi_view_t *digi_view, int number, uint8_t number_len, int decimal, uint8_t decimal_len) {
     digi_view->number = number;
+    digi_view->number_len = number_len;
     digi_view->decimal = decimal;
     digi_view->decimal_len = decimal_len;
 }
@@ -226,9 +227,21 @@ void digi_view_draw(digi_view_t *digi_view, epd_paint_t *epd_paint, uint32_t loo
     // if number count is 0 add 0 in front
     uint8_t draw_num = 0;
     if (number_cnt == 0) {
-        bool has_point = digi_view->decimal_len > 0;
-        x += draw_digi_number(digi_view, epd_paint, 0, x, y, has_point);
+        if (digi_view->number_len > number_cnt) {
+            // fill zero
+            for (int i = 0; i < digi_view->number_len - number_cnt; ++i) {
+                bool has_point = (i == digi_view->number_len - 1) && digi_view->decimal_len > 0;
+                x += draw_digi_number(digi_view, epd_paint, 0, x, y, has_point);
+            }
+        }
     } else {
+        if (digi_view->number_len > number_cnt) {
+            // fill zero
+            for (int i = 0; i < digi_view->number_len - number_cnt; ++i) {
+                x += draw_digi_number(digi_view, epd_paint, 0, x, y, false);
+            }
+        }
+
         for (int i = 0; i < number_cnt; ++i) {
             int a = 1;
             for (int j = 0; j < number_cnt - i - 1; j++) {

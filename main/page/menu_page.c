@@ -107,19 +107,19 @@ bool menu_page_key_click(key_event_id_t key_event_type) {
         return true;
     }
     switch (key_event_type) {
-        case KEY_1_SHORT_CLICK:
+        case KEY_OK_SHORT_CLICK:
             last_key_event_tick = xTaskGetTickCount();
             handle_click_event();
             break;
-        case KEY_1_LONG_CLICK:
+        case KEY_CANCEL_SHORT_CLICK:
             page_manager_close_menu();
             page_manager_request_update(false);
             break;
-        case KEY_2_SHORT_CLICK:
+        case KEY_DOWN_SHORT_CLICK:
             last_key_event_tick = xTaskGetTickCount();
             change_select(true);
             break;
-        case KEY_2_LONG_CLICK:
+        case KEY_UP_SHORT_CLICK:
             last_key_event_tick = xTaskGetTickCount();
             change_select(false);
             break;

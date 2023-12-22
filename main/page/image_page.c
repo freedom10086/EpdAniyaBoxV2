@@ -209,11 +209,11 @@ void image_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
 
 bool image_page_key_click_handle(key_event_id_t key_event_type) {
     switch (key_event_type) {
-        case KEY_1_SHORT_CLICK:
+        case KEY_UP_SHORT_CLICK:
             current_bitmap_page_index -= 1;
             page_manager_request_update(false);
             return true;
-        case KEY_2_SHORT_CLICK:
+        case KEY_DOWN_SHORT_CLICK:
             current_bitmap_page_index += 1;
             page_manager_request_update(false);
             return true;

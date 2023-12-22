@@ -8,6 +8,7 @@
 
 typedef struct {
     int number; // 整数部分  18
+    int number_len; // 整数部分长度 不够补0
     int decimal; // 小数部分 9 = 18.9
     int decimal_len; // 小数长度 0 表示没有
 
@@ -20,7 +21,7 @@ typedef struct {
 
 digi_view_t *digi_view_create(int x, int y, int digi_width, int digi_thick, int digi_gap);
 
-void digi_view_set_text(digi_view_t *digi_view, int number, int decimal, uint8_t decimal_len);
+void digi_view_set_text(digi_view_t *digi_view, int number, uint8_t number_len,  int decimal, uint8_t decimal_len);
 
 void digi_view_draw(digi_view_t *digi_view, epd_paint_t *epd_paint, uint32_t loop_cnt);
 

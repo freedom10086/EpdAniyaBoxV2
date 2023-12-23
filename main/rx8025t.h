@@ -9,6 +9,7 @@
 
 ESP_EVENT_DECLARE_BASE(BIKE_DATE_TIME_SENSOR_EVENT);
 
+// default high level when intr happens cone to low
 #define RX8025_INT_GPIO_NUM 3
 
 //将X的第Y位置1

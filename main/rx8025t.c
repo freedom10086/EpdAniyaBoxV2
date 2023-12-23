@@ -4,6 +4,7 @@
 #include "driver/i2c_master.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "driver/gpio.h"
 #include "rx8025t.h"
 
 #define I2C_MASTER_NUM              0
@@ -105,6 +106,30 @@ static esp_err_t i2c_write(const uint8_t *write_buffer, size_t write_size) {
     return ret;
 }
 
+static void IRAM_ATTR gpio_isr_handler(void *arg) {
+
+}
+
+void config_intr_gpio() {
+    gpio_config_t io_config = {
+            .pin_bit_mask = (1ull << RX8025_INT_GPIO_NUM),
+            .mode = GPIO_MODE_INPUT,
+            .intr_type = GPIO_INTR_NEGEDGE,
+            .pull_up_en = 0,
+            .pull_down_en = 0,
+    };
+    ESP_ERROR_CHECK(gpio_config(&io_config));
+
+    ESP_LOGI(TAG, "rx8025t int io %d, level %d", RX8025_INT_GPIO_NUM, gpio_get_level(RX8025_INT_GPIO_NUM));
+
+    //install gpio isr service
+    gpio_install_isr_service(0);
+
+    //hook isr handler for specific gpio pin
+    gpio_isr_handler_add(RX8025_INT_GPIO_NUM, gpio_isr_handler, (void *) RX8025_INT_GPIO_NUM);
+    ESP_LOGI(TAG, "rx8025t gpio isr add OK");
+}
+
 esp_err_t rx8025t_init() {
     if (rx8025t_inited) {
         return ESP_OK;
@@ -116,8 +141,15 @@ esp_err_t rx8025t_init() {
             .scl_speed_hz = 100000,
     };
 
+    esp_err_t err = i2c_master_bus_add_device(i2c_bus_handle, &dev_cfg, &dev_handle);
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    config_intr_gpio();
+
     rx8025t_inited = true;
-    return i2c_master_bus_add_device(i2c_bus_handle, &dev_cfg, &dev_handle);
+    return ESP_OK;
 }
 
 esp_err_t rx8025t_deinit() {

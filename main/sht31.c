@@ -145,7 +145,7 @@ static uint8_t crc8(const uint8_t *data, uint8_t len) {
 void sht31_reset() {
     ESP_LOGI(TAG, "Reset Sht31...");
     i2c_write_cmd(SHT31_SOFTRESET);
-    vTaskDelay(pdMS_TO_TICKS(10));
+    vTaskDelay(pdMS_TO_TICKS(5));
 }
 
 void sht31_init() {

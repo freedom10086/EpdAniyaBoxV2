@@ -44,6 +44,10 @@ static uint32_t default_battery_curve_data[] = {
         1603,// 0%
 };
 
+esp_err_t get_battery_curve_status(int32_t *status);
+esp_err_t clear_battery_curve();
+esp_err_t set_battery_curve_status(int32_t status);
+
 void init_power_gpio() {
     uint64_t bit_mask = 1ull << BATTERY_ADC_PWR_GPIO_NUM;
     gpio_config_t io_config = {
@@ -75,10 +79,32 @@ bool battery_is_curving() {
     return start_battery_curve;
 }
 
+bool battery_start_curving() {
+    if (start_battery_curve) {
+        return true;
+    }
+    int32_t battery_curve_status;
+    get_battery_curve_status(&battery_curve_status);
+    ESP_LOGI(TAG, "current battery curve status %ld", battery_curve_status);
+    clear_battery_curve();
+    battery_curve_size = 0;
+    ESP_LOGI(TAG, "clear battery curve data");
+    if (battery_curve_status == 0) {
+        set_battery_curve_status(1);
+    }
+    ESP_LOGI(TAG, "start battery curve");
+    start_battery_curve = true;
+    return true;
+}
+
 bool battery_is_charge() {
     // 不准 大概吧 以后再优化
     return (_pre_voltage > 0 && _voltage - _pre_voltage >= 2)
            || (_pre_pre_voltage > 0 && _voltage >= _pre_voltage && _voltage - _pre_pre_voltage >= 2);
+}
+
+uint32_t battery_get_curving_data_count() {
+    return battery_curve_size / sizeof(uint32_t);
 }
 
 esp_err_t get_battery_curve_status(int32_t *status) {
@@ -165,6 +191,8 @@ esp_err_t add_battery_curve(int v) {
     required_size += sizeof(uint32_t);
     votages[required_size / sizeof(uint32_t) - 1] = v;
     err = nvs_set_blob(my_handle, "curve", votages, required_size);
+    battery_curve_size = required_size;
+
     free(votages);
 
     if (err != ESP_OK) return err;
@@ -271,14 +299,6 @@ static void battery_task_entry(void *arg) {
     ESP_LOGI(TAG, "battery curve status %ld", battery_curve_status);
     if (battery_curve_status > 0) {
         load_battery_curve();
-    } else {
-        ESP_LOGI(TAG, "start battery curve");
-        err = set_battery_curve_status(1);
-        if (err != ESP_OK) {
-            ESP_LOGE(TAG, "set battery curve status failed %d %s", err, esp_err_to_name(err));
-        } else {
-            start_battery_curve = true;
-        }
     }
 
     //-------------ADC1 Init---------------//
@@ -296,17 +316,14 @@ static void battery_task_entry(void *arg) {
 
     ESP_ERROR_CHECK(adc_oneshot_config_channel(adc1_handle, ADC1_CHAN, &config));
 
-
     //-------------ADC1 Calibration Init---------------//
     adc_cali_handle_t adc1_cali_handle = NULL;
     bool do_calibration1 = adc_calibration_init(ADC_UNIT_1, ADC_ATTEN_DB_12, &adc1_cali_handle);
 
     while (1) {
         adc_power_on_off(1);
-        vTaskDelay(pdMS_TO_TICKS(10));
-
+        vTaskDelay(pdMS_TO_TICKS(5));
         ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, ADC1_CHAN, &_adc_raw));
-
         adc_power_on_off(0);
 
         if (do_calibration1) {
@@ -328,7 +345,7 @@ static void battery_task_entry(void *arg) {
         } else {
             ESP_LOGI(TAG, "ADC%d Channel[%d] Raw Data: %d", ADC_UNIT_1 + 1, ADC1_CHAN, _adc_raw);
         }
-        vTaskDelay(pdMS_TO_TICKS(15000));
+        vTaskDelay(pdMS_TO_TICKS(120000));
     }
 
     //Tear Down
@@ -408,7 +425,7 @@ int8_t battery_get_level() {
     }
 
     uint32_t curve_count = battery_curve_size / sizeof(uint32_t);
-    if (curve_count <= 5) {
+    if (curve_count <= 5 || battery_is_curving()) {
         curve_count = sizeof(default_battery_curve_data) / sizeof(uint32_t);
         if (_voltage >= default_battery_curve_data[0]) {
             return 100;

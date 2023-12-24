@@ -24,13 +24,13 @@ static char date_time_page_draw_text_buf[32] = {0};
 
 static uint16_t week_label[] = {0xC7D0, 0xDAC6, 0x00};
 static uint16_t week_num[][2] = {
+        {0xD5C8, 0x00}, // 日
         {0xBBD2, 0x00}, // 一
         {0xFEB6, 0x00}, // 二
         {0xFDC8, 0x00}, // 三
         {0xC4CB, 0x00}, // 四
         {0xE5CE, 0x00}, // 五
         {0xF9C1, 0x00}, // 六
-        {0xD5C8, 0x00}, // 日
 };
 
 // 温度
@@ -53,11 +53,8 @@ static bool humility_valid = false;
 static uint8_t _year, _month, _day, _week, _hour, _minute, _second;
 
 static uint8_t check_week(uint8_t week) {
-    if (week < 1) {
-        return 1;
-    }
-    if (week > 7) {
-        return 7;
+    if (week > 6) {
+        return 6;
     }
     return week;
 }
@@ -150,14 +147,19 @@ void date_time_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     digi_view_draw(time_label, epd_paint, loop_cnt);
     digi_view_deinit(time_label);
 
+    if (sht31_get_temp_hum(&temperature, &humility)) {
+        temperature_valid = true;
+        humility_valid = true;
+    }
+
     //epd_paint_draw_string_at(epd_paint, 167, 2, (char *)temp, &Font_HZK16, 1);
-    digi_view_t *temp_label = digi_view_create(20, 164, 18, 3, 2);
+    digi_view_t *temp_label = digi_view_create(16, 164, 18, 3, 2);
     if (temperature_valid) {
         if (temperature > 100) {
             temperature = 100;
         }
         bool is_minus = temperature < 0;
-        epd_paint_draw_string_at(epd_paint, 84, 154, (char *) temp_f, &Font_HZK16, 1);
+        epd_paint_draw_string_at(epd_paint, 84, 184, (char *) temp_f, &Font_HZK16, 1);
         digi_view_set_text(temp_label, (int) temperature, 2, (int) (temperature * 10 + (is_minus ? -0.5f : 0.5f)) % 10,
                            1);
         digi_view_draw(temp_label, epd_paint, loop_cnt);
@@ -168,14 +170,14 @@ void date_time_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     digi_view_deinit(temp_label);
 
     //epd_paint_draw_string_at(epd_paint, 167, 130, (char *)hum, &Font_HZK16, 1);
-    digi_view_t *hum_label = digi_view_create(120, 164, 18, 3, 2);
+    digi_view_t *hum_label = digi_view_create(116, 164, 18, 3, 2);
     if (humility_valid) {
         if (humility < 0) {
             humility = 0;
         } else if (humility > 99) {
             humility = 99;
         }
-        epd_paint_draw_string_at(epd_paint, 183, 182, (char *) hum_f, &Font_HZK16, 1);
+        epd_paint_draw_string_at(epd_paint, 184, 184, (char *) hum_f, &Font_HZK16, 1);
         digi_view_set_text(hum_label, (int) humility, 2, (int) (humility * 10 + 0.5f) % 10, 1);
         digi_view_draw(hum_label, epd_paint, loop_cnt);
     } else {

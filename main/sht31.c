@@ -179,7 +179,7 @@ void sht31_init() {
         ESP_LOGI(TAG, "HEAT Status %d", (data[0] >> 5) & 0x01);
     }
 
-    i2c_write_cmd(SHT31_CLEARSTATUS);
+    // i2c_write_cmd(SHT31_CLEARSTATUS);
 
     sht31_inited = true;
 }

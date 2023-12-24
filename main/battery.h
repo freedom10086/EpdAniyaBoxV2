@@ -13,7 +13,11 @@ int8_t battery_get_level();
 
 bool battery_is_curving();
 
+bool battery_start_curving();
+
 bool battery_is_charge();
+
+uint32_t battery_get_curving_data_count();
 
 void battery_deinit(void);
 

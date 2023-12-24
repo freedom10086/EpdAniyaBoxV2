@@ -76,6 +76,7 @@ void wifi_init_softap() {
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    ESP_LOGI(TAG, "start esp_wifi_init done");
 
     wifi_config_t wifi_config = {
             .ap = {
@@ -93,9 +94,14 @@ void wifi_init_softap() {
     }
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+    ESP_LOGI(TAG, "esp_wifi_set_mode WIFI_MODE_AP");
+
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
+    ESP_LOGI(TAG, "esp_wifi_set_config WIFI_IF_AP");
+
     ESP_ERROR_CHECK(esp_wifi_start());
 
+    ESP_LOGI(TAG, "start esp_wifi_start done");
     esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
 
     ESP_LOGI(TAG, "wifi_init_softap finished. SSID:%s password:%s channel:%d",

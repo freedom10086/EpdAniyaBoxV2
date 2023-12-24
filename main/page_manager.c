@@ -16,10 +16,11 @@
 #include "page/setting_list_page.h"
 #include "page/ble_device_page.h"
 #include "page/data_time_page.h"
+#include "page/battery_page.h"
 #include "battery.h"
 
 #define TAG "page-manager"
-#define TOTAL_PAGE 10
+#define TOTAL_PAGE 11
 
 static int8_t pre_page_index = -1;
 static int8_t menu_index = -1;
@@ -107,6 +108,13 @@ static page_inst_t pages[] = {
                 .key_click_handler = date_time_page_key_click,
                 .on_destroy_page = date_time_page_on_destroy,
                 .enter_sleep_handler = date_time_page_on_enter_sleep,
+        },
+        [10] = {
+                .page_name = "battery",
+                .on_draw_page = battery_page_draw,
+                .on_create_page = battery_page_on_create,
+                .key_click_handler = battery_page_key_click,
+                .enter_sleep_handler = battery_page_on_enter_sleep,
         },
 };
 

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Aniya Box(prototype) 2.0 Setting</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+</head>
+<body>
+<label>当前时间：</label>
+<div id="current-time"></div>
+<button onclick="syncTimeToBox()">同步时间</button>
+</body>
+<script>
+    function syncTimeToBox() {
+        let date = new Date();
+        let year = date.getFullYear();
+        let month = date.getMonth();
+        let day = date.getDate();
+        let week = date.getDay();
+        let hour = date.getHours();
+        let minute = date.getMinutes();
+        let second = date.getSeconds();
+
+        let arr = new Uint8Array([year % 100, month + 1, day, week, hour, minute, second]);
+        fetch("/setting", {method: "POST", body: arr})
+            .then(resp => console.log(resp))
+            .catch(err => console.log(err));
+    }
+
+    function displayCurrentTime() {
+        let date = new Date();
+        let year = date.getFullYear();
+        let month = date.getMonth();
+        let day = date.getDate();
+        let week = date.getDay();
+        let hour = date.getHours();
+        let minute = date.getMinutes();
+        let second = date.getSeconds();
+
+        const dayWeek = [
+            "天",
+            "一",
+            "二",
+            "三",
+            "四",
+            "五",
+            "六",
+        ];
+
+        document.querySelector("#current-time").innerHTML = year + "-" + (month + 1) + "-" + day + " " + hour + ":" + minute + ":" + second + " " + dayWeek[week];
+    }
+
+    function showTime() {
+        displayCurrentTime();
+        setTimeout(showTime, 1000);
+    }
+
+    showTime();
+</script>
+</html>

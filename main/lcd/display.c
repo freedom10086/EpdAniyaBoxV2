@@ -89,7 +89,7 @@ void enter_deep_sleep(int sleep_ts, lcd_ssd1680_panel_t *panel) {
     if (sleep_ts > 0) {
         esp_sleep_enable_timer_wakeup(sleep_ts * 1000000);
     } else if (sleep_ts == 0) {
-        esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER)
+        esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER);
     }
     //esp_sleep_enable_ext1_wakeup(1 << KEY_1_NUM, ESP_EXT1_WAKEUP_ALL_LOW);
     const gpio_config_t config = {
@@ -98,7 +98,6 @@ void enter_deep_sleep(int sleep_ts, lcd_ssd1680_panel_t *panel) {
             .pull_up_en = 1
     };
     ESP_ERROR_CHECK(gpio_config(&config));
-    esp_sleep_get_gpio_wakeup_status()
     ESP_ERROR_CHECK(esp_deep_sleep_enable_gpio_wakeup(config.pin_bit_mask, ESP_GPIO_WAKEUP_GPIO_LOW));
 
     ESP_LOGI(TAG, "enter deep sleep mode, sleep %ds", sleep_ts);
@@ -134,8 +133,9 @@ static void guiTask(void *pvParameter) {
     if (page_index == IMAGE_PAGE_INDEX) { // image page
         page_manager_init("image");
     } else {
-        // for debug
-        page_manager_init("date-time");
+        // TODO for debug
+        //page_manager_init("date-time");
+        page_manager_init("battery");
         // page_manager_init("temperature");
     }
 

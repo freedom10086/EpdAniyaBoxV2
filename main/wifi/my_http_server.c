@@ -1,23 +1,12 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/param.h>
-#include <sys/unistd.h>
-#include <sys/stat.h>
-#include <dirent.h>
 
 #include "esp_err.h"
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "esp_system.h"
-#include "esp_event.h"
-#include "esp_ota_ops.h"
-#include "esp_flash_partitions.h"
-#include "esp_partition.h"
 
-#include "esp_app_format.h"
-#include "nvs_flash.h"
-#include "esp_vfs.h"
 #include "esp_spiffs.h"
 #include "esp_http_server.h"
 #include "esp_wifi.h"
@@ -26,16 +15,13 @@
 #include "my_http_server.h"
 #include "my_file_server_common.h"
 #include "my_wifi_ota.h"
+#include "wifi_device_setting.h"
 #include "common_utils.h"
 
 static const char *TAG = "http_server";
 
 #define BUFFSIZE 1024
 char buff[BUFFSIZE + 1] = {0};
-
-typedef struct {
-    httpd_handle_t server_hdl;
-} http_server_t;
 
 http_server_t *my_http_server = NULL;
 
@@ -94,6 +80,7 @@ esp_err_t my_http_server_start() {
 
     httpd_handle_t server = NULL;
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    config.max_uri_handlers = 12;
 
     /* Use the URI wildcard matching function in order to
      * allow the same handler to respond to multiple different
@@ -156,9 +143,12 @@ esp_err_t my_http_server_start() {
     };
     httpd_register_uri_handler(server, &info);
 
+    device_setting_reg_uri(server, my_http_server);
+
     ESP_ERROR_CHECK(mount_storage(FILE_SERVER_BASE_PATH, true));
     register_file_server(FILE_SERVER_BASE_PATH, server);
 
+    ESP_LOGI(TAG, "HTTP Server Started successful");
     return ESP_OK;
 }
 
@@ -168,7 +158,12 @@ esp_err_t my_http_server_stop() {
         return ESP_ERR_INVALID_STATE;
     }
 
+    ESP_LOGI(TAG, "Stopping Http server ...");
+
     unregister_file_server(my_http_server->server_hdl);
+
+    device_setting_unreg_uri(my_http_server->server_hdl);
+
     unmount_storage();
 
     httpd_stop(my_http_server->server_hdl);

@@ -69,28 +69,7 @@ void app_main() {
         ESP_LOGI(TAG, "wake up by cause  %d", cause);
     }
 
-    printf("Hello world!, boot count %ld\n", boot_count);
-
-    /* Print chip information */
-    esp_chip_info_t chip_info;
-    uint32_t flash_size;
-    esp_chip_info(&chip_info);
-    printf("This is %s chip with %d CPU core(s), WiFi%s%s, ",
-           CONFIG_IDF_TARGET,
-           chip_info.cores,
-           (chip_info.features & CHIP_FEATURE_BT) ? "/BT" : "",
-           (chip_info.features & CHIP_FEATURE_BLE) ? "/BLE" : "");
-
-    printf("silicon revision %d, ", chip_info.revision);
-    if (esp_flash_get_size(NULL, &flash_size) != ESP_OK) {
-        printf("Get flash size failed");
-        return;
-    }
-
-    printf("%luMB %s flash\n", flash_size / (1024 * 1024),
-           (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
-
-    printf("Minimum free heap size: %ld bytes\n", esp_get_minimum_free_heap_size());
+    printf("Hello world!, boot count %ld wake up cause:%d\n", boot_count, cause);
 
     // create event loop
     esp_event_loop_args_t loop_args = {
@@ -113,7 +92,6 @@ void app_main() {
     i2c_master_init();
 
     sht31_init();
-    vTaskDelay(pdMS_TO_TICKS(10));
 
     float temp, hum;
     bool sht31_success = sht31_get_temp_hum(&temp, &hum);

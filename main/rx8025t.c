@@ -5,6 +5,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "driver/gpio.h"
+#include "esp_log.h"
 #include "rx8025t.h"
 
 #define I2C_MASTER_NUM              0
@@ -42,6 +43,8 @@
 
 ESP_EVENT_DEFINE_BASE(BIKE_DATE_TIME_SENSOR_EVENT);
 
+#define TAG "rx8025t"
+
 extern i2c_master_bus_handle_t i2c_bus_handle;
 static i2c_master_dev_handle_t dev_handle;
 static bool rx8025t_inited = false;
@@ -62,19 +65,16 @@ static uint8_t bcd2hex(uint8_t bcd) {
     return dec;
 }
 
-// bit0 sunday = 7
+// bit0 sunday = 0
 // bit6 Saturday = 6
 static uint8_t transform_to_rx_week(uint8_t x) {
-    if (x == 7) {
+    if (x == 0) {
         return 0x01;
     }
     return 0x01 << x;
 }
 
 static uint8_t transform_from_rx_week(uint8_t x) {
-    if (x == 0x01) {
-        return 7; // sunday
-    }
     x = x >> 1;
     uint8_t w = 0;
     while (x) {

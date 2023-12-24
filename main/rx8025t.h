@@ -34,7 +34,7 @@ esp_err_t rx8025t_deinit();
 // year 0-99
 // month 1-12
 // day 1 - 31
-// week bit0 Sunday  bt6 Saturday 1-7 monday -> sunday
+// week bit0 Sunday  bt6 Saturday 0-6 Sunday -> Saturday
 // hour 0-23 minute 0-59 second 0-59
 esp_err_t
 rx8025t_set_time(uint8_t year, uint8_t month, uint8_t day, uint8_t week, uint8_t hour, uint8_t minute, uint8_t second);

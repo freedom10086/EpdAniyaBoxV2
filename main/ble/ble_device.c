@@ -34,16 +34,6 @@ static char ble_device_buf[32];
 
 static ble_svc_inst_t service_map[] = {
         {
-                .uuid = BLE_UUID16_DECLARE(BLE_SVC_CSC_UUID),
-                .handle_peer = ble_csc_service_handle_peer,
-                .handle_notification = ble_csc_handle_notification
-        },
-        {
-                .uuid = BLE_UUID16_DECLARE(BLE_SVC_HRM_UUID),
-                .handle_peer = ble_hrm_service_handle_peer,
-                .handle_notification = ble_hrm_service_handle_notification
-        },
-        {
                 .uuid = BLE_UUID16_DECLARE(BLE_SVC_BATTERY),
                 .handle_peer = ble_battery_service_handle_peer,
                 .handle_notification = ble_battery_service_handle_notification
@@ -78,27 +68,15 @@ static void ble_read_write_subscribe(const struct peer *peer) {
     const struct peer_chr *chr;
     int rc;
 
-//    rc = ble_battery_service_handle_peer(peer);
-//    if (rc != 0) {
-//        ESP_LOGE(GATTC_TAG, "Error: ble_battery_service_handle_peer; rc=%d\n", rc);
-//        goto err;
-//    }
-
-//    rc = ble_csc_service_handle_peer(peer);
-//    if (rc != 0) {
-//        ESP_LOGE(GATTC_TAG, "Error: ble_csc_service_handle_peer; rc=%d\n", rc);
-//        goto err;
-//    }
-
-//    rc = ble_dev_info_service_handle_peer(peer);
-//    if (rc != 0) {
-//        ESP_LOGE(GATTC_TAG, "Error: ble_dev_info_service_handle_peer; rc=%d\n", rc);
-//        goto err;
-//    }
-
-    rc = ble_hrm_service_handle_peer(peer);
+    rc = ble_battery_service_handle_peer(peer);
     if (rc != 0) {
-        ESP_LOGE(GATTC_TAG, "Error: ble_hrm_service_handle_peer; rc=%d\n", rc);
+        ESP_LOGE(GATTC_TAG, "Error: ble_battery_service_handle_peer; rc=%d\n", rc);
+        goto err;
+    }
+
+    rc = ble_dev_info_service_handle_peer(peer);
+    if (rc != 0) {
+        ESP_LOGE(GATTC_TAG, "Error: ble_dev_info_service_handle_peer; rc=%d\n", rc);
         goto err;
     }
 

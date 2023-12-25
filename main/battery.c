@@ -217,9 +217,8 @@ esp_err_t load_battery_curve(void) {
     // obtain required memory space to store blob being read from NVS
     err = nvs_get_blob(my_handle, "curve", NULL, &battery_curve_size);
     if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND) return err;
-    printf("battery curve:\n");
     if (battery_curve_size == 0) {
-        printf("Nothing saved yet!\n");
+        ESP_LOGI(TAG, "Nothing battery curve saved yet!\n");
     } else {
         battery_curve_data = malloc(battery_curve_size);
         err = nvs_get_blob(my_handle, "curve", battery_curve_data, &battery_curve_size);
@@ -239,6 +238,7 @@ esp_err_t load_battery_curve(void) {
 
     // Close
     nvs_close(my_handle);
+    ESP_LOGI(TAG, "Loaded battery curve data size: %d", battery_curve_size / sizeof(uint32_t));
     return ESP_OK;
 }
 

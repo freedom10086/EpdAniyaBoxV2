@@ -5,6 +5,8 @@
 #include "driver/ledc.h"
 #include "esp_log.h"
 #include "driver/rmt_tx.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 #include "musical_score_encoder.h"
 #include "beep.h"
@@ -48,9 +50,6 @@ esp_err_t beep_init_pwm_mode() {
     };
     esp_err_t err = ledc_channel_config(&ledc_channel);
 
-    // ledc_timer_pause()
-    // ledc_timer_resume()
-
     return err;
 }
 
@@ -79,7 +78,7 @@ esp_err_t beep_init_rmt_mode() {
 esp_err_t beep_init(beep_mode_t mode) {
     beep_mode = mode;
     esp_err_t err;
-    if (mode == PWM) {
+    if (mode == BEEP_MODE_PWM) {
         err = beep_init_pwm_mode();
     } else {
         err = beep_init_rmt_mode();
@@ -90,8 +89,8 @@ esp_err_t beep_init(beep_mode_t mode) {
 /**
  *  duration ms if = 0 no stop beep
  */
-esp_err_t start_beep(uint32_t duration) {
-    if (beep_mode == PWM) {
+esp_err_t beep_start_beep(uint32_t duration) {
+    if (beep_mode == BEEP_MODE_PWM) {
         // Set duty to 50%
         ESP_ERROR_CHECK(ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, LEDC_DUTY));
         // Update duty to apply the new value
@@ -106,14 +105,41 @@ esp_err_t start_beep(uint32_t duration) {
             rmt_transmit_config_t tx_config = {
                     .loop_count = beep_score[i].duration_ms * beep_score[i].freq_hz / 1000,
             };
-            ESP_ERROR_CHECK(rmt_transmit(buzzer_chan, score_encoder, &beep_score[i], sizeof(buzzer_musical_score_t), &tx_config));
+            if (beep_score[i].freq_hz == 0) {
+                tx_config.loop_count = 1;
+            }
+            ESP_ERROR_CHECK(rmt_transmit(buzzer_chan, score_encoder, &beep_score[i], sizeof(buzzer_musical_score_t),
+                                         &tx_config));
+        }
+    }
+    return ESP_OK;
+}
+
+esp_err_t beep_start_play(const buzzer_musical_score_t *song, uint16_t song_len) {
+    if (beep_mode == BEEP_MODE_PWM) {
+        // TODO unsupported
+    } else {
+        //ESP_ERROR_CHECK(rmt_enable(buzzer_chan));
+        ESP_LOGI(TAG, "song length %d", song_len);
+        for (size_t i = 0; i < song_len; i++) {
+            rmt_transmit_config_t tx_config = {
+                    .loop_count = song[i].duration_ms * song[i].freq_hz / 1000,
+            };
+            ESP_LOGI(TAG, "start play song index %d", i);
+            if (song[i].freq_hz < 10) {
+                vTaskDelay(pdMS_TO_TICKS(song[i].duration_ms));
+            } else {
+                ESP_ERROR_CHECK(
+                        rmt_transmit(buzzer_chan, score_encoder, &song[i], sizeof(buzzer_musical_score_t), &tx_config));
+                rmt_tx_wait_all_done(buzzer_chan, 5000);
+            }
         }
     }
     return ESP_OK;
 }
 
 esp_err_t stop_beep() {
-    if (beep_mode == PWM) {
+    if (beep_mode == BEEP_MODE_PWM) {
         // Set duty to 0%
         ESP_ERROR_CHECK(ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, 0));
         // Update duty to apply the new value
@@ -123,6 +149,16 @@ esp_err_t stop_beep() {
         return err;
     } else {
         rmt_disable(buzzer_chan);
+    }
+
+    return ESP_OK;
+}
+
+esp_err_t beep_deinit() {
+    stop_beep();
+
+    if (beep_mode == BEEP_MODE_PWM) {
+
     }
 
     return ESP_OK;

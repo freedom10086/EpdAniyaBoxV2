@@ -17,10 +17,11 @@
 #include "page/ble_device_page.h"
 #include "page/data_time_page.h"
 #include "page/battery_page.h"
+#include "page/music_page.h"
 #include "battery.h"
 
 #define TAG "page-manager"
-#define TOTAL_PAGE 11
+#define TOTAL_PAGE 12
 
 static int8_t pre_page_index = -1;
 static int8_t menu_index = -1;
@@ -115,6 +116,13 @@ static page_inst_t pages[] = {
                 .on_create_page = battery_page_on_create,
                 .key_click_handler = battery_page_key_click,
                 .enter_sleep_handler = battery_page_on_enter_sleep,
+        },
+        [11] = {
+                .page_name = "music",
+                .on_draw_page = music_page_draw,
+                .on_create_page = music_page_on_create,
+                .key_click_handler = music_page_key_click,
+                .enter_sleep_handler = music_page_on_enter_sleep,
         },
 };
 

@@ -1,13 +1,10 @@
 #ifndef BLE_DEVICE_H
 #define BLE_DEVICE_H
 
+#include "esp_event.h"
 #include "esp_bt.h"
-#include "ble_csc.h"
-#include "ble_hrm.h"
 #include "ble_svc_battery_level.h"
-#include "ble_svc_csc.h"
 #include "ble_svc_device_information.h"
-#include "ble_svc_hrm.h"
 #include "modlog/modlog.h"
 #include "ble_peer.h"
 

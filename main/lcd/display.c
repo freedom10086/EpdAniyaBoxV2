@@ -135,7 +135,7 @@ static void guiTask(void *pvParameter) {
     } else {
         // TODO for debug
         //page_manager_init("date-time");
-        page_manager_init("battery");
+        page_manager_init("music");
         // page_manager_init("temperature");
     }
 

@@ -39,8 +39,6 @@ RTC_DATA_ATTR static uint32_t boot_count = 0;
 
 static esp_err_t i2c_master_init(void);
 
-static void enter_deep_sleep(int sleep_ts);
-
 static void application_task(void *args) {
     while (1) {
         esp_err_t err = esp_event_loop_run(event_loop_handle, portMAX_DELAY);
@@ -65,11 +63,37 @@ void app_main() {
 
     boot_count++;
     esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
-    if (cause != ESP_SLEEP_WAKEUP_UNDEFINED) {
-        ESP_LOGI(TAG, "wake up by cause  %d", cause);
-    }
-
     printf("Hello world!, boot count %ld wake up cause:%d\n", boot_count, cause);
+
+    switch (cause) {
+        case ESP_SLEEP_WAKEUP_TIMER: {
+            printf("Wake up from timer.");
+            break;
+        }
+        case ESP_SLEEP_WAKEUP_EXT1: {
+            uint64_t wakeup_pin_mask = esp_sleep_get_ext1_wakeup_status();
+            if (wakeup_pin_mask != 0) {
+                int pin = __builtin_ffsll(wakeup_pin_mask) - 1;
+                printf("Wake up from GPIO %d\n", pin);
+            } else {
+                printf("Wake up from GPIO\n");
+            }
+            break;
+        }
+        case ESP_SLEEP_WAKEUP_GPIO: {
+            uint64_t wakeup_pin_mask = esp_sleep_get_gpio_wakeup_status();
+            if (wakeup_pin_mask != 0) {
+                int pin = __builtin_ffsll(wakeup_pin_mask) - 1;
+                printf("Wake up from GPIO %d\n", pin);
+            } else {
+                printf("Wake up from GPIO\n");
+            }
+            break;
+        }
+        case ESP_SLEEP_WAKEUP_UNDEFINED:
+        default:
+            printf("Not a deep sleep reset\n");
+    }
 
     // create event loop
     esp_event_loop_args_t loop_args = {
@@ -196,24 +220,4 @@ static esp_err_t i2c_master_init(void) {
         ESP_LOGI(TAG, "I2C initialized successfully");
     }
     return iic_err;
-}
-
-
-
-static void enter_deep_sleep(int sleep_ts) {
-    if (sleep_ts > 0) {
-        esp_sleep_enable_timer_wakeup(sleep_ts * 1000000);
-    }
-
-    uint64_t pin_mask = 1 << KEY_1_NUM | 1 << KEY_2_NUM | 1 << KEY_3_NUM;
-    const gpio_config_t config = {
-            .pin_bit_mask = pin_mask,
-            .mode = GPIO_MODE_INPUT,
-            .pull_up_en = 1
-    };
-    ESP_ERROR_CHECK(gpio_config(&config));
-    ESP_ERROR_CHECK(esp_deep_sleep_enable_gpio_wakeup(pin_mask, ESP_GPIO_WAKEUP_GPIO_LOW));
-
-    ESP_LOGI(TAG, "enter deep sleep mode, sleep %ds", sleep_ts);
-    esp_deep_sleep_start();
 }

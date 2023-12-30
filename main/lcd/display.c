@@ -35,6 +35,7 @@
 
 #define DISP_BUFF_SIZE LCD_H_RES * LCD_V_RES
 
+
 ESP_EVENT_DEFINE_BASE(BIKE_REQUEST_UPDATE_DISPLAY_EVENT);
 
 /**********************
@@ -91,15 +92,32 @@ void enter_deep_sleep(int sleep_ts, lcd_ssd1680_panel_t *panel) {
     } else if (sleep_ts == 0) {
         esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER);
     }
-    //esp_sleep_enable_ext1_wakeup(1 << KEY_1_NUM, ESP_EXT1_WAKEUP_ALL_LOW);
+
+
+#if SOC_PM_SUPPORT_EXT1_WAKEUP_MODE_PER_PIN
+    // EXT1_WAKEUP
+    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << KEY_1_NUM, ESP_GPIO_WAKEUP_GPIO_LOW));
+    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << KEY_2_NUM, ESP_GPIO_WAKEUP_GPIO_LOW));
+    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << KEY_3_NUM, ESP_GPIO_WAKEUP_GPIO_LOW));
+
+    // if no external pull-up/downs
+    ESP_ERROR_CHECK(rtc_gpio_pullup_en(KEY_1_NUM));
+    ESP_ERROR_CHECK(rtc_gpio_pulldown_dis(KEY_1_NUM));
+
+    ESP_ERROR_CHECK(rtc_gpio_pullup_en(KEY_2_NUM));
+    ESP_ERROR_CHECK(rtc_gpio_pulldown_dis(KEY_2_NUM));
+
+    ESP_ERROR_CHECK(rtc_gpio_pullup_en(KEY_3_NUM));
+    ESP_ERROR_CHECK(rtc_gpio_pulldown_dis(KEY_3_NUM));
+#else
+    // gpio wake up
     const gpio_config_t config = {
             .pin_bit_mask = 1 << KEY_1_NUM | 1 << KEY_2_NUM | 1 << KEY_3_NUM,
             .mode = GPIO_MODE_INPUT,
-            .pull_up_en = 1
     };
     ESP_ERROR_CHECK(gpio_config(&config));
     ESP_ERROR_CHECK(esp_deep_sleep_enable_gpio_wakeup(config.pin_bit_mask, ESP_GPIO_WAKEUP_GPIO_LOW));
-
+#endif
     ESP_LOGI(TAG, "enter deep sleep mode, sleep %ds", sleep_ts);
     esp_deep_sleep_start();
 }

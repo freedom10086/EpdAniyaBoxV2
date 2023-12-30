@@ -173,7 +173,7 @@ static const buzzer_musical_score_t normal_beep_beep_score[] = {
         {4000, 500}
 };
 
-#define NOTE_TS_NORMAL 500
+#define NOTE_TS_NORMAL 800
 static const buzzer_musical_score_t music_score_hszy[] = {
         {NOTE6_HIGH,      NOTE_TS_NORMAL / 2},
         {NOTE7_HIGH,      NOTE_TS_NORMAL / 2},

@@ -123,6 +123,7 @@ static page_inst_t pages[] = {
                 .on_create_page = music_page_on_create,
                 .key_click_handler = music_page_key_click,
                 .enter_sleep_handler = music_page_on_enter_sleep,
+                .on_destroy_page = music_page_on_destroy,
         },
 };
 

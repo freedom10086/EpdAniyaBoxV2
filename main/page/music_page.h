@@ -16,4 +16,6 @@ bool music_page_key_click(key_event_id_t key_event_type);
 
 int music_page_on_enter_sleep(void *args);
 
+void music_page_on_destroy(void *arg);
+
 #endif //HELLO_WORLD_MUSIC_PAGE_H

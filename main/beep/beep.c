@@ -116,11 +116,15 @@ esp_err_t beep_start_beep(uint32_t duration) {
 }
 
 esp_err_t beep_start_play(const buzzer_musical_score_t *song, uint16_t song_len) {
+    ESP_LOGI(TAG, "song length %d", song_len);
     if (beep_mode == BEEP_MODE_PWM) {
-        // TODO unsupported
+        for (size_t i = 0; i < song_len; i++) {
+            ESP_LOGI(TAG, "start play song index %d", i);
+            ledc_set_freq(LEDC_MODE, LEDC_TIMER, song[i].freq_hz);
+            vTaskDelay(pdMS_TO_TICKS(song[i].duration_ms));
+        }
     } else {
         //ESP_ERROR_CHECK(rmt_enable(buzzer_chan));
-        ESP_LOGI(TAG, "song length %d", song_len);
         for (size_t i = 0; i < song_len; i++) {
             rmt_transmit_config_t tx_config = {
                     .loop_count = song[i].duration_ms * song[i].freq_hz / 1000,

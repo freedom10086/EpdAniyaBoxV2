@@ -18,15 +18,14 @@ typedef struct {
     int x, y;
     int width, height;
     sFONT *font;
+    int current_item_offset;
 } list_view_t;
 
 list_view_t *list_vew_create(int x, int y, int width, int height, sFONT *font);
 
-void list_view_set_position(list_view_t *list_view, int x, int y);
+int list_view_get_select_index(list_view_t *list_view);
 
-int get_select_index(list_view_t *list_view);
-
-int set_select_index(list_view_t *list_view, int index);
+int list_view_set_select_index(list_view_t *list_view, int index);
 
 void list_view_add_element(list_view_t *list_view, char *text);
 
@@ -39,6 +38,10 @@ void list_view_remove_first_element(list_view_t *list_view);
 void list_view_remove_last_element(list_view_t *list_view);
 
 void list_vew_draw(list_view_t *list_view, epd_paint_t *epd_paint, uint32_t loop_cnt);
+
+bool list_view_select_next(list_view_t *list_view);
+
+bool list_view_select_pre(list_view_t *list_view);
 
 void list_view_deinit(list_view_t *list_view);
 

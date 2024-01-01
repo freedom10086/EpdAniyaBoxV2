@@ -29,9 +29,6 @@
 
 static const char *TAG = "BIKE_MAIN";
 #define I2C_MASTER_NUM              0
-#define I2C_MASTER_FREQ_HZ          400000
-#define I2C_MASTER_TX_BUF_DISABLE   0
-#define I2C_MASTER_RX_BUF_DISABLE   0
 #define I2C_SCL_IO 11
 #define I2C_SDA_IO 8
 
@@ -187,9 +184,6 @@ void app_main() {
     //start_beep(1000);
     //vTaskDelay(pdMS_TO_TICKS(1000));
     //stop_beep();
-
-    // sleep
-    // enter_deep_sleep(1800);
 }
 
 /**

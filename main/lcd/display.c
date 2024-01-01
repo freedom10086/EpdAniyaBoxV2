@@ -19,6 +19,7 @@
 #include "LIS3DH.h"
 #include "display.h"
 #include "page_manager.h"
+#include "nvs.h"
 #include "box_common.h"
 
 /*********************
@@ -29,7 +30,7 @@
 #define TFT_SPI_HOST SPI2_HOST
 
 #define DISP_BUFF_SIZE LCD_H_RES * LCD_V_RES
-
+#define DISP_STORAGE_NAMESPACE "display"
 
 ESP_EVENT_DEFINE_BASE(BIKE_REQUEST_UPDATE_DISPLAY_EVENT);
 
@@ -43,8 +44,65 @@ static uint32_t boot_cnt = 0;
 static uint32_t lst_event_tick;
 bool updating = false;
 bool holding_updating = false;
+static uint8_t curr_disp_rotation;
 
 extern esp_event_loop_handle_t event_loop_handle;
+
+uint8_t get_saved_disp_rotation() {
+    uint8_t rotation = DEFAULT_DISP_ROTATION;
+
+    nvs_handle_t my_handle;
+    esp_err_t err;
+
+    // Open
+    err = nvs_open(DISP_STORAGE_NAMESPACE, NVS_READONLY, &my_handle);
+    if (err != ESP_OK) return rotation;
+
+    // Read
+    err = nvs_get_u8(my_handle, "disp_rotation", &rotation);
+    if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND) return rotation;
+
+    // Close
+    nvs_close(my_handle);
+    return rotation;
+}
+
+uint8_t calc_disp_rotation(uint8_t default_rotate) {
+    lis3dh_direction_t disp_direction = lis3dh_calc_direction();
+    ESP_LOGI(TAG, "calc display rotation %d", disp_direction);
+    switch (disp_direction) {
+        case LIS3DH_DIR_LEFT:
+            return ROTATE_270;
+        case LIS3DH_DIR_BOTTOM:
+            return  ROTATE_180;
+        case LIS3DH_DIR_RIGHT:
+            return ROTATE_90;
+        case LIS3DH_DIR_TOP:
+            return ROTATE_0;
+        default:
+            return default_rotate;
+    }
+}
+
+esp_err_t save_disp_rotation(uint8_t rotation) {
+    nvs_handle_t my_handle;
+    esp_err_t err;
+
+    // Open
+    err = nvs_open(DISP_STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+    if (err != ESP_OK) return err;
+
+    // Write
+    err = nvs_set_u8(my_handle, "disp_rotation", rotation);
+    if (err != ESP_OK) return err;
+
+    err = nvs_commit(my_handle);
+    if (err != ESP_OK) return err;
+
+    // Close
+    nvs_close(my_handle);
+    return ESP_OK;
+}
 
 bool spi_driver_init(int host,
                      int miso_pin, int mosi_pin, int sclk_pin,
@@ -153,7 +211,8 @@ static void guiTask(void *pvParameter) {
         return;
     }
 
-    epd_paint_init(epd_paint, image, LCD_H_RES, LCD_V_RES, ROTATE_0);
+    curr_disp_rotation = get_saved_disp_rotation();
+    epd_paint_init(epd_paint, image, LCD_H_RES, LCD_V_RES, curr_disp_rotation);
     epd_paint_clear(epd_paint, 0);
 
     panel_ssd1680_init_full(&panel);
@@ -164,14 +223,15 @@ static void guiTask(void *pvParameter) {
     static uint32_t current_tick;
     static uint32_t ulNotificationCount;
     static uint32_t continue_time_out_count = 0;
+    bool wakeup_by_timer = (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_TIMER);
 
     //sleep wait for sensor init
     vTaskDelay(pdMS_TO_TICKS(50));
 
     while (1) {
         // not first loop
-        if (loop_cnt > 1 && esp_sleep_get_wakeup_cause() != ESP_SLEEP_WAKEUP_TIMER && !holding_updating) {
-            ulNotificationCount = ulTaskGenericNotifyTake(0, pdTRUE, pdMS_TO_TICKS(30000));
+        if (loop_cnt > 1 && !wakeup_by_timer && !holding_updating) {
+            ulNotificationCount = ulTaskGenericNotifyTake(0, pdTRUE, pdMS_TO_TICKS(10000));
             // ESP_LOGI(TAG, "ulTaskGenericNotifyTake %ld", ulNotificationCount);
             if (ulNotificationCount > 0) { // may > 1 more data ws send
                 continue_time_out_count = 0;
@@ -184,7 +244,20 @@ static void guiTask(void *pvParameter) {
         current_tick = xTaskGetTickCount();
         bool display_time_out = pdTICKS_TO_MS(current_tick - lst_event_tick) >= DEEP_SLEEP_TIMEOUT_MS;
 
-        if (ulNotificationCount > 0 || display_time_out || loop_cnt == 1) {
+        bool rotation_change = false;
+        // 重新计算屏幕旋转角度 必须是静态情况下(5s 没有按键/加速度)
+        if ((ulNotificationCount == 0 && pdTICKS_TO_MS(current_tick - lst_event_tick) >= 5000) || wakeup_by_timer) {
+            uint8_t new_rotation = calc_disp_rotation(curr_disp_rotation);
+            if (new_rotation != curr_disp_rotation) {
+                ESP_LOGI(TAG, "disp rotation change from %d to %d", curr_disp_rotation, new_rotation);
+                curr_disp_rotation = new_rotation;
+                epd_paint_set_rotation(epd_paint, curr_disp_rotation);
+                save_disp_rotation(curr_disp_rotation);
+                rotation_change = true;
+            }
+        }
+
+        if (ulNotificationCount > 0 || display_time_out || loop_cnt == 1 || rotation_change) {
             holding_updating = false;
             ESP_LOGI(TAG, "draw loop: %ld, boot_cnt: %ld  ulNotification: %ld", loop_cnt, boot_cnt,
                      ulNotificationCount);
@@ -225,7 +298,7 @@ static void guiTask(void *pvParameter) {
         }
 
         // enter deep sleep mode
-        if (display_time_out || esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_TIMER) {
+        if (display_time_out || wakeup_by_timer) {
             int sleepTs = page_manager_enter_sleep(loop_cnt);
             if (sleepTs >= 0) {
                 if (display_time_out) {

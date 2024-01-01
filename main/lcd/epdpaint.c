@@ -17,6 +17,10 @@ void epd_paint_init(epd_paint_t *epd_paint, unsigned char *image, int width, int
     epd_paint->height = height;
 }
 
+void epd_paint_set_rotation(epd_paint_t *epd_paint, uint8_t rotate) {
+    epd_paint->rotate = rotate;
+}
+
 void epd_paint_deinit(epd_paint_t *epd_paint) {
     free(epd_paint->image);
     epd_paint->image = NULL;

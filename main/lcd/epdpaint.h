@@ -34,6 +34,8 @@ enum ALIGN {
 
 void epd_paint_init(epd_paint_t *epd, unsigned char *image, int width, int height, uint8_t rotate);
 
+void epd_paint_set_rotation(epd_paint_t *epd_paint, uint8_t rotate);
+
 void epd_paint_deinit(epd_paint_t *epd_paint);
 
 void epd_paint_clear(epd_paint_t *epd_paint, int colored);

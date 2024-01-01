@@ -25,6 +25,12 @@
     _a < _b ? _a : _b;       \
 })
 
+#define mabs(a)             \
+({                           \
+    __typeof__ (a) _a = (a); \
+    _a < 0 ? -a : a;       \
+})
+
 esp_err_t common_post_event(esp_event_base_t event_base, int32_t event_id);
 
 esp_err_t common_post_event_data(esp_event_base_t event_base, int32_t event_id, const void *event_data, size_t event_data_size);

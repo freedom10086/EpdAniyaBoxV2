@@ -22,6 +22,7 @@ ESP_EVENT_DEFINE_BASE(BIKE_MOTION_EVENT);
 // for 8G, try 10-20. for 4G try 20-40. for 2G try 40-80
 #define CLICKTHRESHHOLD 100
 
+static bool lis3dh_inited = false;
 static TaskHandle_t imu_tsk_hdl = NULL;
 static QueueHandle_t imu_int_event_queue;
 static lis3dh_mode_t _mode;
@@ -94,6 +95,7 @@ esp_err_t lis3dh_init(lis3dh_mode_t mode, lis3dh_acc_range_t acc_range, lis3dh_a
 
     uint8_t who_am_i = lis3dh_who_am_i();
     if (who_am_i != 0x33) {
+        lis3dh_inited = false;
         return ESP_FAIL;
     }
 
@@ -131,6 +133,9 @@ esp_err_t lis3dh_init(lis3dh_mode_t mode, lis3dh_acc_range_t acc_range, lis3dh_a
     _mode = mode;
     _acc_range = acc_range;
     _acc_sample_rate = acc_sample_rate;
+
+    lis3dh_inited = true;
+
     return ESP_OK;
 }
 
@@ -142,6 +147,9 @@ esp_err_t lis3dh_deinit() {
         vTaskDelete(imu_tsk_hdl);
         imu_tsk_hdl = NULL;
     }
+
+    lis3dh_inited = false;
+
     return i2c_master_bus_rm_device(dev_handle);
 }
 
@@ -229,6 +237,10 @@ uint8_t lis3dh_read_status() {
 }
 
 esp_err_t lis3dh_read_acc(float *accx, float *accy, float *accz) {
+    if (!lis3dh_inited) {
+        return ESP_FAIL;
+    }
+
     uint8_t acc_data[6] = {0};
 
     uint8_t addr = LIS3DH_REG_OUT_X_L | 0x80; // auto incr addr
@@ -265,6 +277,41 @@ esp_err_t lis3dh_read_acc(float *accx, float *accy, float *accz) {
     *accz = lsb_value * ((float) data_raw_z / LIS3DH_LSB16_TO_KILO_LSB10);
 
     return ESP_OK;
+}
+
+lis3dh_direction_t lis3dh_calc_direction() {
+    if (!lis3dh_inited) {
+        return LIS3DH_DIR_UNKNOWN;
+    }
+
+    float accx, accy, accz;
+    float threshold = 0.1f;
+    esp_err_t err = lis3dh_read_acc(&accx, &accy, &accz);
+    if (err != ESP_OK) {
+        return LIS3DH_DIR_UNKNOWN;
+    }
+
+    // 充电口朝下 0 -1 0
+    if (mabs(accx) < threshold && accy < -0.98f + threshold && mabs(accz) < threshold) {
+        return LIS3DH_DIR_TOP;
+    }
+
+    // 按键朝上 1 0 0
+    if (accx >= 0.98 - threshold && mabs(accy) < threshold && mabs(accz) < threshold) {
+        return LIS3DH_DIR_LEFT;
+    }
+
+    // 充电口朝上 0 1 0
+    if (mabs(accx) < threshold && accy > 0.98f - threshold && mabs(accz) < threshold) {
+        return LIS3DH_DIR_BOTTOM;
+    }
+
+    // 按键朝下 -1 0 0
+    if (accx < -0.98 + threshold && mabs(accy) < threshold && mabs(accz) < threshold) {
+        return LIS3DH_DIR_RIGHT;
+    }
+
+    return LIS3DH_DIR_UNKNOWN;
 }
 
 uint8_t lis3dh_config_motion_detect() {

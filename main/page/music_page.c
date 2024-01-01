@@ -17,23 +17,20 @@ void music_page_on_create(void *arg) {
 
     list_view = list_vew_create(0, 0, 200, 200, &Font_HZK16);
 
+    list_view_add_element(list_view, "Bee");
+
+    list_view_add_element(list_view, "Bee Bee");
+
     uint16_t hszy[] = {0xAABB, 0xA2C9, 0xAED6, 0xB5D4, 0x00}; // 华散之缘
     list_view_add_element(list_view, (char *) hszy);
 
     uint16_t xxx[] = {0xA1D0, 0xC7D0, 0xC7D0, 0x00}; // 小星星
     list_view_add_element(list_view, (char *) xxx);
 
-    list_view_add_element(list_view, "ddddd");
-    list_view_add_element(list_view, "eeeee");
-    list_view_add_element(list_view, "fffff");
-    list_view_add_element(list_view, "ggggg");
-    list_view_add_element(list_view, "hhhhh");
-    list_view_add_element(list_view, "iiiii");
-    list_view_add_element(list_view, "jjjjj");
-    list_view_add_element(list_view, "kkkkk");
-    list_view_add_element(list_view, "lllll");
-    list_view_add_element(list_view, "mmmmm");
-    list_view_add_element(list_view, "nnnnn");
+    list_view_add_element(list_view, "Beethoven's Ode to joy");
+
+    uint16_t tkzc[] = {0xECCC, 0xD5BF, 0xAED6, 0xC7B3, 0x00}; // 天空之城
+    list_view_add_element(list_view, (char *) tkzc);
 }
 
 void music_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
@@ -43,7 +40,29 @@ void music_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
 bool music_page_key_click(key_event_id_t key_event_type) {
     switch (key_event_type) {
         case KEY_OK_SHORT_CLICK:
-            //beep_start_play(music_score_hszy, sizeof(music_score_hszy) / sizeof(music_score_hszy[0]));
+            switch (list_view_get_select_index(list_view)) {
+                case 0:
+                    beep_start_play(music_score_beep, sizeof(music_score_beep) / sizeof(music_score_beep[0]));
+                    break;
+                case 1:
+                    beep_start_play(music_score_beep_beep,
+                                    sizeof(music_score_beep_beep) / sizeof(music_score_beep_beep[0]));
+                    break;
+                case 2:
+                    beep_start_play(music_score_hszy, sizeof(music_score_hszy) / sizeof(music_score_hszy[0]));
+                    break;
+                case 3:
+                    beep_start_play(music_score_xxx, sizeof(music_score_xxx) / sizeof(music_score_xxx[0]));
+                    break;
+                case 4:
+                    beep_start_play(music_score_1, sizeof(music_score_1) / sizeof(music_score_1[0]));
+                    break;
+                case 5:
+                    beep_start_play(music_score_tkzc, sizeof(music_score_tkzc) / sizeof(music_score_tkzc[0]));
+                    break;
+                default:
+                    break;
+            }
             return true;
         case KEY_CANCEL_SHORT_CLICK:
             page_manager_close_page();

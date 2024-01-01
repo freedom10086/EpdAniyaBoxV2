@@ -171,6 +171,7 @@ void sht31_init() {
         failed_cnt++;
         if (failed_cnt >= 3) {
             ESP_LOGE(TAG, "read sht31 status failed for 3 times...");
+            return;
         }
         vTaskDelay(pdMS_TO_TICKS(3));
         goto sht31_start;

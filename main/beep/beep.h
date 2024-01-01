@@ -88,6 +88,17 @@ typedef struct {
     uint32_t duration_ms; /*!< Duration, in ms */
 } buzzer_musical_score_t;
 
+static const buzzer_musical_score_t music_score_beep[] = {
+        {4000, 300}
+};
+
+static const buzzer_musical_score_t music_score_beep_beep[] = {
+        {4000, 200},
+        {0,    100},
+        {4000, 200}
+};
+
+
 /**
  * @brief Musical Score: Beethoven's Ode to joy
  */
@@ -220,7 +231,7 @@ static const buzzer_musical_score_t music_score_hszy[] = {
         {NOTE6,           NOTE_TS_NORMAL * 3 / 2},
         {NOTE5,           NOTE_TS_NORMAL / 2},
 
-        {NOTE6,      NOTE_TS_NORMAL},
+        {NOTE6,           NOTE_TS_NORMAL},
         {NOTE_NONE,       NOTE_TS_NORMAL},
         {NOTE_NONE,       NOTE_TS_NORMAL},
         {NOTE_NONE,       NOTE_TS_NORMAL},
@@ -299,7 +310,7 @@ static const buzzer_musical_score_t music_score_hszy[] = {
         {NOTE4_HIGH_H,    NOTE_TS_NORMAL / 2},
         {NOTE3_HIGH,      NOTE_TS_NORMAL / 2},
         {NOTE4_HIGH_H,    NOTE_TS_NORMAL * 3 / 2}, // NOTE4_HIGH ?
-        {NOTE2_HIGH,         NOTE_TS_NORMAL / 2},
+        {NOTE2_HIGH,      NOTE_TS_NORMAL / 2},
 
         {NOTE5_HIGH,      NOTE_TS_NORMAL},
         {NOTE4_HIGH_H,    NOTE_TS_NORMAL / 2},
@@ -313,34 +324,31 @@ static const buzzer_musical_score_t music_score_hszy[] = {
         {NOTE6_HIGH,      NOTE_TS_NORMAL / 2},
         {NOTE7_HIGH,      NOTE_TS_NORMAL / 2},
 
-        {NOTE1_HIGH_HIGH,      NOTE_TS_NORMAL},
-        {NOTE7_HIGH,       NOTE_TS_NORMAL/2},
-        {NOTE6_HIGH,       NOTE_TS_NORMAL/2},
+        {NOTE1_HIGH_HIGH, NOTE_TS_NORMAL},
+        {NOTE7_HIGH,      NOTE_TS_NORMAL / 2},
+        {NOTE6_HIGH,      NOTE_TS_NORMAL / 2},
         {NOTE5_HIGH,      NOTE_TS_NORMAL},
-        {NOTE2_HIGH_HIGH,      NOTE_TS_NORMAL},
+        {NOTE2_HIGH_HIGH, NOTE_TS_NORMAL},
 
-        {NOTE3_HIGH_HIGH,      NOTE_TS_NORMAL},
-        {NOTE5_HIGH_HIGH,       NOTE_TS_NORMAL},
-        {NOTE2_HIGH_HIGH,       NOTE_TS_NORMAL},
-        {NOTE1_HIGH_HIGH,      NOTE_TS_NORMAL/2},
-        {NOTE7_HIGH,      NOTE_TS_NORMAL/2},
+        {NOTE3_HIGH_HIGH, NOTE_TS_NORMAL},
+        {NOTE5_HIGH_HIGH, NOTE_TS_NORMAL},
+        {NOTE2_HIGH_HIGH, NOTE_TS_NORMAL},
+        {NOTE1_HIGH_HIGH, NOTE_TS_NORMAL / 2},
+        {NOTE7_HIGH,      NOTE_TS_NORMAL / 2},
 
         {NOTE6_HIGH,      NOTE_TS_NORMAL},
         {NOTE_NONE,       NOTE_TS_NORMAL},
-        {NOTE6_HIGH,       NOTE_TS_NORMAL * 3 / 2},
-        {NOTE5_HIGH,      NOTE_TS_NORMAL/2},
+        {NOTE6_HIGH,      NOTE_TS_NORMAL * 3 / 2},
+        {NOTE5_HIGH,      NOTE_TS_NORMAL / 2},
 
         {NOTE6_HIGH,      NOTE_TS_NORMAL / 4},
         {NOTE5_HIGH,      NOTE_TS_NORMAL / 4},
-        {NOTE6_HIGH,       NOTE_TS_NORMAL / 2},
-        {NOTE6_HIGH,       NOTE_TS_NORMAL},
+        {NOTE6_HIGH,      NOTE_TS_NORMAL / 2},
+        {NOTE6_HIGH,      NOTE_TS_NORMAL},
         {NOTE_NONE,       NOTE_TS_NORMAL},
-        {NOTE_NONE,      NOTE_TS_NORMAL},
+        {NOTE_NONE,       NOTE_TS_NORMAL},
 
-        {NOTE5_HIGH_HIGH,      NOTE_TS_NORMAL},
-        {NOTE_NONE,       NOTE_TS_NORMAL},
-        {NOTE_NONE,       NOTE_TS_NORMAL},
-        {NOTE_NONE,      NOTE_TS_NORMAL},
+        {NOTE5_HIGH_HIGH, NOTE_TS_NORMAL},
 };
 
 static const buzzer_musical_score_t music_score_xxx[] = {
@@ -397,6 +405,48 @@ static const buzzer_musical_score_t music_score_xxx[] = {
         {NOTE2, NOTE_TS_NORMAL},
         {NOTE2, NOTE_TS_NORMAL},
         {NOTE1, NOTE_TS_NORMAL * 2},
+};
+
+#define NOTE_TS_TKZC 630
+static const buzzer_musical_score_t music_score_tkzc[] = {
+        {NOTE6,      NOTE_TS_TKZC / 2},
+        {NOTE7,      NOTE_TS_TKZC / 2},
+
+        {NOTE1_HIGH, NOTE_TS_TKZC * 3 / 2},
+        {NOTE7,      NOTE_TS_TKZC / 2},
+        {NOTE1_HIGH, NOTE_TS_TKZC},
+        {NOTE3_HIGH, NOTE_TS_TKZC},
+
+        {NOTE7,      NOTE_TS_TKZC * 2},
+        {0,          NOTE_TS_TKZC},
+        {NOTE3,      NOTE_TS_TKZC},
+
+        {NOTE6,      NOTE_TS_TKZC * 3 / 2},
+        {NOTE5,      NOTE_TS_TKZC / 2},
+        {NOTE6,      NOTE_TS_TKZC},
+        {NOTE1_HIGH, NOTE_TS_TKZC},
+
+        {NOTE5,      NOTE_TS_TKZC * 2},
+        {0,          NOTE_TS_TKZC},
+        {NOTE4,      NOTE_TS_TKZC / 2},
+        {NOTE3,      NOTE_TS_TKZC / 2},
+
+        {NOTE4,      NOTE_TS_TKZC * 3 / 2},
+        {NOTE3,      NOTE_TS_TKZC / 2},
+        {NOTE4,      NOTE_TS_TKZC / 2},
+        {NOTE1_HIGH, NOTE_TS_TKZC * 3 / 2},
+
+        {NOTE3,      NOTE_TS_TKZC * 2},
+        {0,          NOTE_TS_TKZC / 2},
+        {NOTE1_HIGH, NOTE_TS_TKZC * 3 / 2},
+
+        {NOTE7,      NOTE_TS_TKZC * 3 / 2},
+        {NOTE4_H,    NOTE_TS_TKZC / 2},
+        {NOTE4,      NOTE_TS_TKZC},
+        {NOTE7,      NOTE_TS_TKZC},
+
+        {NOTE7,      NOTE_TS_TKZC},
+        // ...
 };
 
 esp_err_t beep_init(beep_mode_t mode);

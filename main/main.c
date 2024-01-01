@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <driver/rtc_io.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -11,7 +12,9 @@
 #include "esp_flash.h"
 #include "esp_log.h"
 #include "esp_sleep.h"
+#include "driver/gpio.h"
 
+#include "box_common.h"
 #include "lcd/display.h"
 #include "sht31.h"
 #include "key.h"
@@ -115,16 +118,6 @@ void app_main() {
      */
     i2c_master_init();
 
-    sht31_init();
-
-    float temp, hum;
-    bool sht31_success = sht31_get_temp_hum(&temp, &hum);
-    if (sht31_success) {
-        ESP_LOGI(TAG, "sht31 temp:%.2f hum:%.2f", temp, hum);
-    } else {
-        ESP_LOGW(TAG, "sht31 read failed");
-    }
-
     esp_err_t lis3dh_error = lis3dh_init(LIS3DH_LOW_POWER_MODE, LIS3DH_ACC_RANGE_2,
                                          LIS3DH_ACC_SAMPLE_RATE_25);
     if (lis3dh_error == ESP_OK) {
@@ -220,4 +213,43 @@ static esp_err_t i2c_master_init(void) {
         ESP_LOGI(TAG, "I2C initialized successfully");
     }
     return iic_err;
+}
+
+void box_enter_deep_sleep(int sleep_ts) {
+    if (sleep_ts > 0) {
+        esp_sleep_enable_timer_wakeup(sleep_ts * 1000000);
+    } else if (sleep_ts == 0) {
+        esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER);
+    }
+
+#if SOC_PM_SUPPORT_EXT1_WAKEUP_MODE_PER_PIN
+    // EXT1_WAKEUP
+    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << KEY_1_NUM, ESP_GPIO_WAKEUP_GPIO_LOW));
+    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << KEY_2_NUM, ESP_GPIO_WAKEUP_GPIO_LOW));
+    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << KEY_3_NUM, ESP_GPIO_WAKEUP_GPIO_LOW));
+
+    // if no external pull-up/downs
+    ESP_ERROR_CHECK(rtc_gpio_pullup_en(KEY_1_NUM));
+    ESP_ERROR_CHECK(rtc_gpio_pulldown_dis(KEY_1_NUM));
+
+    ESP_ERROR_CHECK(rtc_gpio_pullup_en(KEY_2_NUM));
+    ESP_ERROR_CHECK(rtc_gpio_pulldown_dis(KEY_2_NUM));
+
+    ESP_ERROR_CHECK(rtc_gpio_pullup_en(KEY_3_NUM));
+    ESP_ERROR_CHECK(rtc_gpio_pulldown_dis(KEY_3_NUM));
+
+    // motion wake up
+    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << IMU_INT_1_GPIO, ESP_GPIO_WAKEUP_GPIO_HIGH));
+    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << IMU_INT_2_GPIO, ESP_GPIO_WAKEUP_GPIO_HIGH));
+#else
+    // gpio wake up
+    const gpio_config_t config = {
+            .pin_bit_mask = 1 << KEY_1_NUM | 1 << KEY_2_NUM | 1 << KEY_3_NUM,
+            .mode = GPIO_MODE_INPUT,
+    };
+    ESP_ERROR_CHECK(gpio_config(&config));
+    ESP_ERROR_CHECK(esp_deep_sleep_enable_gpio_wakeup(config.pin_bit_mask, ESP_GPIO_WAKEUP_GPIO_LOW));
+#endif
+    ESP_LOGI(TAG, "enter deep sleep mode, sleep %ds", sleep_ts);
+    esp_deep_sleep_start();
 }

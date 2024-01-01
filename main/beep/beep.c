@@ -163,6 +163,9 @@ esp_err_t beep_deinit() {
 
     if (beep_mode == BEEP_MODE_PWM) {
 
+    } else {
+        rmt_del_encoder(score_encoder);
+        rmt_del_channel(buzzer_chan);
     }
 
     return ESP_OK;

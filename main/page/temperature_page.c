@@ -35,10 +35,8 @@ static uint16_t hum[] = {0xAACA, 0xC8B6, 0x00};
 static uint16_t hum_f[] = {0x25, 0x00};
 
 static float temperature;
-static bool temperature_valid = false;
-
 static float humility;
-static bool humility_valid = false;
+static bool sht31_data_valid = false;
 
 extern esp_event_loop_handle_t event_loop_handle;
 
@@ -51,12 +49,11 @@ static void temp_sensor_event_handler(void *arg, esp_event_base_t event_base, in
             temperature = data->temp;
             humility = data->hum;
 
-            if (temperature_valid == false) {
+            if (sht31_data_valid == false) {
                 ESP_LOGI(TAG, "temp current is invalid request update...");
                 page_manager_request_update(false);
             }
-            temperature_valid = true;
-            humility_valid = true;
+            sht31_data_valid = true;
             break;
         case SHT31_SENSOR_READ_FAILED:
             ESP_LOGE(TAG, "read temp and hum failed!");
@@ -72,6 +69,7 @@ void temperature_page_on_create(void *args) {
                                     BIKE_TEMP_HUM_SENSOR_EVENT, ESP_EVENT_ANY_ID,
                                     temp_sensor_event_handler, NULL);
     sht31_init();
+    sht31_data_valid = sht31_get_temp_hum(&temperature, &humility);
 }
 
 void temperature_page_on_destroy(void *args) {
@@ -88,13 +86,14 @@ void temperature_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     //epd_paint_draw_string_at(epd_paint, 167, 2, (char *)temp, &Font_HZK16, 1);
     digi_view_t *temp_label = digi_view_create(8, 24, 44, 7, 2);
 
-    if (temperature_valid) {
+    if (sht31_data_valid) {
         if (temperature > 100) {
             temperature = 100;
         }
         bool is_minus = temperature < 0;
         epd_paint_draw_string_at(epd_paint, 183, 24, (char *) temp_f, &Font_HZK16, 1);
-        digi_view_set_text(temp_label, (int) temperature, 2, (int) (temperature * 10 + (is_minus ? -0.5f : 0.5f)) % 10, 1);
+        digi_view_set_text(temp_label, (int) temperature, 2, (int) (temperature * 10 + (is_minus ? -0.5f : 0.5f)) % 10,
+                           1);
         digi_view_draw(temp_label, epd_paint, loop_cnt);
     } else {
         digi_view_draw_ee(temp_label, epd_paint, 3, loop_cnt);
@@ -104,7 +103,7 @@ void temperature_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
 
     //epd_paint_draw_string_at(epd_paint, 167, 130, (char *)hum, &Font_HZK16, 1);
     digi_view_t *hum_label = digi_view_create(102, 144, 22, 3, 2);
-    if (humility_valid) {
+    if (sht31_data_valid) {
         if (humility < 0) {
             humility = 0;
         } else if (humility > 99) {
@@ -135,7 +134,6 @@ void temperature_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
                               icon_wifi_bmp_end - icon_wifi_bmp_start, 1);
         icon_x += 26;
     }
-#ifdef CONFIG_ENABLE_BLE_DEVICES
 #ifdef CONFIG_BT_BLUEDROID_ENABLED
     if (esp_bluedroid_get_status() == ESP_BLUEDROID_STATUS_ENABLED) {
         // ble icon
@@ -144,7 +142,6 @@ void temperature_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
                               icon_ble_bmp_end - icon_ble_bmp_start, 1);
         icon_x += 15;
     }
-#endif
 #endif
 }
 

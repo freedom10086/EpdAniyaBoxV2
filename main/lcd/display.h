@@ -3,6 +3,8 @@
 
 #include "key.h"
 
+#define DEEP_SLEEP_TIMEOUT_MS 120000
+
 #define DEFAULT_SLEEP_TS 180
 #define NEVER_SLEEP_TS (-1)
 

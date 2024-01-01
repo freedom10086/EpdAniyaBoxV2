@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <math.h>
 #include <driver/gpio.h>
+#include <driver/gpio_filter.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
@@ -170,6 +171,15 @@ void key_init() {
 
     //ESP_LOGI(TAG, "io %d, level %d", KEY_1_NUM, gpio_get_level(KEY_1_NUM));
     //ESP_LOGI(TAG, "io %d, level %d", KEY_2_NUM, gpio_get_level(KEY_2_NUM));
+
+//    gpio_pin_glitch_filter_config_t gpio_filter_config;
+//    for (uint8_t i = 0; i < KEY_COUNT; ++i) {
+//        gpio_filter_config.clk_src = SOC_MOD_CLK_PLL_F80M;
+//        gpio_filter_config.gpio_num = key_num_list[i];
+//        gpio_glitch_filter_handle_t gpio_filter_handle;
+//        gpio_new_pin_glitch_filter(&gpio_filter_config, &gpio_filter_handle);
+//        gpio_glitch_filter_enable(gpio_filter_handle);
+//    }
 
     //install gpio isr service
     gpio_install_isr_service(0);

@@ -85,6 +85,7 @@ bool music_page_key_click(key_event_id_t key_event_type) {
 
 void music_page_on_destroy(void *arg) {
     list_view_deinit(list_view);
+    beep_deinit();
 }
 
 int music_page_on_enter_sleep(void *args) {

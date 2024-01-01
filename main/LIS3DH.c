@@ -6,8 +6,11 @@
 #include "esp_log.h"
 #include "driver/i2c_master.h"
 
+#include "common_utils.h"
+
 #define TAG "LIS3DH"
 
+ESP_EVENT_DEFINE_BASE(BIKE_MOTION_EVENT);
 #define I2C_MASTER_TIMEOUT_MS       500
 
 // https://learn.adafruit.com/adafruit-lis3dh-triple-axis-accelerometer-breakout/arduino
@@ -55,9 +58,19 @@ static void imu_task_entry(void *arg) {
             if (triggered_gpio == IMU_INT_1_GPIO) {
                 uint8_t has_int1;
                 lis3dh_get_int1_src(&has_int1);
+
+                common_post_event_data(BIKE_MOTION_EVENT,
+                                       LIS3DH_ACC_EVENT_MOTION,
+                                       &triggered_gpio,
+                                       sizeof(triggered_gpio));
             } else {
                 uint8_t single_click, double_click;
                 lis3dh_get_click_src(&single_click, &double_click);
+
+                common_post_event_data(BIKE_MOTION_EVENT,
+                                       LIS3DH_ACC_EVENT_MOTION2,
+                                       &triggered_gpio,
+                                       sizeof(triggered_gpio));
             }
         }
     }

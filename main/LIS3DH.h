@@ -6,6 +6,10 @@
 #define BLINK_LIS3DH_H
 
 #include "driver/i2c.h"
+#include "esp_event.h"
+#include "event_common.h"
+
+ESP_EVENT_DECLARE_BASE(BIKE_MOTION_EVENT);
 
 #define IMU_INT_1_GPIO 4
 #define IMU_INT_2_GPIO 5
@@ -75,7 +79,6 @@
 ///< convert from milli-gs to gs
 #define LIS3DH_LSB16_TO_KILO_LSB10  64000
 
-
 /**
  * LIS3DH_LOW_POWER_MODE : 16mg per deg
  * LIS3DH_NORMAL_MODE : 4mg per deg
@@ -104,6 +107,11 @@ typedef enum {
     LIS3DH_ACC_SAMPLE_RATE_200,
     LIS3DH_ACC_SAMPLE_RATE_400,
 } lis3dh_acc_sample_rage_t;
+
+typedef enum {
+    LIS3DH_ACC_EVENT_MOTION = 0,
+    LIS3DH_ACC_EVENT_MOTION2,
+} lis3dh_event_id;
 
 esp_err_t lis3dh_init(lis3dh_mode_t mode, lis3dh_acc_range_t acc_range, lis3dh_acc_sample_rage_t acc_sample_rate);
 

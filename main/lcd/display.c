@@ -2,29 +2,24 @@
 #include <stdlib.h>
 
 #include <stdbool.h>
-#include <string.h>
-#include <esp_lcd_panel_vendor.h>
 #include <esp_log.h>
 #include <esp_lcd_panel_io.h>
-#include <esp_lcd_panel_ops.h>
 #include <esp_timer.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_freertos_hooks.h"
-#include "freertos/semphr.h"
-#include "esp_system.h"
-#include "driver/gpio.h"
 #include "driver/spi_master.h"
 #include "esp_sleep.h"
-#include "driver/rtc_io.h"
 
 #include "common_utils.h"
 #include "epd_lcd_ssd1680.h"
 #include "epdpaint.h"
 #include "key.h"
+#include "LIS3DH.h"
 #include "display.h"
 #include "page_manager.h"
+#include "box_common.h"
 
 /*********************
  *      DEFINES
@@ -45,6 +40,7 @@ static void guiTask(void *pvParameter);
 
 static TaskHandle_t x_update_notify_handl = NULL;
 static uint32_t boot_cnt = 0;
+static uint32_t lst_event_tick;
 bool updating = false;
 bool holding_updating = false;
 
@@ -84,44 +80,6 @@ bool spi_driver_init(int host,
     return ESP_OK != ret;
 }
 
-void enter_deep_sleep(int sleep_ts, lcd_ssd1680_panel_t *panel) {
-    panel_ssd1680_sleep(panel);
-
-    if (sleep_ts > 0) {
-        esp_sleep_enable_timer_wakeup(sleep_ts * 1000000);
-    } else if (sleep_ts == 0) {
-        esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER);
-    }
-
-
-#if SOC_PM_SUPPORT_EXT1_WAKEUP_MODE_PER_PIN
-    // EXT1_WAKEUP
-    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << KEY_1_NUM, ESP_GPIO_WAKEUP_GPIO_LOW));
-    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << KEY_2_NUM, ESP_GPIO_WAKEUP_GPIO_LOW));
-    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << KEY_3_NUM, ESP_GPIO_WAKEUP_GPIO_LOW));
-
-    // if no external pull-up/downs
-    ESP_ERROR_CHECK(rtc_gpio_pullup_en(KEY_1_NUM));
-    ESP_ERROR_CHECK(rtc_gpio_pulldown_dis(KEY_1_NUM));
-
-    ESP_ERROR_CHECK(rtc_gpio_pullup_en(KEY_2_NUM));
-    ESP_ERROR_CHECK(rtc_gpio_pulldown_dis(KEY_2_NUM));
-
-    ESP_ERROR_CHECK(rtc_gpio_pullup_en(KEY_3_NUM));
-    ESP_ERROR_CHECK(rtc_gpio_pulldown_dis(KEY_3_NUM));
-#else
-    // gpio wake up
-    const gpio_config_t config = {
-            .pin_bit_mask = 1 << KEY_1_NUM | 1 << KEY_2_NUM | 1 << KEY_3_NUM,
-            .mode = GPIO_MODE_INPUT,
-    };
-    ESP_ERROR_CHECK(gpio_config(&config));
-    ESP_ERROR_CHECK(esp_deep_sleep_enable_gpio_wakeup(config.pin_bit_mask, ESP_GPIO_WAKEUP_GPIO_LOW));
-#endif
-    ESP_LOGI(TAG, "enter deep sleep mode, sleep %ds", sleep_ts);
-    esp_deep_sleep_start();
-}
-
 void draw_page(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     page_inst_t current_page = page_manager_get_current_page();
     current_page.on_draw_page(epd_paint, loop_cnt);
@@ -153,8 +111,7 @@ static void guiTask(void *pvParameter) {
     } else {
         // TODO for debug
         //page_manager_init("date-time");
-        page_manager_init("music");
-        // page_manager_init("temperature");
+        page_manager_init("temperature");
     }
 
     x_update_notify_handl = xTaskGetCurrentTaskHandle();
@@ -200,10 +157,6 @@ static void guiTask(void *pvParameter) {
     epd_paint_clear(epd_paint, 0);
 
     panel_ssd1680_init_full(&panel);
-    if (boot_cnt - 1 % 10 == 0) {
-        // every 10 boot clear one display
-        panel_ssd1680_clear_display(&panel, 0xff);
-    }
 
     static uint32_t loop_cnt = 1;
     uint32_t last_full_refresh_loop_cnt = loop_cnt;
@@ -218,7 +171,7 @@ static void guiTask(void *pvParameter) {
     while (1) {
         // not first loop
         if (loop_cnt > 1 && esp_sleep_get_wakeup_cause() != ESP_SLEEP_WAKEUP_TIMER && !holding_updating) {
-            ulNotificationCount = ulTaskGenericNotifyTake(0, pdTRUE, pdMS_TO_TICKS(60000));
+            ulNotificationCount = ulTaskGenericNotifyTake(0, pdTRUE, pdMS_TO_TICKS(30000));
             // ESP_LOGI(TAG, "ulTaskGenericNotifyTake %ld", ulNotificationCount);
             if (ulNotificationCount > 0) { // may > 1 more data ws send
                 continue_time_out_count = 0;
@@ -227,42 +180,60 @@ static void guiTask(void *pvParameter) {
                 continue_time_out_count += 1;
             }
         }
-        holding_updating = false;
-        ESP_LOGI(TAG, "draw loop: %ld, boot_cnt: %ld  ulNotification: %ld", loop_cnt, boot_cnt, ulNotificationCount);
+
         current_tick = xTaskGetTickCount();
+        bool display_time_out = pdTICKS_TO_MS(current_tick - lst_event_tick) >= DEEP_SLEEP_TIMEOUT_MS;
 
-        // use partial update mode
-        // less continue 60 times partial refresh mode or last full update time less 30min and not first loop
-        bool use_partial_update_mode = loop_cnt != 1
-                                       && loop_cnt - last_full_refresh_loop_cnt < 60
-                                       && current_tick - last_full_refresh_tick < configTICK_RATE_HZ * 1800;
-        if (panel._using_partial_mode != use_partial_update_mode) {
-            if (use_partial_update_mode) {
-                panel_ssd1680_init_partial(&panel);
-            } else {
-                panel_ssd1680_init_full(&panel);
+        if (ulNotificationCount > 0 || display_time_out || loop_cnt == 1) {
+            holding_updating = false;
+            ESP_LOGI(TAG, "draw loop: %ld, boot_cnt: %ld  ulNotification: %ld", loop_cnt, boot_cnt,
+                     ulNotificationCount);
+
+            // use partial update mode
+            // less continue 60 times partial refresh mode or last full update time less 30min and not first loop
+            // if will enter deep sleep mode use full update
+            bool use_partial_update_mode = loop_cnt != 1
+                                           && !display_time_out
+                                           && loop_cnt - last_full_refresh_loop_cnt < 60
+                                           && current_tick - last_full_refresh_tick < configTICK_RATE_HZ * 1800;
+
+            //if (display_time_out) {
+            //    panel_ssd1680_clear_display(&panel, 0xff);
+            //}
+
+            if (panel._using_partial_mode != use_partial_update_mode) {
+                if (use_partial_update_mode) {
+                    panel_ssd1680_init_partial(&panel);
+                } else {
+                    panel_ssd1680_init_full(&panel);
+                }
             }
+
+            draw_page(epd_paint, loop_cnt);
+            updating = true;
+            panel_ssd1680_draw_bitmap(&panel, 0, 0, LCD_H_RES, LCD_V_RES, epd_paint->image);
+            panel_ssd1680_refresh(&panel, use_partial_update_mode);
+            updating = false;
+            after_draw_page(loop_cnt);
+
+            if (!use_partial_update_mode) {
+                last_full_refresh_tick = current_tick;
+                last_full_refresh_loop_cnt = loop_cnt;
+            }
+
+            loop_cnt += 1;
         }
-
-        draw_page(epd_paint, loop_cnt);
-        updating = true;
-        panel_ssd1680_draw_bitmap(&panel, 0, 0, LCD_H_RES, LCD_V_RES, epd_paint->image);
-        panel_ssd1680_refresh(&panel, use_partial_update_mode);
-        updating = false;
-        after_draw_page(loop_cnt);
-
-        if (!use_partial_update_mode) {
-            last_full_refresh_tick = current_tick;
-            last_full_refresh_loop_cnt = loop_cnt;
-        }
-
-        loop_cnt += 1;
 
         // enter deep sleep mode
-        if ((continue_time_out_count >= 2) || esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_TIMER) {
+        if (display_time_out || esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_TIMER) {
             int sleepTs = page_manager_enter_sleep(loop_cnt);
             if (sleepTs >= 0) {
-                enter_deep_sleep(sleepTs, &panel);
+                if (display_time_out) {
+                    ESP_LOGI(TAG, "%dms timeout enter sleep.", DEEP_SLEEP_TIMEOUT_MS);
+                }
+
+                panel_ssd1680_sleep(&panel);
+                box_enter_deep_sleep(sleepTs);
             }
         }
     }
@@ -292,6 +263,7 @@ void request_display_update_handler(void *event_handler_arg, esp_event_base_t ev
 
 static void key_click_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id,
                                     void *event_data) {
+    lst_event_tick = xTaskGetTickCount();
     //ESP_LOGI(TAG, "rev key click event %ld", event_id);
     // if menu exist
     if (page_manager_has_menu()) {
@@ -351,8 +323,14 @@ static void key_click_event_handler(void *event_handler_arg, esp_event_base_t ev
     ESP_LOGI(TAG, "no page handler key click event %ld", event_id);
 }
 
+static void acc_motion_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id,
+                                     void *event_data) {
+    lst_event_tick = xTaskGetTickCount();
+}
+
 void display_init(uint32_t boot_count) {
     boot_cnt = boot_count;
+    lst_event_tick = xTaskGetTickCount();
 
     // uxPriority 0 最低
     xTaskCreate(guiTask, "gui", 4096 * 2, NULL, 1, NULL);
@@ -366,5 +344,10 @@ void display_init(uint32_t boot_count) {
     esp_event_handler_register_with(event_loop_handle,
                                     BIKE_REQUEST_UPDATE_DISPLAY_EVENT, ESP_EVENT_ANY_ID,
                                     request_display_update_handler, NULL);
+
+    // lis3dsh event
+    esp_event_handler_register_with(event_loop_handle,
+                                    BIKE_MOTION_EVENT, ESP_EVENT_ANY_ID,
+                                    acc_motion_event_handler, NULL);
 }
 

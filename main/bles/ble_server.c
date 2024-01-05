@@ -212,7 +212,7 @@ esp_err_t ble_server_init() {
     return ESP_OK;
 }
 
-esp_err_t ble_server_start_adv(uint8_t duration) {
+esp_err_t ble_server_start_adv(uint16_t duration) {
     gatts_advertise();
 
     return ESP_OK;

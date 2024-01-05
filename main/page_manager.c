@@ -92,15 +92,13 @@ static page_inst_t pages[] = {
                 .after_draw_page = setting_list_page_after_draw,
         },
         [8] = {
-            .page_name = "ble-device",
-#ifdef CONFIG_ENABLE_BLE_DEVICES
-            .on_draw_page = ble_device_page_draw,
-            .key_click_handler = ble_device_page_key_click,
-            .on_create_page = ble_device_page_on_create,
-            .on_destroy_page = ble_device_page_on_destroy,
-            .enter_sleep_handler = ble_device_page_on_enter_sleep,
-            .after_draw_page = ble_device_page_after_draw,
-#endif
+                .page_name = "ble-device",
+                .on_draw_page = ble_device_page_draw,
+                .key_click_handler = ble_device_page_key_click,
+                .on_create_page = ble_device_page_on_create,
+                .on_destroy_page = ble_device_page_on_destroy,
+                .enter_sleep_handler = ble_device_page_on_enter_sleep,
+                .after_draw_page = ble_device_page_after_draw,
         },
         [9] = {
                 .page_name = "date-time",
@@ -116,6 +114,7 @@ static page_inst_t pages[] = {
                 .on_create_page = battery_page_on_create,
                 .key_click_handler = battery_page_key_click,
                 .enter_sleep_handler = battery_page_on_enter_sleep,
+                .on_destroy_page = battery_page_on_destroy,
         },
         [11] = {
                 .page_name = "music",
@@ -141,14 +140,14 @@ static page_inst_t menus[] = {
 void page_manager_init(char *default_page) {
     // reset to -1 when awake from deep sleep
     current_page_index = -1;
-    page_manager_switch_page(default_page);
+    page_manager_switch_page(default_page, false);
 }
 
 int8_t page_manager_get_current_index() {
     return current_page_index;
 }
 
-void page_manager_switch_page_by_index(int8_t dest_page_index, bool open_by_parent) {
+void page_manager_switch_page_by_index(int8_t dest_page_index, bool push_stack) {
     if (current_page_index == dest_page_index) {
         ESP_LOGW(TAG, "dest page is current %d", dest_page_index);
         return;
@@ -162,14 +161,18 @@ void page_manager_switch_page_by_index(int8_t dest_page_index, bool open_by_pare
              current_page_index >= 0 ? pages[current_page_index].page_name : "empty",
              pages[dest_page_index].page_name);
 
-    // new page on create
-    if (open_by_parent) {
+    if (push_stack) {
         pages[dest_page_index].parent_page_index = current_page_index;
+    } else {
+        pages[dest_page_index].parent_page_index = -1;
     }
+
+    // new page on create
     if (pages[dest_page_index].on_create_page != NULL) {
         pages[dest_page_index].on_create_page(&current_page_index);
         ESP_LOGI(TAG, "page %s on create", pages[dest_page_index].page_name);
     }
+
     pre_page_index = current_page_index;
     current_page_index = dest_page_index;
 
@@ -180,7 +183,7 @@ void page_manager_switch_page_by_index(int8_t dest_page_index, bool open_by_pare
     }
 }
 
-void page_manager_switch_page(char *page_name) {
+void page_manager_switch_page(char *page_name, bool push_stack) {
     int8_t idx = -1;
     for (int8_t i = 0; i < TOTAL_PAGE; ++i) {
         if (strcmp(pages[i].page_name, page_name) == 0) {
@@ -190,10 +193,10 @@ void page_manager_switch_page(char *page_name) {
     }
     if (idx == -1) {
         ESP_LOGE(TAG, "can not find page %s", page_name);
-        page_manager_switch_page_by_index(0, true);
+        page_manager_switch_page_by_index(0, push_stack);
         return;
     }
-    page_manager_switch_page_by_index(idx, true);
+    page_manager_switch_page_by_index(idx, push_stack);
 }
 
 void page_manager_close_page() {
@@ -205,7 +208,8 @@ void page_manager_close_page() {
     if (curr_page.parent_page_index >= 0) {
         page_manager_switch_page_by_index(curr_page.parent_page_index, false);
     } else {
-        page_manager_switch_page_by_index(pre_page_index, false);
+        //page_manager_switch_page_by_index(pre_page_index, false);
+        ESP_LOGW(TAG, "no page to close no parent page");
     }
 }
 

@@ -23,12 +23,14 @@
 //ADC1 Channels io6
 #define ADC1_CHAN     ADC_CHANNEL_6
 
+ESP_EVENT_DEFINE_BASE(BIKE_BATTERY_EVENT);
+
 static int _adc_raw;
 static int _pre_pre_voltage = -1;
 static int _pre_voltage = -1;
 static int _voltage;
 
-TaskHandle_t battery_tsk_hdl;
+static TaskHandle_t battery_tsk_hdl;
 // 电压曲线
 uint32_t *battery_curve_data;
 // 电压曲线长度
@@ -320,6 +322,7 @@ static void battery_task_entry(void *arg) {
     adc_cali_handle_t adc1_cali_handle = NULL;
     bool do_calibration1 = adc_calibration_init(ADC_UNIT_1, ADC_ATTEN_DB_12, &adc1_cali_handle);
 
+    int8_t before_level, current_level;
     while (1) {
         adc_power_on_off(1);
         vTaskDelay(pdMS_TO_TICKS(5));
@@ -329,10 +332,21 @@ static void battery_task_entry(void *arg) {
         if (do_calibration1) {
             int voltage;
             ESP_ERROR_CHECK(adc_cali_raw_to_voltage(adc1_cali_handle, _adc_raw, &voltage));
-            ESP_LOGI(TAG, "ADC%d Channel[%d] Cali Voltage: %d mV", ADC_UNIT_1 + 1, ADC1_CHAN, voltage);
             _pre_pre_voltage = _pre_voltage;
             _pre_voltage = _voltage;
+
+            before_level = battery_get_level();
             _voltage = voltage;
+            current_level = battery_get_level();
+
+            ESP_LOGI(TAG, "ADC%d Channel[%d] Cali Voltage: %d mV level:%d", ADC_UNIT_1 + 1, ADC1_CHAN, voltage, current_level);
+            if (current_level != before_level) {
+                // battery level change
+                common_post_event_data(BIKE_BATTERY_EVENT,
+                                       BATTERY_LEVEL_CHANGE,
+                                       &current_level,
+                                       sizeof(int8_t));
+            }
 
             if (start_battery_curve) {
                 err = add_battery_curve(voltage);
@@ -345,7 +359,7 @@ static void battery_task_entry(void *arg) {
         } else {
             ESP_LOGI(TAG, "ADC%d Channel[%d] Raw Data: %d", ADC_UNIT_1 + 1, ADC1_CHAN, _adc_raw);
         }
-        vTaskDelay(pdMS_TO_TICKS(120000));
+        vTaskDelay(pdMS_TO_TICKS(180000));
     }
 
     //Tear Down
@@ -359,7 +373,7 @@ void battery_init(void) {
     init_power_gpio();
     adc_power_on_off(0);
 
-    /* Create NMEA Parser task */
+    /* Create battery task */
     BaseType_t err = xTaskCreate(
             battery_task_entry,
             "battery",

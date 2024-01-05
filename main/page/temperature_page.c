@@ -23,6 +23,7 @@
 #endif
 
 #define TAG "temp-page"
+#define TEMP_DATA_TIMEOUT_MS 30000
 
 // 温度
 static uint16_t temp[] = {0xC2CE, 0xC8B6, 0x00};
@@ -37,6 +38,7 @@ static uint16_t hum_f[] = {0x25, 0x00};
 static float temperature;
 static float humility;
 static bool sht31_data_valid = false;
+static uint32_t lst_read_tick;
 
 extern esp_event_loop_handle_t event_loop_handle;
 
@@ -48,6 +50,8 @@ static void temp_sensor_event_handler(void *arg, esp_event_base_t event_base, in
             ESP_LOGI(TAG, "temp: %f, hum: %f", data->temp, data->hum);
             temperature = data->temp;
             humility = data->hum;
+
+            lst_read_tick = xTaskGetTickCount();
 
             if (sht31_data_valid == false) {
                 ESP_LOGI(TAG, "temp current is invalid request update...");
@@ -70,6 +74,7 @@ void temperature_page_on_create(void *args) {
                                     temp_sensor_event_handler, NULL);
     sht31_init();
     sht31_data_valid = sht31_get_temp_hum(&temperature, &humility);
+    lst_read_tick = xTaskGetTickCount();
 }
 
 void temperature_page_on_destroy(void *args) {
@@ -82,6 +87,13 @@ void temperature_page_on_destroy(void *args) {
 void temperature_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     ESP_LOGI(TAG, "=== on draw ===");
     epd_paint_clear(epd_paint, 0);
+
+    if (pdTICKS_TO_MS(xTaskGetTickCount() - lst_read_tick) >= TEMP_DATA_TIMEOUT_MS) {
+        if (sht31_read_temp_hum()) {
+            sht31_data_valid = sht31_get_temp_hum(&temperature, &humility);
+            lst_read_tick = xTaskGetTickCount();
+        }
+    }
 
     //epd_paint_draw_string_at(epd_paint, 167, 2, (char *)temp, &Font_HZK16, 1);
     digi_view_t *temp_label = digi_view_create(8, 24, 44, 7, 2);

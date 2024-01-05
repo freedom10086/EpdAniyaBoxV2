@@ -3,6 +3,15 @@
 
 #define BATTERY_ADC_PWR_GPIO_NUM 18
 
+#include "esp_event.h"
+#include "event_common.h"
+
+ESP_EVENT_DECLARE_BASE(BIKE_BATTERY_EVENT);
+
+typedef enum {
+    BATTERY_LEVEL_CHANGE = 0,
+} battery_event_id;
+
 void battery_init(void);
 
 // mv

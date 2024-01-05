@@ -9,6 +9,10 @@
 
 #define TAG "epd_paint"
 
+void epd_paint_draw_absolute_pixel(epd_paint_t *epd_paint, int x, int y, uint8_t colored);
+
+uint8_t epd_paint_get_pixel(epd_paint_t *epd_paint, int x, int y);
+
 void epd_paint_init(epd_paint_t *epd_paint, unsigned char *image, int width, int height, uint8_t rotate) {
     epd_paint->rotate = rotate;
     epd_paint->image = image;
@@ -46,7 +50,7 @@ void epd_paint_clear(epd_paint_t *epd_paint, int colored) {
 
 //    for (int x = 0; x < epd_paint->width; x++) {
 //        for (int y = 0; y < epd_paint->height; y++) {
-//            epd_paint_draw_absolute_pixel(epd_paint, x, y, colored);
+//            epd_paint_draw_pixel(epd_paint, x, y, colored);
 //        }
 //    }
 }
@@ -54,7 +58,7 @@ void epd_paint_clear(epd_paint_t *epd_paint, int colored) {
 void epd_paint_clear_range(epd_paint_t *epd_paint, int start_x, int start_y, int width, int height, int colored) {
     for (int x = start_x; x < min(start_x + width, epd_paint->width); x++) {
         for (int y = start_y; y < min(start_y + height, epd_paint->height); y++) {
-            epd_paint_draw_absolute_pixel(epd_paint, x, y, colored);
+            epd_paint_draw_pixel(epd_paint, x, y, colored);
         }
     }
 }
@@ -62,10 +66,10 @@ void epd_paint_clear_range(epd_paint_t *epd_paint, int start_x, int start_y, int
 void epd_paint_reverse_range(epd_paint_t *epd_paint, int start_x, int start_y, int width, int height) {
     for (int x = start_x; x < min(start_x + width, epd_paint->width); x++) {
         for (int y = start_y; y < min(start_y + height, epd_paint->height); y++) {
-            if (epd_paint->image[(x + y * epd_paint->width) / 8] & (0x80 >> (x % 8))) { // bit is 1
-                epd_paint_draw_absolute_pixel(epd_paint, x, y, 1);
+            if (epd_paint_get_pixel(epd_paint, x, y)) { // bit is 1
+                epd_paint_draw_pixel(epd_paint, x, y, 1);
             } else {
-                epd_paint_draw_absolute_pixel(epd_paint, x, y, 0);
+                epd_paint_draw_pixel(epd_paint, x, y, 0);
             }
         }
     }
@@ -75,7 +79,7 @@ void epd_paint_reverse_range(epd_paint_t *epd_paint, int start_x, int start_y, i
  *  @brief: draws a pixel by absolute coordinates.
  *          this function won't be affected by the rotate parameter.
  */
-void epd_paint_draw_absolute_pixel(epd_paint_t *epd_paint, int x, int y, int colored) {
+void epd_paint_draw_absolute_pixel(epd_paint_t *epd_paint, int x, int y, uint8_t colored) {
     if (x < 0 || x >= epd_paint->width || y < 0 || y >= epd_paint->height) {
         return;
     }
@@ -93,6 +97,37 @@ void epd_paint_draw_absolute_pixel(epd_paint_t *epd_paint, int x, int y, int col
         }
     }
 }
+
+uint8_t epd_paint_get_pixel(epd_paint_t *epd_paint, int x, int y) {
+    int point_temp;
+    if (epd_paint->rotate == ROTATE_0) {
+        if (x < 0 || x >= epd_paint->width || y < 0 || y >= epd_paint->height) {
+            return 0;
+        }
+    } else if (epd_paint->rotate == ROTATE_90) {
+        if (x < 0 || x >= epd_paint->height || y < 0 || y >= epd_paint->width) {
+            return 0;
+        }
+        point_temp = x;
+        x = epd_paint->width - y;
+        y = point_temp;
+    } else if (epd_paint->rotate == ROTATE_180) {
+        if (x < 0 || x >= epd_paint->width || y < 0 || y >= epd_paint->height) {
+            return 0;
+        }
+        x = epd_paint->width - x;
+        y = epd_paint->height - y;
+    } else if (epd_paint->rotate == ROTATE_270) {
+        if (x < 0 || x >= epd_paint->height || y < 0 || y >= epd_paint->width) {
+            return 0;
+        }
+        point_temp = x;
+        x = y;
+        y = epd_paint->height - point_temp;
+    }
+    return epd_paint->image[(x + y * epd_paint->width) / 8] & (0x80 >> (x % 8));
+}
+
 
 /**
  *  @brief: epd_paint draws a pixel by the coordinates
@@ -388,7 +423,7 @@ static void draw_gray_color(epd_paint_t *epd_paint, int x, int y, int end_x, int
             if (!colored) {
                 gray_color = 255 - gray_color;
             }
-            epd_paint_draw_absolute_pixel(epd_paint, i, j, gray_color >= 128 ? 0 : 1);
+            epd_paint_draw_pixel(epd_paint, i, j, gray_color >= 128 ? 0 : 1);
         }
     }
 }
@@ -425,7 +460,7 @@ void epd_paint_draw_bitmap(epd_paint_t *epd_paint, int x, int y, int width, int 
                     gray_color = 255 - gray_color;
                 }
                 //ESP_LOGI(TAG, "x:%d y:%d color:%d", x, y, gray_color);
-                epd_paint_draw_absolute_pixel(epd_paint, i, j, gray_color >= 128 ? 0 : 1);
+                epd_paint_draw_pixel(epd_paint, i, j, gray_color >= 128 ? 0 : 1);
             }
         }
     }

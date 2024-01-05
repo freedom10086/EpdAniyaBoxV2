@@ -195,7 +195,6 @@ void date_time_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
                               icon_wifi_bmp_end - icon_wifi_bmp_start, 1);
         icon_x += 26;
     }
-#ifdef CONFIG_ENABLE_BLE_DEVICES
 #ifdef CONFIG_BT_BLUEDROID_ENABLED
     if (esp_bluedroid_get_status() == ESP_BLUEDROID_STATUS_ENABLED) {
         // ble icon
@@ -204,7 +203,6 @@ void date_time_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
                               icon_ble_bmp_end - icon_ble_bmp_start, 1);
         icon_x += 15;
     }
-#endif
 #endif
 }
 

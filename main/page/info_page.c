@@ -16,6 +16,7 @@
 #include "wifi/wifi_ap.h"
 #include "lcd/epd_lcd_ssd1680.h"
 #include "page_manager.h"
+#include "rx8025t.h"
 
 /*********************
  *      DEFINES
@@ -55,11 +56,11 @@ void info_page_on_create(void *arg) {
 
 void info_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     epd_paint_clear(epd_paint, 0);
-    int y = 8;
+    uint16_t y = 0;
 
-    sprintf(info_page_draw_text_buf, "loop: %ld", loop_cnt);
+    sprintf(info_page_draw_text_buf, "AniyaBox Beta");
     epd_paint_draw_string_at(epd_paint, 0, y, info_page_draw_text_buf, &Font20, 1);
-    y += 20;
+    y += 22;
 
     wifi_mode_t wifi_mode;
     esp_err_t err = esp_wifi_get_mode(&wifi_mode);
@@ -105,15 +106,21 @@ void info_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     y += 18;
 
     // version
-    sprintf(info_page_draw_text_buf, "date:%s", running_app_info.date);
+    sprintf(info_page_draw_text_buf, "build:%s", running_app_info.date);
     epd_paint_draw_string_at(epd_paint, 0, y, info_page_draw_text_buf, &Font16, 1);
     y += 18;
 
     // time
-    sprintf(info_page_draw_text_buf, "time:%s", running_app_info.time);
+    sprintf(info_page_draw_text_buf, "build time:%s", running_app_info.time);
     epd_paint_draw_string_at(epd_paint, 0, y, info_page_draw_text_buf, &Font16, 1);
     y += 18;
 
+    // current date time
+    uint8_t year, month, day, week, hour, minute, second;
+    rx8025t_get_time(&year, &month, &day, &week, &hour, &minute, &second);
+    sprintf(info_page_draw_text_buf, "20%d-%d-%d %d:%d:%d %d", year, month, day, hour, minute, second, week);
+    epd_paint_draw_string_at(epd_paint, 0, y, info_page_draw_text_buf, &Font16, 1);
+    y += 18;
 
     // version
     sprintf(info_page_draw_text_buf, "%s", running_app_info.version);

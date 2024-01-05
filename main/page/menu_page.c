@@ -89,13 +89,13 @@ void change_select(bool next) {
 void handle_click_event() {
     if (current_index == 0) {
         // home page
-        page_manager_switch_page("temperature");
+        page_manager_switch_page("temperature", false);
     } else if (current_index == 1) {
         // image manager
-        page_manager_switch_page("image");
+        page_manager_switch_page("image", false);
     } else if (current_index == 2) {
         // setting
-        page_manager_switch_page("setting-list");
+        page_manager_switch_page("setting-list", true);
     }
     page_manager_close_menu();
     page_manager_request_update(false);

@@ -12,7 +12,7 @@
 #include "sht31.h"
 
 #define I2C_MASTER_NUM              0
-#define I2C_MASTER_TIMEOUT_MS       200
+#define I2C_MASTER_TIMEOUT_MS       100
 
 #define SHT31_ADDR                 0x44
 #define SHT31_MEAS_HIGHREP_STRETCH 0x2C06 /**< Measurement High Repeatability with Clock Stretch Enabled */
@@ -102,6 +102,7 @@ static sht31_t sht31;
 extern i2c_master_bus_handle_t i2c_bus_handle;
 static i2c_master_dev_handle_t dev_handle;
 static bool sht31_inited = false;
+static uint8_t read_wait_ms = 10;
 
 /**
  * @brief Read a sequence of bytes from a MPU9250 sensor registers
@@ -194,16 +195,24 @@ bool sht31_read_temp_hum() {
     uint8_t readbuffer[6];
 
     i2c_write_cmd(SHT31_MEAS_MEDREP); // med 10, high 20
-    vTaskDelay(pdMS_TO_TICKS(10));
 
+    uint8_t retry_cnt = 0;
+    read:
+    vTaskDelay(pdMS_TO_TICKS(read_wait_ms));
     i2c_read(SHT31_FETCH_DATA, readbuffer, 6);
 
     if (readbuffer[2] != crc8(readbuffer, 2) ||
         readbuffer[5] != crc8(readbuffer + 3, 2)) {
-        ESP_LOGW(TAG, "read temp and hum crc check failed!");
+        ESP_LOGW(TAG, "read temp and hum crc check failed! delay ms:%d", read_wait_ms);
+        if (retry_cnt < 3) {
+            retry_cnt ++;
+            ESP_LOGW(TAG, "retry read. %d", retry_cnt);
+            goto read;
+        }
         return false;
     }
 
+    read_wait_ms = read_wait_ms + retry_cnt * 5;
     sht31.data_valid = true;
 
     int32_t stemp = (int32_t) (((uint32_t) readbuffer[0] << 8) | readbuffer[1]);

@@ -41,7 +41,7 @@ static void guiTask(void *pvParameter);
 
 static TaskHandle_t x_update_notify_handl = NULL;
 static uint32_t boot_cnt = 0;
-static uint32_t lst_event_tick;
+static uint32_t lst_event_tick, lst_check_direction_tick;
 bool updating = false;
 bool holding_updating = false;
 static uint8_t curr_disp_rotation;
@@ -74,7 +74,7 @@ uint8_t calc_disp_rotation(uint8_t default_rotate) {
         case LIS3DH_DIR_LEFT:
             return ROTATE_270;
         case LIS3DH_DIR_BOTTOM:
-            return  ROTATE_180;
+            return ROTATE_180;
         case LIS3DH_DIR_RIGHT:
             return ROTATE_90;
         case LIS3DH_DIR_TOP:
@@ -224,6 +224,7 @@ static void guiTask(void *pvParameter) {
     static uint32_t ulNotificationCount;
     static uint32_t continue_time_out_count = 0;
     bool wakeup_by_timer = (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_TIMER);
+    lst_check_direction_tick = 0;
 
     //sleep wait for sensor init
     vTaskDelay(pdMS_TO_TICKS(50));
@@ -246,8 +247,12 @@ static void guiTask(void *pvParameter) {
 
         bool rotation_change = false;
         // 重新计算屏幕旋转角度 必须是静态情况下(5s 没有按键/加速度)
-        if ((ulNotificationCount == 0 && pdTICKS_TO_MS(current_tick - lst_event_tick) >= 5000) || wakeup_by_timer) {
+        if ((ulNotificationCount == 0
+             && pdTICKS_TO_MS(current_tick - lst_check_direction_tick) >= 5000
+             && pdTICKS_TO_MS(current_tick - lst_event_tick) >= 5000)
+            || wakeup_by_timer) {
             uint8_t new_rotation = calc_disp_rotation(curr_disp_rotation);
+            lst_check_direction_tick = current_tick;
             if (new_rotation != curr_disp_rotation) {
                 ESP_LOGI(TAG, "disp rotation change from %d to %d", curr_disp_rotation, new_rotation);
                 curr_disp_rotation = new_rotation;
@@ -257,6 +262,7 @@ static void guiTask(void *pvParameter) {
             }
         }
 
+        bool will_enter_deep_sleep = display_time_out || wakeup_by_timer;
         if (ulNotificationCount > 0 || display_time_out || loop_cnt == 1 || rotation_change) {
             holding_updating = false;
             ESP_LOGI(TAG, "draw loop: %ld, boot_cnt: %ld  ulNotification: %ld", loop_cnt, boot_cnt,
@@ -265,10 +271,10 @@ static void guiTask(void *pvParameter) {
             // use partial update mode
             // less continue 60 times partial refresh mode or last full update time less 30min and not first loop
             // if will enter deep sleep mode use full update
-            bool use_partial_update_mode = loop_cnt != 1
-                                           && !display_time_out
-                                           && loop_cnt - last_full_refresh_loop_cnt < 60
-                                           && current_tick - last_full_refresh_tick < configTICK_RATE_HZ * 1800;
+            bool use_full_update_mode = loop_cnt == 1
+                                        || loop_cnt - last_full_refresh_loop_cnt >= 60
+                                        || (will_enter_deep_sleep && pdTICKS_TO_MS(current_tick - last_full_refresh_tick) >= 5000);
+            bool use_partial_update_mode = !use_full_update_mode;
 
             //if (display_time_out) {
             //    panel_ssd1680_clear_display(&panel, 0xff);
@@ -289,7 +295,7 @@ static void guiTask(void *pvParameter) {
             updating = false;
             after_draw_page(loop_cnt);
 
-            if (!use_partial_update_mode) {
+            if (use_full_update_mode) {
                 last_full_refresh_tick = current_tick;
                 last_full_refresh_loop_cnt = loop_cnt;
             }
@@ -302,7 +308,7 @@ static void guiTask(void *pvParameter) {
             int sleepTs = page_manager_enter_sleep(loop_cnt);
             if (sleepTs >= 0) {
                 if (display_time_out) {
-                    ESP_LOGI(TAG, "%dms timeout enter sleep.", DEEP_SLEEP_TIMEOUT_MS);
+                    ESP_LOGI(TAG, "%dms timeout enter sleep. sleep ts %d", DEEP_SLEEP_TIMEOUT_MS, sleepTs);
                 }
 
                 panel_ssd1680_sleep(&panel);
@@ -366,26 +372,31 @@ static void key_click_event_handler(void *event_handler_arg, esp_event_base_t ev
             if (page_manager_has_menu()) {
                 page_manager_close_menu();
                 page_manager_request_update(false);
+                return;
             } else {
                 page_manager_close_page();
+                page_manager_request_update(false);
+                return;
             }
             break;
         case KEY_OK_LONG_CLICK:
             if (page_manager_has_menu()) {
                 page_manager_close_menu();
                 page_manager_request_update(false);
+                return;
             } else {
                 page_manager_show_menu("menu");
                 page_manager_request_update(false);
+                return;
             }
             break;
         case KEY_UP_LONG_CLICK:
         case KEY_DOWN_LONG_CLICK:
             if (page_manager_get_current_index() == TEMP_PAGE_INDEX) {
-                page_manager_switch_page("image");
+                page_manager_switch_page("image", false);
                 page_manager_request_update(false);
             } else {
-                page_manager_switch_page("temperature");
+                page_manager_switch_page("temperature", false);
                 page_manager_request_update(false);
             }
         default:

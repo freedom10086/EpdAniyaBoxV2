@@ -218,9 +218,9 @@ void box_enter_deep_sleep(int sleep_ts) {
 
 #if SOC_PM_SUPPORT_EXT1_WAKEUP_MODE_PER_PIN
     // EXT1_WAKEUP
-    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << KEY_1_NUM, ESP_GPIO_WAKEUP_GPIO_LOW));
-    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << KEY_2_NUM, ESP_GPIO_WAKEUP_GPIO_LOW));
-    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << KEY_3_NUM, ESP_GPIO_WAKEUP_GPIO_LOW));
+    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup(1ULL << KEY_1_NUM, ESP_GPIO_WAKEUP_GPIO_LOW));
+    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup(1ULL << KEY_2_NUM, ESP_GPIO_WAKEUP_GPIO_LOW));
+    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup(1ULL << KEY_3_NUM, ESP_GPIO_WAKEUP_GPIO_LOW));
 
     // if no external pull-up/downs
     ESP_ERROR_CHECK(rtc_gpio_pullup_en(KEY_1_NUM));
@@ -233,8 +233,8 @@ void box_enter_deep_sleep(int sleep_ts) {
     ESP_ERROR_CHECK(rtc_gpio_pulldown_dis(KEY_3_NUM));
 
     // motion wake up
-    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << IMU_INT_1_GPIO, ESP_GPIO_WAKEUP_GPIO_HIGH));
-    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << IMU_INT_2_GPIO, ESP_GPIO_WAKEUP_GPIO_HIGH));
+    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup(1ULL << IMU_INT_1_GPIO, ESP_GPIO_WAKEUP_GPIO_HIGH));
+    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup(1ULL << IMU_INT_2_GPIO, ESP_GPIO_WAKEUP_GPIO_HIGH));
 #else
     // gpio wake up
     const gpio_config_t config = {

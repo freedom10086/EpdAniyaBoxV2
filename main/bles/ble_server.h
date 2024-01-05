@@ -10,7 +10,7 @@
 
 esp_err_t ble_server_init();
 
-esp_err_t ble_server_start_adv(uint8_t duration);
+esp_err_t ble_server_start_adv(uint16_t duration);
 
 esp_err_t ble_server_stop_adv();
 

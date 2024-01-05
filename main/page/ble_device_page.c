@@ -1,14 +1,13 @@
 #include "ble_device_page.h"
 
-#ifdef CONFIG_ENABLE_BLE_DEVICES
-
 #include "esp_log.h"
 #include "string.h"
 
 #include "lcd/epd_lcd_ssd1680.h"
-#include "bike_common.h"
 #include "page_manager.h"
 #include "ble/ble_device.h"
+#include "event_common.h"
+#include "common_utils.h"
 
 #define TAG "ble_device_page"
 
@@ -26,6 +25,8 @@ static uint8_t total_item_count = 1;
 
 static bool scanning = false;
 static char buff[BUFF_LEN];
+
+extern esp_event_loop_handle_t event_loop_handle;
 
 static void ble_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id,
                               void *event_data) {
@@ -169,5 +170,3 @@ void ble_device_page_on_destroy(void *arg) {
 int ble_device_page_on_enter_sleep(void *args) {
     return -1;
 }
-
-#endif

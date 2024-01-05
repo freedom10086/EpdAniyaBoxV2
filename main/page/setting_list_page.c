@@ -166,19 +166,19 @@ static void handle_click_event() {
     if (current_index == 0) {
         page_manager_close_page();
     } else if (current_index == 1) {
-        page_manager_switch_page("info");
+        page_manager_switch_page("info", true);
     } else if (current_index == 2) {
-        page_manager_switch_page("manual");
+        page_manager_switch_page("manual", true);
     } else if (current_index == 3) {
-        page_manager_switch_page("image-manage");
+        page_manager_switch_page("image-manage", true);
     } else if (current_index == 4) {
-        page_manager_switch_page("music");
+        page_manager_switch_page("music", true);
     } else if (current_index == 5) {
-        page_manager_switch_page("upgrade");
+        page_manager_switch_page("upgrade", true);
     } else if (current_index == 6) {
-        page_manager_switch_page("ble-device");
+        page_manager_switch_page("ble-device", true);
     } else if (current_index == 7) {
-        page_manager_switch_page("battery");
+        page_manager_switch_page("battery", true);
     } else if (current_index == 8) {
         esp_restart();
     }

@@ -1,7 +1,7 @@
 set(srcs "lcd/font8.c" "lcd/font12.c" "lcd/font16.c" "lcd/font20.c" "lcd/font24.c" "lcd/font_hzk16.c" "lcd/epdpaint.c"
         "lcd/bmp.c" "lcd/jpg.c"
         "tools/kalman_filter.c" "tools/encode.c"
-        "battery.c" "key.c"
+        "battery.c" "key.c" "setting.c"
         "wifi/wifi_ap.c" "wifi/my_http_server.c" "wifi/my_http_file_server.c" "wifi/my_mount.c" "wifi/my_wifi_ota.c" "wifi/wifi_device_setting.c"
         "common_utils.c"
         "ble/ble_device.c" "ble/ble_peer.c" "ble/ble_svc_battery_level.c" "ble/ble_svc_device_information.c"
@@ -21,4 +21,5 @@ idf_component_register(SRCS ${srcs}
         EMBED_FILES "static/icon_wifi.bmp" "static/icon_ble.bmp" "static/icon_sat.bmp" "static/icon_upgrade.bmp"
         EMBED_FILES "static/ic_close_32.bmp" "static/ic_home_32.bmp" "static/ic_image_32.bmp" "static/ic_info_32.bmp" "static/ic_manual_32.bmp"
         EMBED_FILES "static/ic_setting_32.bmp" "static/ic_upgrade_32.bmp" "static/ic_reboot_32.bmp" "static/ic_back_32.bmp" "static/ic_ble_32.bmp"
+        EMBED_FILES "static/ic_music_32.bmp" "static/ic_battery_32.bmp"
         INCLUDE_DIRS ".")

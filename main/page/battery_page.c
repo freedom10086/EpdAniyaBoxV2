@@ -13,7 +13,7 @@
 static char battery_page_draw_text_buf[64] = {0};
 
 void battery_page_on_create(void *arg) {
-    //ble_server_init();
+    ble_server_init();
 }
 
 void battery_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
@@ -68,8 +68,8 @@ bool battery_page_key_click(key_event_id_t key_event_type) {
 }
 
 void battery_page_on_destroy(void *arg) {
-    //ble_server_stop_adv();
-    //ble_server_deinit();
+    ble_server_stop_adv();
+    ble_server_deinit();
 }
 
 int battery_page_on_enter_sleep(void *args) {

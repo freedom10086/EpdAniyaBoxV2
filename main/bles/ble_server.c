@@ -10,7 +10,7 @@
 #include "console/console.h"
 #include "services/gap/ble_svc_gap.h"
 #include "gatts_sens.h"
-#include "../src/ble_hs_hci_priv.h"
+#include "esp_bt.h"
 
 #include "common_utils.h"
 

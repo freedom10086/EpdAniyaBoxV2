@@ -111,6 +111,7 @@ typedef enum {
 typedef enum {
     LIS3DH_ACC_EVENT_MOTION = 0,
     LIS3DH_ACC_EVENT_MOTION2,
+    LIS3DH_DIRECTION_CHANGE,
 } lis3dh_event_id;
 
 typedef enum {
@@ -135,6 +136,8 @@ esp_err_t lis3dh_shutdown();
 esp_err_t lis3dh_read_acc(float *accx, float *accy, float *accz);
 
 lis3dh_direction_t lis3dh_calc_direction();
+
+lis3dh_direction_t lis3dh_get_direction();
 
 uint8_t lis3dh_config_motion_detect();
 

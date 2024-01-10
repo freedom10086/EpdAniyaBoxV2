@@ -41,7 +41,7 @@ int8_t page_manager_get_current_index();
 
 void page_manager_switch_page(char *page_name, bool push_stack);
 
-void page_manager_close_page();
+bool page_manager_close_page();
 
 page_inst_t page_manager_get_current_page();
 

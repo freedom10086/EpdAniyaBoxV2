@@ -7,30 +7,42 @@
 #include "services/gatt/ble_svc_gatt.h"
 #include "gatts_sens.h"
 #include "esp_log.h"
-#include "ble/ble_uuid.h"
+#include "esp_bt.h"
+
+#include "ble/my_ble_uuid.h"
 #include "battery.h"
 #include "sht31.h"
+#include "setting.h"
+
+#define TAG "BLE_SERVER_SVC"
 
 #define WRITE_THROUGHPUT_PAYLOAD           32
 #define NOTIFY_THROUGHPUT_PAYLOAD          32
 #define MIN_REQUIRED_MBUF         2 /* Assuming payload of 500Bytes and each mbuf can take 292Bytes.  */
 
-static const char *tag = "BLE_SERVER_SVC";
-static uint8_t gatt_svr_thrpt_static_short_val[WRITE_THROUGHPUT_PAYLOAD];
+#define BLE_UUID_STR_LEN (37)
+static char ble_uuid_buf[BLE_UUID_STR_LEN];
+
+static uint8_t gatt_write_buff[WRITE_THROUGHPUT_PAYLOAD];
+static uint8_t gatt_write_buff2[WRITE_THROUGHPUT_PAYLOAD];
+
 static SemaphoreHandle_t notify_sem;
 static bool notify_state = false;
-TaskHandle_t notify_task_handle;
+static TaskHandle_t notify_task_handle;
 
-uint16_t battery_notify_handle;
+static uint16_t battery_notify_handle;
 static uint16_t conn_handle;
 
-static int gatt_svr_read_write_callback(uint16_t conn_handle, uint16_t attr_handle,
+static int gatt_svr_access_battery_level(uint16_t conn_handle, uint16_t attr_handle,
                                         struct ble_gatt_access_ctxt *ctxt, void *arg);
 
 static int gatt_svr_chr_access_device_info(uint16_t conn_handle, uint16_t attr_handle,
                                            struct ble_gatt_access_ctxt *ctxt, void *arg);
 
 static int gatt_svr_chr_access_environment_info(uint16_t conn_handle, uint16_t attr_handle,
+                                                struct ble_gatt_access_ctxt *ctxt, void *arg);
+
+static int gatt_svr_chr_access_uart(uint16_t conn_handle, uint16_t attr_handle,
                                                 struct ble_gatt_access_ctxt *ctxt, void *arg);
 
 static const struct ble_gatt_svc_def gatts_test_svcs[] = {
@@ -41,7 +53,7 @@ static const struct ble_gatt_svc_def gatts_test_svcs[] = {
                         {
                                 {
                                         .uuid = BLE_UUID16_DECLARE(BLE_UUID_CHAR_BATTERY_LEVEL),
-                                        .access_cb = gatt_svr_read_write_callback,
+                                        .access_cb = gatt_svr_access_battery_level,
                                         .val_handle = &battery_notify_handle,
                                         .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY,
                                 },
@@ -111,6 +123,26 @@ static const struct ble_gatt_svc_def gatts_test_svcs[] = {
                         }
         },
         {
+                .type = BLE_GATT_SVC_TYPE_PRIMARY,
+                .uuid = &BLE_SVC_UART_UUID.u,
+                .characteristics = (struct ble_gatt_chr_def[])
+                        {
+                                {
+                                        .uuid = &BLE_UUID_CHAR_UART_TX.u,
+                                        .access_cb = gatt_svr_chr_access_uart,
+                                        .flags = BLE_GATT_CHR_F_WRITE
+                                },
+                                {
+                                        .uuid = &BLE_UUID_CHAR_UART_RX.u,
+                                        .access_cb = gatt_svr_chr_access_uart,
+                                        .flags = BLE_GATT_CHR_F_READ | BLE_GATT_CHR_F_NOTIFY
+                                },
+                                {
+                                        0, /* No more characteristics in this service. */
+                                }
+                        }
+        },
+        {
                 0, /* No more services. */
         },
 };
@@ -134,50 +166,12 @@ static int gatt_svr_chr_write(uint16_t conn_handle, uint16_t attr_handle,
     return 0;
 }
 
-static int gatt_svr_read_write_callback(uint16_t conn_handle, uint16_t attr_handle,
-                                        struct ble_gatt_access_ctxt *ctxt, void *arg) {
-    uint16_t uuid16;
-    int rc;
-
-    if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR
-        || ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
-        uuid16 = ble_uuid_u16(ctxt->chr->uuid);
-    } else {
-        uuid16 = ble_uuid_u16(ctxt->dsc->uuid);
-    }
-
-    switch (uuid16) {
-        case BLE_UUID_CHAR_BATTERY_LEVEL:
-            if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR) {
-                rc = gatt_svr_chr_write(conn_handle, attr_handle,
-                                        ctxt->om, 0,
-                                        sizeof gatt_svr_thrpt_static_short_val,
-                                        gatt_svr_thrpt_static_short_val, NULL);
-                return rc;
-            } else if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
-                uint8_t data[] = {battery_get_level()};
-                rc = os_mbuf_append(ctxt->om, data, sizeof(uint8_t));
-                return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
-            } else if (ctxt->op == BLE_GATT_ACCESS_OP_READ_DSC) {
-                ESP_LOGI(tag, "BLE_GATT_ACCESS_OP_READ_DSC");
-                return 0;
-            } else if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_DSC) {
-                ESP_LOGI(tag, "BLE_GATT_ACCESS_OP_WRITE_DSC");
-                return 0;
-            }
-            return BLE_ATT_ERR_UNLIKELY;
-        default:
-            ESP_LOGE(tag, "unknown op: %d for uuid: %x", ctxt->op, uuid16);
-            return BLE_ATT_ERR_UNLIKELY;
-    }
-}
-
 void gatt_svr_handle_subscribe(struct ble_gap_event *event, void *arg) {
     if (event->subscribe.attr_handle == battery_notify_handle) {
         conn_handle = event->subscribe.conn_handle;
         notify_state = event->subscribe.cur_notify;
         if (arg != NULL) {
-            ESP_LOGI(tag, "notify arg = %d", *(int *) arg);
+            ESP_LOGI(TAG, "notify arg = %d", *(int *) arg);
         }
         xSemaphoreGive(notify_sem);
     } else if (event->subscribe.attr_handle != battery_notify_handle) {
@@ -195,8 +189,40 @@ void gatt_svr_notify_tx_event(struct ble_gap_event *event, void *arg) {
              * notifications.XXX */
             xSemaphoreGive(notify_sem);
         } else {
-            ESP_LOGE(tag, "BLE_GAP_EVENT_NOTIFY_TX notify tx status = %d", event->notify_tx.status);
+            ESP_LOGE(TAG, "BLE_GAP_EVENT_NOTIFY_TX notify tx status = %d", event->notify_tx.status);
         }
+    }
+}
+
+static int gatt_svr_access_battery_level(uint16_t conn_handle, uint16_t attr_handle,
+                                         struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    uint16_t uuid16;
+    int rc;
+
+    if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR
+        || ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
+        uuid16 = ble_uuid_u16(ctxt->chr->uuid);
+    } else {
+        uuid16 = ble_uuid_u16(ctxt->dsc->uuid);
+    }
+
+    switch (uuid16) {
+        case BLE_UUID_CHAR_BATTERY_LEVEL:
+            if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
+                uint8_t data[] = {battery_get_level()};
+                rc = os_mbuf_append(ctxt->om, data, sizeof(uint8_t));
+                return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
+            } else if (ctxt->op == BLE_GATT_ACCESS_OP_READ_DSC) {
+                ESP_LOGI(TAG, "BLE_GATT_ACCESS_OP_READ_DSC");
+                return 0;
+            } else if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_DSC) {
+                ESP_LOGI(TAG, "BLE_GATT_ACCESS_OP_WRITE_DSC");
+                return 0;
+            }
+            return BLE_ATT_ERR_UNLIKELY;
+        default:
+            ESP_LOGE(TAG, "unknown op: %d for uuid: %x", ctxt->op, uuid16);
+            return BLE_ATT_ERR_UNLIKELY;
     }
 }
 
@@ -212,19 +238,19 @@ static int gatt_svr_chr_access_device_info(uint16_t conn_handle, uint16_t attr_h
             rc = os_mbuf_append(ctxt->om, "Aniya-Magic-Box", sizeof("Aniya-Magic-Box"));
             return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
         case BLE_UUID_CHAR_Serial_Number:
-            rc = os_mbuf_append(ctxt->om, "Aniya-Magic-Box 1.0", sizeof("Aniya-Magic-Box 1.0"));
+            rc = os_mbuf_append(ctxt->om, "Aniya-Magic-Box 2.0", sizeof("Aniya-Magic-Box 2.0"));
             return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
         case BLE_UUID_CHAR_Hardware_Revision:
-            rc = os_mbuf_append(ctxt->om, "1.0", sizeof("1.0"));
+            rc = os_mbuf_append(ctxt->om, "2.0", sizeof("2.0"));
             return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
         case BLE_UUID_CHAR_Firmware_Revision:
-            rc = os_mbuf_append(ctxt->om, "1.0", sizeof("1.0"));
+            rc = os_mbuf_append(ctxt->om, "2.0", sizeof("2.0"));
             return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
         case BLE_UUID_CHAR_Software_Revision:
-            rc = os_mbuf_append(ctxt->om, "1.0", sizeof("1.0"));
+            rc = os_mbuf_append(ctxt->om, "2.0", sizeof("2.0"));
             return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
         default:
-            ESP_LOGE(tag, "unknown op: %d for uuid: %x", ctxt->op, uuid16);
+            ESP_LOGE(TAG, "unknown op: %d for uuid: %x", ctxt->op, uuid16);
             return BLE_ATT_ERR_UNLIKELY;
     }
 }
@@ -238,16 +264,20 @@ static int gatt_svr_chr_access_environment_info(uint16_t conn_handle, uint16_t a
     switch (uuid16) {
         case BLE_UUID_CHAR_TEMPERATURE:
             if (sht31_get_temp_hum(&temp, &hum)) {
+                ESP_LOGI(TAG, "BLE_UUID_CHAR_TEMPERATURE %.2f", temp);
                 int16_t int16_temp = (int16_t)(temp * 100);
-                rc = os_mbuf_append(ctxt->om, &int16_temp, sizeof(int16_t));
+                uint8_t data[] = {int16_temp >> 8 & 0xff, int16_temp & 0xff};
+                rc = os_mbuf_append(ctxt->om, data, sizeof(data));
             } else {
                 rc = BLE_ATT_ERR_UNLIKELY;
             }
             return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
         case BLE_UUID_CHAR_HUMIDITY:
             if (sht31_get_temp_hum(&temp, &hum)) {
+                ESP_LOGI(TAG, "BLE_UUID_CHAR_HUMIDITY %.2f", hum);
                 uint16_t uint16_hum = (uint16_t)(hum * 100);
-                rc = os_mbuf_append(ctxt->om, &uint16_hum, sizeof(uint16_t));
+                uint8_t data[] = {uint16_hum >> 8 & 0xff, uint16_hum & 0xff};
+                rc = os_mbuf_append(ctxt->om, data, sizeof(data));
             } else {
                 rc = BLE_ATT_ERR_UNLIKELY;
             }
@@ -257,9 +287,53 @@ static int gatt_svr_chr_access_environment_info(uint16_t conn_handle, uint16_t a
             rc = os_mbuf_append(ctxt->om, &pressure, sizeof(uint32_t));
             return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
         default:
-            ESP_LOGE(tag, "unknown op: %d for uuid: %x", ctxt->op, uuid16);
+            ESP_LOGE(TAG, "unknown op: %d for uuid: %x", ctxt->op, uuid16);
             return BLE_ATT_ERR_UNLIKELY;
     }
+}
+
+static int gatt_svr_chr_access_uart(uint16_t conn_handle, uint16_t attr_handle,
+                                    struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    int rc;
+    const ble_uuid_t *uuid;
+    uint16_t read_len;
+
+    if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR
+        || ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR) {
+        uuid = ctxt->chr->uuid;
+    } else {
+        uuid = ctxt->dsc->uuid;
+    }
+
+    if (ctxt->op == BLE_GATT_ACCESS_OP_WRITE_CHR
+        && ble_uuid_cmp(uuid, &BLE_UUID_CHAR_UART_TX.u) == 0) {
+
+        uint16_t write_len;
+        rc = gatt_svr_chr_write(conn_handle, attr_handle,
+                                ctxt->om, 0,
+                                sizeof gatt_write_buff,
+                                gatt_write_buff, &write_len);
+        ESP_LOGI(TAG, "write uart tx len %d data[0]: %d, rc:%d", write_len, gatt_write_buff[0], rc);
+        if (write_len == 0 || rc != ESP_OK) {
+            return BLE_ATT_ERR_UNLIKELY;
+        }
+        return box_setting_apply(gatt_write_buff[0], gatt_write_buff + 1, write_len - 1);
+    } else if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR
+        && ble_uuid_cmp(uuid, &BLE_UUID_CHAR_UART_RX.u) == 0) {
+        rc = box_setting_load(BOX_SETTING_CMD_LOAD_CONFIG, gatt_write_buff2, &read_len);
+        if (rc != ESP_OK) {
+            return rc;
+        }
+        rc = os_mbuf_append(ctxt->om, gatt_write_buff2, read_len);
+        ESP_LOGI(TAG, "read uart rx len %d data[0]: %d", read_len, gatt_write_buff2[0]);
+        return rc;
+    } else {
+        ble_uuid_to_str(uuid, ble_uuid_buf);
+        ESP_LOGW(TAG, "unknown op: %d for uuid: %s", ctxt->op, ble_uuid_buf);
+        rc = BLE_ATT_ERR_UNLIKELY;
+    }
+
+    return rc;
 }
 
 void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg) {
@@ -267,13 +341,13 @@ void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg) {
 
     switch (ctxt->op) {
         case BLE_GATT_REGISTER_OP_SVC:
-            ESP_LOGI(tag, "registered service %s with handle=%d",
+            ESP_LOGI(TAG, "registered service %s with handle=%d",
                      ble_uuid_to_str(ctxt->svc.svc_def->uuid, buf),
                      ctxt->svc.handle);
             break;
 
         case BLE_GATT_REGISTER_OP_CHR:
-            ESP_LOGI(tag, "registering characteristic %s with "
+            ESP_LOGI(TAG, "registering characteristic %s with "
                           "def_handle=%d val_handle=%d\n",
                      ble_uuid_to_str(ctxt->chr.chr_def->uuid, buf),
                      ctxt->chr.def_handle,
@@ -281,7 +355,7 @@ void gatt_svr_register_cb(struct ble_gatt_register_ctxt *ctxt, void *arg) {
             break;
 
         case BLE_GATT_REGISTER_OP_DSC:
-            ESP_LOGI(tag, "registering descriptor %s with handle=%d",
+            ESP_LOGI(TAG, "registering descriptor %s with handle=%d",
                      ble_uuid_to_str(ctxt->dsc.dsc_def->uuid, buf),
                      ctxt->dsc.handle);
             break;
@@ -303,13 +377,13 @@ static void notify_task(void *arg) {
     payload[1] = rand();
 
     while (1) {
-        ESP_LOGI(tag, "notify_state = %d", notify_state);
+        ESP_LOGI(TAG, "notify_state = %d", notify_state);
 
         while (!notify_state) {
             vTaskDelay(1000 / portTICK_PERIOD_MS);
         }
 
-        ESP_LOGI(tag, "wait for notify semaphore");
+        ESP_LOGI(TAG, "wait for notify semaphore");
         /* We are anyway using counting semaphore for sending
          * notifications. So hopefully not much waiting period will be
          * introduced before sending a new notification. Revisit this
@@ -323,14 +397,14 @@ static void notify_task(void *arg) {
                 om = ble_hs_mbuf_from_flat(payload, 1);
                 if (om == NULL) {
                     /* Memory not available for mbuf */
-                    ESP_LOGE(tag, "No MBUFs available from pool, retry..");
+                    ESP_LOGE(TAG, "No MBUFs available from pool, retry..");
                     vTaskDelay(100 / portTICK_PERIOD_MS);
                 }
             } while (om == NULL);
 
             rc = ble_gatts_notify_custom(conn_handle, battery_notify_handle, om);
             if (rc != 0) {
-                ESP_LOGE(tag, "Error while sending notification; rc = %d", rc);
+                ESP_LOGE(TAG, "Error while sending notification; rc = %d", rc);
                 notify_count -= 1;
                 xSemaphoreGive(notify_sem);
                 /* Most probably error is because we ran out of mbufs (rc = 6),
@@ -341,14 +415,14 @@ static void notify_task(void *arg) {
                 vTaskDelay(10 / portTICK_PERIOD_MS);
             }
         } else {
-            ESP_LOGE(tag, "Not enough OS_MBUFs available; reduce notify count ");
+            ESP_LOGE(TAG, "Not enough OS_MBUFs available; reduce notify count ");
             xSemaphoreGive(notify_sem);
             notify_count -= 1;
             vTaskDelay(10 / portTICK_PERIOD_MS);
         }
 
         notify_count += 1;
-        ESP_LOGI(tag, "Notify  compete = %d", notify_count);
+        ESP_LOGI(TAG, "Notify  compete = %d", notify_count);
         vTaskDelay(3000 / portTICK_PERIOD_MS);
     }
 }
@@ -361,6 +435,8 @@ int gatt_svr_init(void) {
     notify_sem = xSemaphoreCreateCounting(32, 0);
 
     sht31_init();
+
+    esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_DEFAULT, ESP_PWR_LVL_N15);
 
     /* Initialize Notify Task */
     xTaskCreate(notify_task, "ble_notify_task", 4096, NULL, 10, &notify_task_handle);

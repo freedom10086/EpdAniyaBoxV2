@@ -29,6 +29,8 @@ static lis3dh_mode_t _mode;
 static lis3dh_acc_range_t _acc_range;
 static lis3dh_acc_sample_rage_t _acc_sample_rate;
 
+RTC_DATA_ATTR lis3dh_direction_t lis3dsh_direction = LIS3DH_DIR_TOP;
+
 extern i2c_master_bus_handle_t i2c_bus_handle;
 static i2c_master_dev_handle_t dev_handle;
 
@@ -53,7 +55,7 @@ static void IRAM_ATTR gpio_isr_handler(void *arg) {
 static void imu_task_entry(void *arg) {
     gpio_num_t triggered_gpio;
     while (1) {
-        if (xQueueReceive(imu_int_event_queue, &triggered_gpio, portMAX_DELAY)) {
+        if (xQueueReceive(imu_int_event_queue, &triggered_gpio, pdMS_TO_TICKS(8000))) {
             int level = gpio_get_level(triggered_gpio);
             ESP_LOGI(TAG, "imu isr event io:%d level:%d", triggered_gpio, level);
             if (triggered_gpio == IMU_INT_1_GPIO) {
@@ -72,6 +74,19 @@ static void imu_task_entry(void *arg) {
                                        LIS3DH_ACC_EVENT_MOTION2,
                                        &triggered_gpio,
                                        sizeof(triggered_gpio));
+            }
+        } else {
+            // time out read acc sensor to calc display direction
+            lis3dh_direction_t direction = lis3dh_calc_direction();
+            ESP_LOGI(TAG, "calc display rotation %d", direction);
+            if (direction != LIS3DH_DIR_UNKNOWN && direction != lis3dsh_direction) {
+                // direction change
+                ESP_LOGI(TAG, "direction change to %d", direction);
+                lis3dsh_direction = direction;
+                common_post_event_data(BIKE_MOTION_EVENT,
+                                       LIS3DH_DIRECTION_CHANGE,
+                                       &lis3dsh_direction,
+                                       sizeof(lis3dsh_direction));
             }
         }
     }
@@ -312,6 +327,10 @@ lis3dh_direction_t lis3dh_calc_direction() {
     }
 
     return LIS3DH_DIR_UNKNOWN;
+}
+
+lis3dh_direction_t lis3dh_get_direction() {
+    return lis3dsh_direction;
 }
 
 uint8_t lis3dh_config_motion_detect() {

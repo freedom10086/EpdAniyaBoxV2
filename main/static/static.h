@@ -48,4 +48,10 @@ extern const uint8_t ic_back_bmp_end[] asm("_binary_ic_back_32_bmp_end");
 
 extern const uint8_t ic_ble_bmp_start[] asm("_binary_ic_ble_32_bmp_start");
 extern const uint8_t ic_ble_bmp_end[] asm("_binary_ic_ble_32_bmp_end");
+
+extern const uint8_t ic_music_bmp_start[] asm("_binary_ic_music_32_bmp_start");
+extern const uint8_t ic_music_bmp_end[] asm("_binary_ic_music_32_bmp_end");
+
+extern const uint8_t ic_battery_bmp_start[] asm("_binary_ic_battery_32_bmp_start");
+extern const uint8_t ic_battery_bmp_end[] asm("_binary_ic_battery_32_bmp_end");
 #endif

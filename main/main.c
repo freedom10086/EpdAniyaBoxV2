@@ -35,7 +35,7 @@ static const char *TAG = "BIKE_MAIN";
 esp_event_loop_handle_t event_loop_handle;
 i2c_master_bus_handle_t i2c_bus_handle;
 
-RTC_DATA_ATTR static uint32_t boot_count = 0;
+RTC_DATA_ATTR uint32_t boot_count = 0;
 
 static esp_err_t i2c_master_init(void);
 
@@ -124,23 +124,6 @@ void app_main() {
     }
 
     lis3dh_config_motion_detect();
-
-    float accx, accy, accz;
-    for (int i = 0; i < 5; ++i) {
-        lis3dh_error = lis3dh_read_acc(&accx, &accy, &accz);
-        if (lis3dh_error == ESP_OK) {
-            ESP_LOGI(TAG, "lis3dh read acc x:%.2f y:%.2f z:%.2f", accx, accy, accz);
-        } else {
-            ESP_LOGW(TAG, "lis3dh read acc failed");
-        }
-        vTaskDelay(pdMS_TO_TICKS(300));
-    }
-
-    lis3dh_mode_t mode;
-    lis3dh_acc_range_t acc_range;
-    lis3dh_acc_sample_rage_t acc_sample_rate;
-    lis3dh_current_mode(&mode, &acc_range, &acc_sample_rate);
-    ESP_LOGI(TAG, "lis3dh mode:%d, range:%d, rate:%d", mode, acc_range, acc_sample_rate);
 
     esp_err_t err = rx8025t_init();
 //    err = rx8025t_set_time(23, 12, 18, 1, 18, 51, 00);

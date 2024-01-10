@@ -9,13 +9,16 @@
 #include "epdpaint.h"
 
 enum bmp_error {
-    BMP_NOT_SUPPORTED_FORMAT = -6,
+    BMP_OK = 0,
+    BMP_NOT_SUPPORTED_FORMAT_1,
+    BMP_NOT_SUPPORTED_FORMAT_2,
+    BMP_NOT_SUPPORTED_FORMAT_3,
+    BMP_NOT_SUPPORTED_FORMAT_4,
     BMP_FILE_NOT_OPENED,
     BMP_HEADER_NOT_INITIALIZED,
     BMP_INVALID_FILE,
     BMP_INVALID_LUT_SIZE,
     BMP_ERROR,
-    BMP_OK = 0
 };
 
 // This is faster than a function call

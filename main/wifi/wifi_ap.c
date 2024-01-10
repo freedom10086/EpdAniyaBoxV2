@@ -97,14 +97,18 @@ void wifi_init_softap() {
     ESP_LOGI(TAG, "esp_wifi_set_mode WIFI_MODE_AP");
 
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
-    ESP_LOGI(TAG, "esp_wifi_set_config WIFI_IF_AP");
+
+    ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_MAX_MODEM));
+
+    // https://docs.espressif.com/projects/esp-idf/en/latest/esp32c6/api-guides/wifi.html#wi-fi-protocol-mode
+    esp_wifi_set_protocol(WIFI_IF_AP, WIFI_PROTOCOL_11B|WIFI_PROTOCOL_11G|WIFI_PROTOCOL_11N);
+    esp_wifi_config_11b_rate(WIFI_IF_AP, true);
 
     ESP_ERROR_CHECK(esp_wifi_start());
 
-    ESP_LOGI(TAG, "start esp_wifi_start done");
-    esp_wifi_set_ps(WIFI_PS_MIN_MODEM);
+    ESP_ERROR_CHECK(esp_wifi_set_max_tx_power(8));
 
-    ESP_LOGI(TAG, "wifi_init_softap finished. SSID:%s password:%s channel:%d",
+    ESP_LOGI(TAG, "wifi softap started. SSID:%s password:%s channel:%d",
              WIFI_SSID, WIFI_PASS, WIFI_CHANNEL);
 }
 

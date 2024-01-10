@@ -20,16 +20,16 @@ enum bmp_error bmp_header_read(bmp_header *header, uint8_t *data, uint16_t data_
         if (bmpHeader->biBitCount != 1 && bmpHeader->biBitCount != 4
             && bmpHeader->biBitCount != 8 && bmpHeader->biBitCount != 16
             && bmpHeader->biBitCount != 24 && bmpHeader->biBitCount != 32) {
-            return BMP_NOT_SUPPORTED_FORMAT;
+            return BMP_NOT_SUPPORTED_FORMAT_1;
         }
 
         if (bmpHeader->biCompression != BI_RGB) {
             if ((bmpHeader->biBitCount != 16 && bmpHeader->biBitCount != 32) &&
                 bmpHeader->biCompression == BI_BITFIELDS) {
-                return BMP_NOT_SUPPORTED_FORMAT;
+                return BMP_NOT_SUPPORTED_FORMAT_2;
             }
             if (bmpHeader->biCompression != BI_BITFIELDS) {
-                return BMP_NOT_SUPPORTED_FORMAT;
+                return BMP_NOT_SUPPORTED_FORMAT_3;
             }
         }
 
@@ -44,10 +44,11 @@ enum bmp_error bmp_header_read(bmp_header *header, uint8_t *data, uint16_t data_
         uint16_t head_config_size = bmpHeader->bfSize - bmpHeader->bfOffBits;
         uint16_t min_size =
                 ((((bmpHeader->biWidth * bmpHeader->biBitCount) + 31) & ~31) >> 3) * abs(bmpHeader->biHeight);
-        uint16_t config_size = bmpHeader->biSizeImage; // 字节
-
-        if (head_config_size != config_size || config_size < min_size) {
-            return BMP_NOT_SUPPORTED_FORMAT;
+        //uint16_t config_size = bmpHeader->biSizeImage; // 字节
+        if (head_config_size < min_size) {
+            ESP_LOGW(TAG, "BMP_NOT_SUPPORTED_FORMAT_4 head_config_size: %d min_size:%d",
+                     head_config_size, min_size);
+            return BMP_NOT_SUPPORTED_FORMAT_4;
         }
     }
     return BMP_OK;

@@ -6,6 +6,7 @@
 #include <esp_ota_ops.h>
 #include "esp_mac.h"
 #include "esp_wifi.h"
+#include "esp_sleep.h"
 
 #include "common_utils.h"
 #include "lcd/epdpaint.h"
@@ -28,6 +29,7 @@ static char info_page_draw_text_buf[64] = {0};
 bool wifi_on = false;
 esp_app_desc_t running_app_info;
 const esp_partition_t *running_partition;
+extern uint32_t boot_count;
 
 bool info_page_key_click(key_event_id_t key_event_type) {
     if (key_event_type == KEY_1_SHORT_CLICK || key_event_type == KEY_2_SHORT_CLICK) {
@@ -110,10 +112,15 @@ void info_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     epd_paint_draw_string_at(epd_paint, 0, y, info_page_draw_text_buf, &Font16, 1);
     y += 18;
 
-    // time
-    sprintf(info_page_draw_text_buf, "build time:%s", running_app_info.time);
+    // loop and boot info
+    sprintf(info_page_draw_text_buf, "boot:%ld cause:%d", boot_count, esp_sleep_get_wakeup_cause());
     epd_paint_draw_string_at(epd_paint, 0, y, info_page_draw_text_buf, &Font16, 1);
     y += 18;
+
+    // time
+    //sprintf(info_page_draw_text_buf, "build time:%s", running_app_info.time);
+    //epd_paint_draw_string_at(epd_paint, 0, y, info_page_draw_text_buf, &Font16, 1);
+    //y += 18;
 
     // current date time
     uint8_t year, month, day, week, hour, minute, second;

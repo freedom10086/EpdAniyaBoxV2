@@ -430,10 +430,16 @@ static void draw_gray_color(epd_paint_t *epd_paint, int x, int y, int end_x, int
 
 void epd_paint_draw_bitmap(epd_paint_t *epd_paint, int x, int y, int width, int height, uint8_t *bmp_data,
                            uint16_t data_size, int colored) {
+    // check if all out of range
+    if (y + height < 0 || y >= epd_paint->height || x >= epd_paint->width || x + width < 0) {
+        return;
+    }
+
     bmp_header bmpHeader;
     enum bmp_error err = bmp_header_read(&bmpHeader, bmp_data, data_size);
     // ESP_LOGI(TAG, "draw bit map x:%d y:%d w:%ld h:%ld err:%d", x, y, bmpHeader.biWidth, bmpHeader.biHeight, err);
     if (err != BMP_OK) {
+        ESP_LOGW(TAG, "not valid bmp image %d size:%d", err, data_size);
         // not valid bmp pic just draw rec
         epd_paint_draw_rectangle(epd_paint, x, y, x + width, y + height, colored);
         epd_paint_draw_line(epd_paint, x, y, x + width, y + height, colored);
@@ -491,6 +497,10 @@ void fill_err_color(pixel_color *out_color, uint16_t x, uint16_t y) {
 }
 
 void epd_paint_draw_bitmap_file(epd_paint_t *epd_paint, int x, int y, int width, int height, FILE *file, int colored) {
+    if (y + height < 0 || y >= epd_paint->height || x >= epd_paint->width || x + width < 0) {
+        return;
+    }
+
     bmp_img_file_common bmp_header;
     enum bmp_error err = bmp_header_read_file(&bmp_header, file);
     if (err != BMP_OK) {

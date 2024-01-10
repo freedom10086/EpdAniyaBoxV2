@@ -163,8 +163,6 @@ void page_manager_switch_page_by_index(int8_t dest_page_index, bool push_stack) 
 
     if (push_stack) {
         pages[dest_page_index].parent_page_index = current_page_index;
-    } else {
-        pages[dest_page_index].parent_page_index = -1;
     }
 
     // new page on create
@@ -199,18 +197,26 @@ void page_manager_switch_page(char *page_name, bool push_stack) {
     page_manager_switch_page_by_index(idx, push_stack);
 }
 
-void page_manager_close_page() {
-    if (pre_page_index == -1) {
-        ESP_LOGE(TAG, "can not close curent page no pre page");
-        return;
-    }
+bool page_manager_close_page() {
     page_inst_t curr_page = page_manager_get_current_page();
     if (curr_page.parent_page_index >= 0) {
         page_manager_switch_page_by_index(curr_page.parent_page_index, false);
     } else {
-        //page_manager_switch_page_by_index(pre_page_index, false);
-        ESP_LOGW(TAG, "no page to close no parent page");
+        if (current_page_index == TEMP_PAGE_INDEX
+            || current_page_index == IMAGE_PAGE_INDEX) {
+            ESP_LOGW(TAG, "current page %s is home page cant close", curr_page.page_name);
+            return false;
+        }
+
+        if (pre_page_index == -1) {
+            ESP_LOGW(TAG, "no pre page return to temp page");
+            page_manager_switch_page_by_index(TEMP_PAGE_INDEX, false);
+        } else {
+            ESP_LOGW(TAG, "no parent page switch to pre page");
+            page_manager_switch_page_by_index(pre_page_index, false);
+        }
     }
+    return true;
 }
 
 page_inst_t page_manager_get_current_page() {

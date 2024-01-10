@@ -82,8 +82,8 @@ void setting_list_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     if (offset_item < 5) {
         // 4. music
         epd_paint_draw_bitmap(epd_paint, 8, y + PADDING_Y, 32, 32,
-                              (uint8_t *) ic_upgrade_bmp_start,
-                              ic_upgrade_bmp_end - ic_upgrade_bmp_start, 1);
+                              (uint8_t *) ic_music_bmp_start,
+                              ic_music_bmp_end - ic_music_bmp_start, 1);
         uint16_t music[] = {0xF4D2, 0xD6C0, 0x00};
         epd_paint_draw_string_at(epd_paint, SETTING_ITEM_HEIGHT + PADDING_X, y + TEXT_PADDING_Y,
                                  (char *) music, &Font_HZK16, 1);
@@ -113,8 +113,8 @@ void setting_list_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     if (offset_item < 8) {
         // 7. battery
         epd_paint_draw_bitmap(epd_paint, 9, y + PADDING_Y, 32, 32,
-                              (uint8_t *) ic_reboot_bmp_start,
-                              ic_reboot_bmp_end - ic_reboot_bmp_start, 1);
+                              (uint8_t *) ic_battery_bmp_start,
+                              ic_battery_bmp_end - ic_battery_bmp_start, 1);
         uint16_t battery[] = {0xE7B5, 0xD8B3, 0x00};
         epd_paint_draw_string_at(epd_paint, SETTING_ITEM_HEIGHT + PADDING_X, y + TEXT_PADDING_Y,
                                  (char *) battery, &Font_HZK16, 1);
@@ -200,9 +200,6 @@ bool setting_list_page_key_click(key_event_id_t key_event_type) {
             break;
         case KEY_UP_SHORT_CLICK:
             change_select(false);
-            break;
-        case KEY_CANCEL_SHORT_CLICK:
-            page_manager_close_page();
             break;
         default:
             return false;

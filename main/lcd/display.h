@@ -3,7 +3,7 @@
 
 #include "key.h"
 
-#define DEEP_SLEEP_TIMEOUT_MS 120000
+#define DEEP_SLEEP_TIMEOUT_MS 90000
 
 #define DEFAULT_DISP_ROTATION ROTATE_0
 

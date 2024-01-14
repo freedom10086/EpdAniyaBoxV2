@@ -99,7 +99,7 @@ esp_err_t mount_storage(const char *base_path, bool format_when_failed) {
             .base_path = base_path,
             .partition_label = NULL,
             .max_files = 5,   // This sets the maximum number of files that can be open at the same time
-            .format_if_mount_failed = true
+            .format_if_mount_failed = format_when_failed
     };
 
     if (esp_spiffs_mounted(conf.partition_label)) {

@@ -462,4 +462,8 @@ esp_err_t stop_beep();
 
 esp_err_t beep_deinit();
 
+esp_err_t beep_get_volume(uint8_t *value);
+
+esp_err_t beep_set_volume(uint8_t value);
+
 #endif //HELLO_WORLD_BEEP_H

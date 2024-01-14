@@ -53,9 +53,95 @@ static void IRAM_ATTR gpio_isr_handler(void *arg) {
 }
 
 static void imu_task_entry(void *arg) {
+    // INT1 config
+    // for motion detect
+    uint8_t d = 0;
+
+    // // high pass filter logic
+    // LIS3DH_HPF_AOI_INT1, LIS3DH_HPF_CUTOFF1, LIS3DH_HPF_NORMAL_MODE
+    i2c_write_byte(LIS3DH_REG_CTRL_REG2, LIS3DH_HPF_AOI_INT1 | LIS3DH_HPF_CUTOFF1 | LIS3DH_HPF_NORMAL_MODE);
+
+    // INT1 AND INT2 Latch
+    d = 0b00001010;
+    i2c_write_byte(LIS3DH_REG_CTRL_REG5, d);
+
+    // 0x7f = max 0~127 -> 0 ~ range
+    d = 10;
+    i2c_write_byte(LIS3DH_REG_INT1_THS, d);
+
+    // two intr min
+    // x / sample rate // eg 25hz, x = 10  / 25 = 500ms
+    d = 10;
+    i2c_write_byte(LIS3DH_REG_INT1_DURATION, d);
+
+    d = 0b00101010;
+    i2c_write_byte(LIS3DH_REG_INT1_CFG, d);
+
+    // IA1 enable on int1
+    d = 0b01000000;
+    i2c_write_byte(LIS3DH_REG_CTRL_REG3, d);
+
+
+    // INT2 config
+    // for click detect
+    d = 0x15; // single click or 0x2a double click
+    i2c_write_byte(LIS3DH_REG_CLICK_CFG, d);
+
+    // 0 ~ 127
+    i2c_write_byte(LIS3DH_REG_CLICK_THS, CLICKTHRESHHOLD);
+
+    // Time acceleration has to fall below threshold for a valid click.
+    // 2 / 25hz = 100ms
+    i2c_write_byte(LIS3DH_REG_TIME_LIMIT, 2);
+
+    // hold-off time before allowing detection after click event
+    // 2 / 10hz = 100ms
+    i2c_write_byte(LIS3DH_REG_TIME_LATENCY, 2);
+
+    // hold-off time before allowing detection after click event
+    // 10 / 25hz = 500ms
+    i2c_write_byte(LIS3DH_REG_TIME_WINDOW, 10);
+
+    // en I2_CLICK Click interrupt on INT2
+    d = 0x00 | (0x01 << 7);
+    i2c_write_byte(LIS3DH_REG_CTRL_REG6, d);
+
+
+    imu_int_event_queue = xQueueCreate(10, sizeof(gpio_num_t));
+    // INT GPIO
+    // Default: push-pull output forced to GND
+    // high trigger
+    gpio_config_t io_config = {
+            .pin_bit_mask = (1ull << IMU_INT_1_GPIO) | (1ull << IMU_INT_2_GPIO),
+            .mode = GPIO_MODE_INPUT,
+            .intr_type = GPIO_INTR_POSEDGE,
+            .pull_up_en = 0,
+            .pull_down_en = 0,
+    };
+    ESP_ERROR_CHECK(gpio_config(&io_config));
+
+    ESP_LOGI(TAG, "imu int1 io %d, level %d", IMU_INT_1_GPIO, gpio_get_level(IMU_INT_1_GPIO));
+    uint8_t has_int1;
+    lis3dh_get_int1_src(&has_int1);
+    ESP_LOGI(TAG, "imu int2 io %d, level %d", IMU_INT_2_GPIO, gpio_get_level(IMU_INT_2_GPIO));
+    uint8_t single_click, double_click;
+    lis3dh_get_click_src(&single_click, &double_click);
+
+    //install gpio isr service
+    gpio_install_isr_service(0);
+
+    //hook isr handler for specific gpio pin
+    gpio_isr_handler_add(IMU_INT_1_GPIO, gpio_isr_handler, (void *) IMU_INT_1_GPIO);
+    gpio_isr_handler_add(IMU_INT_2_GPIO, gpio_isr_handler, (void *) IMU_INT_2_GPIO);
+    ESP_LOGI(TAG, "imu motion detect isr add OK");
+
     gpio_num_t triggered_gpio;
+    uint8_t continue_timeout_count = 0;
+
     while (1) {
-        if (xQueueReceive(imu_int_event_queue, &triggered_gpio, pdMS_TO_TICKS(8000))) {
+        uint32_t sleep_ms = continue_timeout_count >= 2 ? 30000 : 8000;
+        if (xQueueReceive(imu_int_event_queue, &triggered_gpio, pdMS_TO_TICKS(sleep_ms))) {
+            continue_timeout_count = 0;
             int level = gpio_get_level(triggered_gpio);
             ESP_LOGI(TAG, "imu isr event io:%d level:%d", triggered_gpio, level);
             if (triggered_gpio == IMU_INT_1_GPIO) {
@@ -76,6 +162,7 @@ static void imu_task_entry(void *arg) {
                                        sizeof(triggered_gpio));
             }
         } else {
+            continue_timeout_count ++;
             // time out read acc sensor to calc display direction
             lis3dh_direction_t direction = lis3dh_calc_direction();
             ESP_LOGI(TAG, "calc display rotation %d", direction);
@@ -334,87 +421,9 @@ lis3dh_direction_t lis3dh_get_direction() {
 }
 
 uint8_t lis3dh_config_motion_detect() {
-    // INT1 config
-    // for motion detect
-    uint8_t d = 0;
-
-    // // high pass filter logic
-    // LIS3DH_HPF_AOI_INT1, LIS3DH_HPF_CUTOFF1, LIS3DH_HPF_NORMAL_MODE
-    i2c_write_byte(LIS3DH_REG_CTRL_REG2, LIS3DH_HPF_AOI_INT1 | LIS3DH_HPF_CUTOFF1 | LIS3DH_HPF_NORMAL_MODE);
-
-    // INT1 AND INT2 Latch
-    d = 0b00001010;
-    i2c_write_byte(LIS3DH_REG_CTRL_REG5, d);
-
-    // 0x7f = max 0~127 -> 0 ~ range
-    d = 10;
-    i2c_write_byte(LIS3DH_REG_INT1_THS, d);
-
-    // two intr min
-    // x / sample rate // eg 25hz, x = 10  / 25 = 500ms
-    d = 10;
-    i2c_write_byte(LIS3DH_REG_INT1_DURATION, d);
-
-    d = 0b00101010;
-    i2c_write_byte(LIS3DH_REG_INT1_CFG, d);
-
-    // IA1 enable on int1
-    d = 0b01000000;
-    i2c_write_byte(LIS3DH_REG_CTRL_REG3, d);
-
-
-    // INT2 config
-    // for click detect
-    d = 0x15; // single click or 0x2a double click
-    i2c_write_byte(LIS3DH_REG_CLICK_CFG, d);
-
-    // 0 ~ 127
-    i2c_write_byte(LIS3DH_REG_CLICK_THS, CLICKTHRESHHOLD);
-
-    // Time acceleration has to fall below threshold for a valid click.
-    // 2 / 25hz = 100ms
-    i2c_write_byte(LIS3DH_REG_TIME_LIMIT, 2);
-
-    // hold-off time before allowing detection after click event
-    // 2 / 10hz = 100ms
-    i2c_write_byte(LIS3DH_REG_TIME_LATENCY, 2);
-
-    // hold-off time before allowing detection after click event
-    // 10 / 25hz = 500ms
-    i2c_write_byte(LIS3DH_REG_TIME_WINDOW, 10);
-
-    // en I2_CLICK Click interrupt on INT2
-    d = 0x00 | (0x01 << 7);
-    i2c_write_byte(LIS3DH_REG_CTRL_REG6, d);
-
-
-    imu_int_event_queue = xQueueCreate(10, sizeof(gpio_num_t));
-    // INT GPIO
-    // Default: push-pull output forced to GND
-    // high trigger
-    gpio_config_t io_config = {
-            .pin_bit_mask = (1ull << IMU_INT_1_GPIO) | (1ull << IMU_INT_2_GPIO),
-            .mode = GPIO_MODE_INPUT,
-            .intr_type = GPIO_INTR_POSEDGE,
-            .pull_up_en = 0,
-            .pull_down_en = 0,
-    };
-    ESP_ERROR_CHECK(gpio_config(&io_config));
-
-    ESP_LOGI(TAG, "imu int1 io %d, level %d", IMU_INT_1_GPIO, gpio_get_level(IMU_INT_1_GPIO));
-    uint8_t has_int1;
-    lis3dh_get_int1_src(&has_int1);
-    ESP_LOGI(TAG, "imu int2 io %d, level %d", IMU_INT_2_GPIO, gpio_get_level(IMU_INT_2_GPIO));
-    uint8_t single_click, double_click;
-    lis3dh_get_click_src(&single_click, &double_click);
-
-    //install gpio isr service
-    gpio_install_isr_service(0);
-
-    //hook isr handler for specific gpio pin
-    gpio_isr_handler_add(IMU_INT_1_GPIO, gpio_isr_handler, (void *) IMU_INT_1_GPIO);
-    gpio_isr_handler_add(IMU_INT_2_GPIO, gpio_isr_handler, (void *) IMU_INT_2_GPIO);
-    ESP_LOGI(TAG, "imu motion detect isr add OK");
+    if (imu_tsk_hdl != NULL) {
+        return ESP_OK;
+    }
 
     /* Create key click detect task */
     BaseType_t err = xTaskCreate(

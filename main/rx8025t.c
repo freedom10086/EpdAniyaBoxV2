@@ -4,6 +4,7 @@
 #include "driver/i2c_master.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 #include "driver/gpio.h"
 #include "esp_log.h"
 #include "rx8025t.h"
@@ -48,6 +49,7 @@ ESP_EVENT_DEFINE_BASE(BIKE_DATE_TIME_SENSOR_EVENT);
 extern i2c_master_bus_handle_t i2c_bus_handle;
 static i2c_master_dev_handle_t dev_handle;
 static bool rx8025t_inited = false;
+static SemaphoreHandle_t xSemaphore = NULL;
 
 static uint8_t hex2bcd(uint8_t x) {
     uint8_t y;
@@ -135,20 +137,31 @@ esp_err_t rx8025t_init() {
         return ESP_OK;
     }
 
-    i2c_device_config_t dev_cfg = {
-            .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-            .device_address = RX8025T_ADDR,
-            .scl_speed_hz = 100000,
-    };
-
-    esp_err_t err = i2c_master_bus_add_device(i2c_bus_handle, &dev_cfg, &dev_handle);
-    if (err != ESP_OK) {
-        return err;
+    if (xSemaphore == NULL) {
+        xSemaphore = xSemaphoreCreateBinary();
+        xSemaphoreGive(xSemaphore);
     }
 
-    config_intr_gpio();
+    // portMAX_DELAY
+    if (xSemaphoreTake(xSemaphore, pdMS_TO_TICKS(200)) == pdTRUE) {
+        i2c_device_config_t dev_cfg = {
+                .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+                .device_address = RX8025T_ADDR,
+                .scl_speed_hz = 100000,
+        };
 
-    rx8025t_inited = true;
+        esp_err_t err = i2c_master_bus_add_device(i2c_bus_handle, &dev_cfg, &dev_handle);
+        if (err != ESP_OK) {
+            return err;
+        }
+
+        config_intr_gpio();
+
+        rx8025t_inited = true;
+
+        xSemaphoreGive(xSemaphore);
+    }
+
     return ESP_OK;
 }
 
@@ -159,6 +172,8 @@ esp_err_t rx8025t_deinit() {
 
 esp_err_t
 rx8025t_set_time(uint8_t year, uint8_t month, uint8_t day, uint8_t week, uint8_t hour, uint8_t minute, uint8_t second) {
+    rx8025t_init();
+
     year = year % 2000;
     // year 0-99
     // month 1-12
@@ -175,6 +190,8 @@ rx8025t_set_time(uint8_t year, uint8_t month, uint8_t day, uint8_t week, uint8_t
 
 esp_err_t rx8025t_get_time(uint8_t *year, uint8_t *month, uint8_t *day, uint8_t *week, uint8_t *hour, uint8_t *minute,
                            uint8_t *second) {
+    rx8025t_init();
+
     uint8_t read_buf[7];
     esp_err_t err = i2c_read_reg(ADDR_SEC, read_buf, sizeof(read_buf));
     if (err == ESP_OK) {
@@ -191,6 +208,8 @@ esp_err_t rx8025t_get_time(uint8_t *year, uint8_t *month, uint8_t *day, uint8_t 
 }
 
 esp_err_t rx8025t_set_update_time_intr(uint8_t en, uint8_t per_minute) {
+    rx8025t_init();
+
     uint8_t read_buf[3];
     esp_err_t err = i2c_read_reg(ADDR_EXT, read_buf, sizeof(read_buf));
     if (err != ESP_OK) {
@@ -221,6 +240,8 @@ esp_err_t rx8025t_set_update_time_intr(uint8_t en, uint8_t per_minute) {
 }
 
 esp_err_t rx8025t_read_update_time_intr(uint8_t *en, uint8_t *per_minute, uint8_t *flag) {
+    rx8025t_init();
+
     uint8_t read_buf[3];
     esp_err_t err = i2c_read_reg(ADDR_EXT, read_buf, sizeof(read_buf));
     if (err != ESP_OK) {
@@ -235,6 +256,8 @@ esp_err_t rx8025t_read_update_time_intr(uint8_t *en, uint8_t *per_minute, uint8_
 }
 
 esp_err_t rx8025t_clear_update_time_intr_flag() {
+    rx8025t_init();
+
     uint8_t read_buf[1];
     esp_err_t err = i2c_read_reg(ADDR_FLAG, read_buf, sizeof(read_buf));
     if (err != ESP_OK) {
@@ -247,6 +270,8 @@ esp_err_t rx8025t_clear_update_time_intr_flag() {
 }
 
 esp_err_t rx8025t_set_fixed_time_intr(uint8_t en, uint8_t intr_en, uint16_t total_ts) {
+    rx8025t_init();
+
     uint8_t read_buf[3];
     esp_err_t err = i2c_read_reg(ADDR_EXT, read_buf, sizeof(read_buf));
     if (err != ESP_OK) {
@@ -293,6 +318,8 @@ esp_err_t rx8025t_set_fixed_time_intr(uint8_t en, uint8_t intr_en, uint16_t tota
 }
 
 esp_err_t rx8025t_read_fixed_time_intr(uint8_t *en, uint8_t *intr_en, uint16_t *total_ts, uint8_t *flag) {
+    rx8025t_init();
+
     uint8_t read_buf[5];
     esp_err_t err = i2c_read_reg(ADDR_TIMER_COUNTER_0, read_buf, sizeof(read_buf));
     if (err != ESP_OK) {
@@ -308,12 +335,18 @@ esp_err_t rx8025t_read_fixed_time_intr(uint8_t *en, uint8_t *intr_en, uint16_t *
     switch (mode) {
         case 0:
             *total_ts = (uint16_t) ((float) time_counter / 1000 * 244.14) / 1000;
+            break;
         case 1:
             *total_ts = (uint16_t) ((float) time_counter * 15.625) / 1000;
+            break;
         case 2:
             *total_ts = time_counter;
+            break;
         case 3:
             *total_ts = time_counter * 60;
+            break;
+        default:
+            return ESP_FAIL;
     }
 
     *en = (read_buf[2] >> 4) & 0x01;
@@ -324,6 +357,8 @@ esp_err_t rx8025t_read_fixed_time_intr(uint8_t *en, uint8_t *intr_en, uint16_t *
 }
 
 esp_err_t rx8025t_clear_fixed_time_intr_flag() {
+    rx8025t_init();
+
     uint8_t read_buf[1];
     esp_err_t err = i2c_read_reg(ADDR_FLAG, read_buf, sizeof(read_buf));
     if (err != ESP_OK) {

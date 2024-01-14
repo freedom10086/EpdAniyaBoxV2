@@ -341,7 +341,7 @@ static void key_click_event_handler(void *event_handler_arg, esp_event_base_t ev
                 page_manager_request_update(false);
                 return;
             } else {
-                page_manager_show_menu("menu");
+                page_manager_show_menu("menu", NULL);
                 page_manager_request_update(false);
                 return;
             }
@@ -349,11 +349,13 @@ static void key_click_event_handler(void *event_handler_arg, esp_event_base_t ev
         case KEY_UP_LONG_CLICK:
         case KEY_DOWN_LONG_CLICK:
             if (page_manager_get_current_index() == TEMP_PAGE_INDEX) {
-                page_manager_switch_page("image", false);
-                page_manager_request_update(false);
+                if (page_manager_switch_page("image", false)) {
+                    page_manager_request_update(false);
+                }
             } else {
-                page_manager_switch_page("temperature", false);
-                page_manager_request_update(false);
+                if (page_manager_switch_page("temperature", false)) {
+                    page_manager_request_update(false);
+                }
             }
         default:
             break;

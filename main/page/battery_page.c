@@ -77,6 +77,12 @@ int battery_page_on_enter_sleep(void *args) {
         ESP_LOGI(TAG, "battery is curving never sleep");
         return NEVER_SLEEP_TS;
     }
+
+    if (ble_gap_conn_active()) {
+        ESP_LOGI(TAG, "ble connect is active never sleep");
+        return NEVER_SLEEP_TS;
+    }
+
     ESP_LOGI(TAG, "battery page sleep %d", DEFAULT_SLEEP_TS);
     return DEFAULT_SLEEP_TS;
 }

@@ -17,6 +17,7 @@
 #include <dirent.h>
 #include "esp_vfs.h"
 
+#include "confirm_menu_page.h"
 #include "page_manager.h"
 #include "wifi/my_file_server_common.h"
 
@@ -30,7 +31,24 @@
 
 RTC_DATA_ATTR static uint8_t current_bitmap_page_index = 0;
 
+static char current_filepath[64];
 bool file_system_mounted = false;
+static void delete_menu_callback(bool confirm);
+static esp_err_t delete_current_image();
+
+static confirm_menu_arg_t confirm_menu_arg = {
+        .title_label = "delete?",
+        .callback = delete_menu_callback
+};
+
+static void delete_menu_callback(bool confirm) {
+    ESP_LOGI(TAG, "delete_menu_callback:%d", confirm);
+    if (!confirm) {
+        return;
+    }
+
+    delete_current_image();
+}
 
 void testBmp(uint8_t *data, uint16_t data_len) {
     //bmp_header *bmpHeader = (bmp_header *) (aniya_200_1_bmp_start);
@@ -108,6 +126,8 @@ void display_file(epd_paint_t *epd_paint, uint32_t loop_cnt, char *file_name, ui
         image_page_draw(epd_paint, loop_cnt);
         return;
     }
+
+    strcpy(current_filepath, file_name);
 
     if (IS_FILE_EXT(file_name, ".bmp")) {
         epd_paint_draw_bitmap_file(epd_paint, 0, 0, LCD_H_RES, LCD_V_RES, img_file, 1);
@@ -207,6 +227,23 @@ void image_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     }
 }
 
+static esp_err_t delete_current_image() {
+    if (current_bitmap_page_index == 0 || current_bitmap_page_index == 1) {
+        return ESP_FAIL;
+    }
+
+    struct stat entry_stat;
+    if (stat(current_filepath, &entry_stat) == -1) {
+        ESP_LOGE(TAG, "Failed to stat %s", current_filepath);
+        return ESP_FAIL;
+    }
+
+    unlink(current_filepath);
+    current_bitmap_page_index -= 1;
+    ESP_LOGI(TAG, "delete file %s", current_filepath);
+    return ESP_OK;
+}
+
 bool image_page_key_click_handle(key_event_id_t key_event_type) {
     switch (key_event_type) {
         case KEY_UP_SHORT_CLICK:
@@ -215,6 +252,11 @@ bool image_page_key_click_handle(key_event_id_t key_event_type) {
             return true;
         case KEY_DOWN_SHORT_CLICK:
             current_bitmap_page_index += 1;
+            page_manager_request_update(false);
+            return true;
+        case KEY_CANCEL_LONG_CLICK:
+            // show delete menu
+            page_manager_show_menu("confirm-alert", &confirm_menu_arg);
             page_manager_request_update(false);
             return true;
         default:

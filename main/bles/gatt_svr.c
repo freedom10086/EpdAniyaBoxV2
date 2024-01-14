@@ -9,6 +9,7 @@
 #include "esp_log.h"
 #include "esp_bt.h"
 
+#include "ble_server.h"
 #include "ble/my_ble_uuid.h"
 #include "battery.h"
 #include "sht31.h"
@@ -16,15 +17,16 @@
 
 #define TAG "BLE_SERVER_SVC"
 
-#define WRITE_THROUGHPUT_PAYLOAD           32
+#define READ_THROUGHPUT_PAYLOAD           32
+#define WRITE_THROUGHPUT_PAYLOAD           PREFERRED_MTU_VALUE
 #define NOTIFY_THROUGHPUT_PAYLOAD          32
 #define MIN_REQUIRED_MBUF         2 /* Assuming payload of 500Bytes and each mbuf can take 292Bytes.  */
 
 #define BLE_UUID_STR_LEN (37)
 static char ble_uuid_buf[BLE_UUID_STR_LEN];
 
+static uint8_t gatt_read_buff[READ_THROUGHPUT_PAYLOAD];
 static uint8_t gatt_write_buff[WRITE_THROUGHPUT_PAYLOAD];
-static uint8_t gatt_write_buff2[WRITE_THROUGHPUT_PAYLOAD];
 
 static SemaphoreHandle_t notify_sem;
 static bool notify_state = false;
@@ -320,12 +322,12 @@ static int gatt_svr_chr_access_uart(uint16_t conn_handle, uint16_t attr_handle,
         return box_setting_apply(gatt_write_buff[0], gatt_write_buff + 1, write_len - 1);
     } else if (ctxt->op == BLE_GATT_ACCESS_OP_READ_CHR
         && ble_uuid_cmp(uuid, &BLE_UUID_CHAR_UART_RX.u) == 0) {
-        rc = box_setting_load(BOX_SETTING_CMD_LOAD_CONFIG, gatt_write_buff2, &read_len);
+        rc = box_setting_load(BOX_SETTING_CMD_LOAD_CONFIG, gatt_read_buff, &read_len);
         if (rc != ESP_OK) {
             return rc;
         }
-        rc = os_mbuf_append(ctxt->om, gatt_write_buff2, read_len);
-        ESP_LOGI(TAG, "read uart rx len %d data[0]: %d", read_len, gatt_write_buff2[0]);
+        rc = os_mbuf_append(ctxt->om, gatt_read_buff, read_len);
+        ESP_LOGI(TAG, "read uart rx len %d data[0]: %d", read_len, gatt_read_buff[0]);
         return rc;
     } else {
         ble_uuid_to_str(uuid, ble_uuid_buf);

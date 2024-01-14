@@ -79,7 +79,7 @@ void menu_page_after_draw(uint32_t loop_cnt) {
     switching_index = 0;
 }
 
-void change_select(bool next) {
+static void change_select(bool next) {
     switching_index = xTaskGetTickCount();
     current_index = (current_index + MENU_ITEM_COUNT + (next ? 1 : -1)) % MENU_ITEM_COUNT;
     int full_update = 0;

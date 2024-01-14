@@ -14,7 +14,7 @@
 
 #include "common_utils.h"
 
-#define PREFERRED_MTU_VALUE       512
+
 #define LL_PACKET_TIME            2120
 #define LL_PACKET_LENGTH          251
 
@@ -216,6 +216,10 @@ esp_err_t ble_server_start_adv(uint16_t duration) {
     gatts_advertise();
 
     return ESP_OK;
+}
+
+bool ble_server_is_adv() {
+    return ble_gap_adv_active() > 0;
 }
 
 esp_err_t ble_server_stop_adv() {

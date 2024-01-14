@@ -11,6 +11,7 @@
 #include "page/temperature_page.h"
 #include "page/upgrade_page.h"
 #include "page/menu_page.h"
+#include "page/confirm_menu_page.h"
 #include "page/manual_page.h"
 #include "page/image_manage_page.h"
 #include "page/setting_list_page.h"
@@ -22,6 +23,7 @@
 
 #define TAG "page-manager"
 #define TOTAL_PAGE 12
+#define TOTAL_MENU 2
 
 static int8_t pre_page_index = -1;
 static int8_t menu_index = -1;
@@ -36,21 +38,6 @@ static page_inst_t pages[] = {
                 .on_create_page = temperature_page_on_create,
                 .on_destroy_page = temperature_page_on_destroy
         },
-        [1] = {
-                .page_name = "info",
-                .on_draw_page = info_page_draw,
-                .on_create_page = info_page_on_create,
-                .key_click_handler = info_page_key_click,
-                .enter_sleep_handler = info_page_on_enter_sleep,
-        },
-        [2] = {
-                .page_name = "test",
-                .on_create_page = test_page_on_create,
-                .on_draw_page = test_page_draw,
-                .key_click_handler = test_page_key_click,
-                .on_destroy_page = test_page_on_destroy,
-                .enter_sleep_handler = test_page_on_enter_sleep,
-        },
         [IMAGE_PAGE_INDEX] = {
                 .page_name = "image",
                 .on_draw_page = image_page_draw,
@@ -58,6 +45,21 @@ static page_inst_t pages[] = {
                 .on_create_page = image_page_on_create,
                 .on_destroy_page = image_page_on_destroy,
                 .enter_sleep_handler = image_page_on_enter_sleep,
+        },
+        [2] = {
+                .page_name = "info",
+                .on_draw_page = info_page_draw,
+                .on_create_page = info_page_on_create,
+                .key_click_handler = info_page_key_click,
+                .enter_sleep_handler = info_page_on_enter_sleep,
+        },
+        [3] = {
+                .page_name = "test",
+                .on_create_page = test_page_on_create,
+                .on_draw_page = test_page_draw,
+                .key_click_handler = test_page_key_click,
+                .on_destroy_page = test_page_on_destroy,
+                .enter_sleep_handler = test_page_on_enter_sleep,
         },
         [4] = {
                 .page_name = "upgrade",
@@ -134,6 +136,14 @@ static page_inst_t menus[] = {
                 .on_create_page = menu_page_on_create,
                 .on_destroy_page = menu_page_on_destroy,
                 .after_draw_page = menu_page_after_draw,
+        },
+        [1] = {
+                .page_name = "confirm-alert",
+                .on_draw_page = confirm_menu_page_draw,
+                .key_click_handler = confirm_menu_page_key_click,
+                .on_create_page = confirm_menu_page_on_create,
+                .on_destroy_page = confirm_menu_page_on_destroy,
+                .after_draw_page = confirm_menu_page_after_draw,
         }
 };
 
@@ -147,14 +157,14 @@ int8_t page_manager_get_current_index() {
     return current_page_index;
 }
 
-void page_manager_switch_page_by_index(int8_t dest_page_index, bool push_stack) {
+bool page_manager_switch_page_by_index(int8_t dest_page_index, bool push_stack) {
     if (current_page_index == dest_page_index) {
         ESP_LOGW(TAG, "dest page is current %d", dest_page_index);
-        return;
+        return false;
     }
     if (dest_page_index < 0) {
         ESP_LOGE(TAG, "dest page is invalid %d", dest_page_index);
-        return;
+        return false;
     }
 
     ESP_LOGI(TAG, "page switch from %s to %s ",
@@ -163,6 +173,8 @@ void page_manager_switch_page_by_index(int8_t dest_page_index, bool push_stack) 
 
     if (push_stack) {
         pages[dest_page_index].parent_page_index = current_page_index;
+    } else {
+        pages[dest_page_index].parent_page_index = -1;
     }
 
     // new page on create
@@ -179,9 +191,11 @@ void page_manager_switch_page_by_index(int8_t dest_page_index, bool push_stack) 
         pages[pre_page_index].on_destroy_page(NULL);
         ESP_LOGI(TAG, "page %s on destroy", pages[pre_page_index].page_name);
     }
+
+    return true;
 }
 
-void page_manager_switch_page(char *page_name, bool push_stack) {
+bool page_manager_switch_page(char *page_name, bool push_stack) {
     int8_t idx = -1;
     for (int8_t i = 0; i < TOTAL_PAGE; ++i) {
         if (strcmp(pages[i].page_name, page_name) == 0) {
@@ -191,16 +205,15 @@ void page_manager_switch_page(char *page_name, bool push_stack) {
     }
     if (idx == -1) {
         ESP_LOGE(TAG, "can not find page %s", page_name);
-        page_manager_switch_page_by_index(0, push_stack);
-        return;
+        return page_manager_switch_page_by_index(0, push_stack);
     }
-    page_manager_switch_page_by_index(idx, push_stack);
+    return page_manager_switch_page_by_index(idx, push_stack);
 }
 
 bool page_manager_close_page() {
     page_inst_t curr_page = page_manager_get_current_page();
     if (curr_page.parent_page_index >= 0) {
-        page_manager_switch_page_by_index(curr_page.parent_page_index, false);
+        return page_manager_switch_page_by_index(curr_page.parent_page_index, false);
     } else {
         if (current_page_index == TEMP_PAGE_INDEX
             || current_page_index == IMAGE_PAGE_INDEX) {
@@ -210,13 +223,12 @@ bool page_manager_close_page() {
 
         if (pre_page_index == -1) {
             ESP_LOGW(TAG, "no pre page return to temp page");
-            page_manager_switch_page_by_index(TEMP_PAGE_INDEX, false);
+            return page_manager_switch_page_by_index(TEMP_PAGE_INDEX, false);
         } else {
             ESP_LOGW(TAG, "no parent page switch to pre page");
-            page_manager_switch_page_by_index(pre_page_index, false);
+            return page_manager_switch_page_by_index(pre_page_index, false);
         }
     }
-    return true;
 }
 
 page_inst_t page_manager_get_current_page() {
@@ -233,17 +245,35 @@ page_inst_t page_manager_get_current_menu() {
     return current_menu;
 }
 
-void page_manager_show_menu(char *name) {
-    if (menu_index == -1) {
-        // new page on create
-        if (menus[0].on_create_page != NULL) {
-            menus[0].on_create_page(NULL);
-            ESP_LOGI(TAG, "menu %s on create", menus[0].page_name);
+void page_manager_show_menu(char *name, void *args) {
+    int8_t idx = -1;
+    for (int8_t i = 0; i < TOTAL_MENU; ++i) {
+        if (strcmp(menus[i].page_name, name) == 0) {
+            idx = i;
+            break;
         }
-        menu_index = 0;
-    } else {
-        ESP_LOGW(TAG, "menu %s exist cant show new", menus[menu_index].page_name);
     }
+
+    if (idx == -1) {
+        ESP_LOGE(TAG, "can not find menu %s", name);
+        return;
+    }
+
+    if (menu_index == idx) {
+        ESP_LOGW(TAG, "menu %s already exist", name);
+        return;
+    }
+
+    if (menu_index != -1) {
+        page_manager_close_menu();
+    }
+
+    // new page on create
+    if (menus[idx].on_create_page != NULL) {
+        menus[idx].on_create_page(args);
+        ESP_LOGI(TAG, "menu %s on create", menus[idx].page_name);
+    }
+    menu_index = idx;
 }
 
 void page_manager_close_menu() {

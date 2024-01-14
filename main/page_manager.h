@@ -7,7 +7,7 @@
 #include "key.h"
 
 #define TEMP_PAGE_INDEX 0
-#define IMAGE_PAGE_INDEX 3
+#define IMAGE_PAGE_INDEX 1
 
 typedef void (*on_draw_page_cb)(epd_paint_t *epd_paint, uint32_t loop_cnt);
 
@@ -39,7 +39,7 @@ void page_manager_init(char *default_page);
 
 int8_t page_manager_get_current_index();
 
-void page_manager_switch_page(char *page_name, bool push_stack);
+bool page_manager_switch_page(char *page_name, bool push_stack);
 
 bool page_manager_close_page();
 
@@ -49,7 +49,7 @@ bool page_manager_has_menu();
 
 page_inst_t page_manager_get_current_menu();
 
-void page_manager_show_menu(char *name);
+void page_manager_show_menu(char *name, void *args);
 
 void page_manager_close_menu();
 

@@ -7,11 +7,17 @@
 #include "driver/rmt_tx.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_system.h"
+#include "nvs_flash.h"
+#include "nvs.h"
+#include "driver/gpio.h"
+#include "common_utils.h"
 
 #include "musical_score_encoder.h"
 #include "beep.h"
 
 #define TAG "beep"
+#define STORAGE_NAMESPACE "beep"
 
 #define LEDC_TIMER              LEDC_TIMER_0
 #define LEDC_MODE               LEDC_LOW_SPEED_MODE
@@ -24,6 +30,13 @@
 #define RMT_BUZZER_RESOLUTION_HZ 1000000 // 1MHz resolution
 
 static beep_mode_t beep_mode;
+
+/**
+ * 0-255 -> duty 10% -> 50%
+ * 50%占空比音量最大
+ */
+uint8_t _beep_volume = 0;
+
 rmt_channel_handle_t buzzer_chan = NULL;
 rmt_encoder_handle_t score_encoder = NULL;
 
@@ -83,6 +96,9 @@ esp_err_t beep_init(beep_mode_t mode) {
     } else {
         err = beep_init_rmt_mode();
     }
+
+    ESP_ERROR_CHECK(common_init_nvs());
+
     return err;
 }
 
@@ -168,5 +184,42 @@ esp_err_t beep_deinit() {
         rmt_del_channel(buzzer_chan);
     }
 
+    return ESP_OK;
+}
+
+esp_err_t beep_get_volume(uint8_t *volume) {
+    nvs_handle_t my_handle;
+    esp_err_t err;
+
+    // Open
+    err = nvs_open(STORAGE_NAMESPACE, NVS_READONLY, &my_handle);
+    if (err != ESP_OK) return err;
+
+    // Read
+    err = nvs_get_u8(my_handle, "curve_status", volume);
+    if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND) return err;
+
+    // Close
+    nvs_close(my_handle);
+    return ESP_OK;
+}
+
+esp_err_t beep_set_volume(uint8_t volume) {
+    nvs_handle_t my_handle;
+    esp_err_t err;
+
+    // Open
+    err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
+    if (err != ESP_OK) return err;
+
+    // Write
+    err = nvs_set_u32(my_handle, "curve_status", volume);
+    if (err != ESP_OK) return err;
+
+    err = nvs_commit(my_handle);
+    if (err != ESP_OK) return err;
+
+    // Close
+    nvs_close(my_handle);
     return ESP_OK;
 }

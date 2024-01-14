@@ -33,7 +33,7 @@ static int _voltage;
 static TaskHandle_t battery_tsk_hdl;
 // 电压曲线
 uint32_t *battery_curve_data;
-// 电压曲线长度
+// 电压曲线大小(长度要除以 sizeof(uint32_t))
 size_t battery_curve_size = 0;
 bool start_battery_curve = false;
 
@@ -46,9 +46,7 @@ static uint32_t default_battery_curve_data[] = {
         1603,// 0%
 };
 
-esp_err_t get_battery_curve_status(int32_t *status);
 esp_err_t clear_battery_curve();
-esp_err_t set_battery_curve_status(int32_t status);
 
 void init_power_gpio() {
     uint64_t bit_mask = 1ull << BATTERY_ADC_PWR_GPIO_NUM;
@@ -85,16 +83,9 @@ bool battery_start_curving() {
     if (start_battery_curve) {
         return true;
     }
-    int32_t battery_curve_status;
-    get_battery_curve_status(&battery_curve_status);
-    ESP_LOGI(TAG, "current battery curve status %ld", battery_curve_status);
     clear_battery_curve();
     battery_curve_size = 0;
-    ESP_LOGI(TAG, "clear battery curve data");
-    if (battery_curve_status == 0) {
-        set_battery_curve_status(1);
-    }
-    ESP_LOGI(TAG, "start battery curve");
+    ESP_LOGI(TAG, "start battery curve...");
     start_battery_curve = true;
     return true;
 }
@@ -107,43 +98,6 @@ bool battery_is_charge() {
 
 uint32_t battery_get_curving_data_count() {
     return battery_curve_size / sizeof(uint32_t);
-}
-
-esp_err_t get_battery_curve_status(int32_t *status) {
-    nvs_handle_t my_handle;
-    esp_err_t err;
-
-    // Open
-    err = nvs_open(STORAGE_NAMESPACE, NVS_READONLY, &my_handle);
-    if (err != ESP_OK) return err;
-
-    // Read
-    err = nvs_get_i32(my_handle, "curve_status", status);
-    if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND) return err;
-
-    // Close
-    nvs_close(my_handle);
-    return ESP_OK;
-}
-
-esp_err_t set_battery_curve_status(int32_t status) {
-    nvs_handle_t my_handle;
-    esp_err_t err;
-
-    // Open
-    err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &my_handle);
-    if (err != ESP_OK) return err;
-
-    // Write
-    err = nvs_set_i32(my_handle, "curve_status", status);
-    if (err != ESP_OK) return err;
-
-    err = nvs_commit(my_handle);
-    if (err != ESP_OK) return err;
-
-    // Close
-    nvs_close(my_handle);
-    return ESP_OK;
 }
 
 esp_err_t clear_battery_curve() {
@@ -163,6 +117,8 @@ esp_err_t clear_battery_curve() {
 
     // Close
     nvs_close(my_handle);
+
+    ESP_LOGI(TAG, "clear battery curve data");
     return ESP_OK;
 }
 
@@ -224,9 +180,10 @@ esp_err_t load_battery_curve(void) {
     } else {
         battery_curve_data = malloc(battery_curve_size);
         err = nvs_get_blob(my_handle, "curve", battery_curve_data, &battery_curve_size);
-
         if (err != ESP_OK) {
             free(battery_curve_data);
+            battery_curve_size = 0;
+            ESP_LOGW(TAG, "Load battery curve data failed!\n");
             return err;
         }
         for (int i = 0; i < battery_curve_size / sizeof(uint32_t); i++) {
@@ -240,7 +197,7 @@ esp_err_t load_battery_curve(void) {
 
     // Close
     nvs_close(my_handle);
-    ESP_LOGI(TAG, "Loaded battery curve data size: %d", battery_curve_size / sizeof(uint32_t));
+    ESP_LOGI(TAG, "Loaded battery curve data success, size: %d", battery_curve_size / sizeof(uint32_t));
     return ESP_OK;
 }
 
@@ -295,13 +252,8 @@ static void battery_task_entry(void *arg) {
     ESP_ERROR_CHECK(common_init_nvs());
 
     esp_err_t err;
-    int32_t battery_curve_status;
 
-    get_battery_curve_status(&battery_curve_status);
-    ESP_LOGI(TAG, "battery curve status %ld", battery_curve_status);
-    if (battery_curve_status > 0) {
-        load_battery_curve();
-    }
+    load_battery_curve();
 
     //-------------ADC1 Init---------------//
     adc_oneshot_unit_handle_t adc1_handle;

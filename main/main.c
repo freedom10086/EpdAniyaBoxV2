@@ -125,22 +125,6 @@ void app_main() {
 
     lis3dh_config_motion_detect();
 
-    esp_err_t err = rx8025t_init();
-//    err = rx8025t_set_time(23, 12, 18, 1, 18, 51, 00);
-//    if (err == ESP_OK) {
-//        ESP_LOGI(TAG, "set time ok");
-//    } else {
-//        ESP_LOGW(TAG, "set time failed");
-//    }
-
-    uint8_t year, month, day, week, hour, minute, second;
-    err = rx8025t_get_time(&year, &month, &day, &week, &hour, &minute, &second);
-    if (err == ESP_OK) {
-        ESP_LOGI(TAG, "read time: %d-%d-%d %d:%d:%d week:%d", year, month, day, hour, minute, second, week);
-    } else {
-        ESP_LOGW(TAG, "read time failed");
-    }
-
     /**
      * key
      */

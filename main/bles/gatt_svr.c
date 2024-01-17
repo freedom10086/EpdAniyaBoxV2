@@ -198,6 +198,9 @@ void gatt_svr_notify_tx_event(struct ble_gap_event *event, void *arg) {
 
 static int gatt_svr_access_battery_level(uint16_t conn_handle, uint16_t attr_handle,
                                          struct ble_gatt_access_ctxt *ctxt, void *arg) {
+
+    common_post_event(BIKE_BLE_SERVER_EVENT, BLE_SERVER_EVENT_READ_WRITE);
+
     uint16_t uuid16;
     int rc;
 
@@ -230,6 +233,9 @@ static int gatt_svr_access_battery_level(uint16_t conn_handle, uint16_t attr_han
 
 static int gatt_svr_chr_access_device_info(uint16_t conn_handle, uint16_t attr_handle,
                                            struct ble_gatt_access_ctxt *ctxt, void *arg) {
+
+    common_post_event(BIKE_BLE_SERVER_EVENT, BLE_SERVER_EVENT_READ_WRITE);
+
     uint16_t uuid16 = ble_uuid_u16(ctxt->chr->uuid);
     int rc;
     switch (uuid16) {
@@ -259,6 +265,8 @@ static int gatt_svr_chr_access_device_info(uint16_t conn_handle, uint16_t attr_h
 
 static int gatt_svr_chr_access_environment_info(uint16_t conn_handle, uint16_t attr_handle,
                                                 struct ble_gatt_access_ctxt *ctxt, void *arg) {
+    common_post_event(BIKE_BLE_SERVER_EVENT, BLE_SERVER_EVENT_READ_WRITE);
+
     uint16_t uuid16 = ble_uuid_u16(ctxt->chr->uuid);
     int rc;
     float temp, hum;
@@ -284,10 +292,6 @@ static int gatt_svr_chr_access_environment_info(uint16_t conn_handle, uint16_t a
                 rc = BLE_ATT_ERR_UNLIKELY;
             }
             return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
-        case BLE_UUID_CHAR_PRESSURE:
-            uint32_t pressure = 0; // 10 times
-            rc = os_mbuf_append(ctxt->om, &pressure, sizeof(uint32_t));
-            return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
         default:
             ESP_LOGE(TAG, "unknown op: %d for uuid: %x", ctxt->op, uuid16);
             return BLE_ATT_ERR_UNLIKELY;
@@ -296,6 +300,9 @@ static int gatt_svr_chr_access_environment_info(uint16_t conn_handle, uint16_t a
 
 static int gatt_svr_chr_access_uart(uint16_t conn_handle, uint16_t attr_handle,
                                     struct ble_gatt_access_ctxt *ctxt, void *arg) {
+
+    common_post_event(BIKE_BLE_SERVER_EVENT, BLE_SERVER_EVENT_READ_WRITE);
+
     int rc;
     const ble_uuid_t *uuid;
     uint16_t read_len;

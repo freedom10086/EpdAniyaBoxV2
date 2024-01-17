@@ -22,6 +22,9 @@
 #include <esp_bt_main.h>
 #endif
 
+#include "alert_dialog_page.h"
+#include "bles/ble_server.h"
+
 #define TAG "temp-page"
 #define TEMP_DATA_TIMEOUT_MS 30000
 
@@ -96,7 +99,7 @@ void temperature_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     }
 
     //epd_paint_draw_string_at(epd_paint, 167, 2, (char *)temp, &Font_HZK16, 1);
-    digi_view_t *temp_label = digi_view_create(8, 24, 44, 7, 2);
+    digi_view_t *temp_label = digi_view_create(44, 7, 2);
 
     if (sht31_data_valid) {
         if (temperature > 100) {
@@ -106,15 +109,15 @@ void temperature_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
         epd_paint_draw_string_at(epd_paint, 183, 24, (char *) temp_f, &Font_HZK16, 1);
         digi_view_set_text(temp_label, (int) temperature, 2, (int) (temperature * 10 + (is_minus ? -0.5f : 0.5f)) % 10,
                            1);
-        digi_view_draw(temp_label, epd_paint, loop_cnt);
+        digi_view_draw(8, 24, temp_label, epd_paint, loop_cnt);
     } else {
-        digi_view_draw_ee(temp_label, epd_paint, 3, loop_cnt);
+        digi_view_draw_ee(8, 24, temp_label, epd_paint, 3, loop_cnt);
     }
 
     digi_view_deinit(temp_label);
 
     //epd_paint_draw_string_at(epd_paint, 167, 130, (char *)hum, &Font_HZK16, 1);
-    digi_view_t *hum_label = digi_view_create(102, 144, 22, 3, 2);
+    digi_view_t *hum_label = digi_view_create(22, 3, 2);
     if (sht31_data_valid) {
         if (humility < 0) {
             humility = 0;
@@ -123,9 +126,9 @@ void temperature_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
         }
         epd_paint_draw_string_at(epd_paint, 183, 172, (char *) hum_f, &Font_HZK16, 1);
         digi_view_set_text(hum_label, (int) humility, 2, (int) (humility * 10 + 0.5f) % 10, 1);
-        digi_view_draw(hum_label, epd_paint, loop_cnt);
+        digi_view_draw(102, 144, hum_label, epd_paint, loop_cnt);
     } else {
-        digi_view_draw_ee(temp_label, epd_paint, 3, loop_cnt);
+        digi_view_draw_ee(102, 144, temp_label, epd_paint, 3, loop_cnt);
     }
     digi_view_deinit(hum_label);
 
@@ -158,6 +161,22 @@ void temperature_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
 }
 
 bool temperature_page_key_click_handle(key_event_id_t key_event_type) {
+    switch (key_event_type) {
+        case KEY_CANCEL_LONG_CLICK: {
+            // show alert dialog
+            ble_server_init();
+
+            static alert_dialog_arg_t alert_dialog_arg = {
+                    .title_label = "BLE ON",
+                    .auto_close_ms = 5000
+            };
+            page_manager_show_menu("alert-dialog", &alert_dialog_arg);
+            page_manager_request_update(false);
+            return true;
+        }
+        default:
+            break;
+    }
     return false;
 }
 

@@ -18,12 +18,18 @@
 #define LL_PACKET_TIME            2120
 #define LL_PACKET_LENGTH          251
 
+ESP_EVENT_DEFINE_BASE(BIKE_BLE_SERVER_EVENT);
+
 static const char *tag = "BLE_SERVER";
 static const char *device_name = "aniya-box";
 
 static uint16_t conn_handle;
 /* Dummy variable */
 static uint8_t gatts_addr_type;
+
+static bool ble_server_inited = false;
+// 0 is max
+static uint16_t ble_adv_duration_ms = 0;
 
 static int gatts_gap_event(struct ble_gap_event *event, void *arg);
 
@@ -32,7 +38,7 @@ static int gatts_gap_event(struct ble_gap_event *event, void *arg);
  *     o General discoverable mode
  *     o Undirected connectable mode
  */
-static void gatts_advertise(void) {
+static void gatts_advertise(int32_t duration_ms) {
     struct ble_gap_adv_params adv_params;
     struct ble_hs_adv_fields fields;
     int rc;
@@ -74,14 +80,15 @@ static void gatts_advertise(void) {
     memset(&adv_params, 0, sizeof(adv_params));
     adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
     adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
-    rc = ble_gap_adv_start(gatts_addr_type, NULL, BLE_HS_FOREVER,
+    rc = ble_gap_adv_start(gatts_addr_type, NULL, duration_ms == 0 ? BLE_HS_FOREVER : duration_ms,
                            &adv_params, gatts_gap_event, NULL);
     if (rc != 0) {
         ESP_LOGE(tag, "Error enabling advertisement; rc=%d", rc);
         return;
     }
 
-    ESP_LOGI(tag, "start advertisement");
+    ESP_LOGI(tag, "start advertisement for %ld ms", duration_ms == 0 ? BLE_HS_FOREVER : duration_ms);
+    common_post_event(BIKE_BLE_SERVER_EVENT, BLE_SERVER_EVENT_START_ADV);
 }
 
 static int gatts_gap_event(struct ble_gap_event *event, void *arg) {
@@ -101,7 +108,7 @@ static int gatts_gap_event(struct ble_gap_event *event, void *arg) {
 
             if (event->connect.status != 0) {
                 /* Connection failed; resume advertising */
-                gatts_advertise();
+                gatts_advertise(ble_adv_duration_ms);
             }
 
             rc = ble_hs_hci_util_set_data_len(event->connect.conn_handle,
@@ -112,13 +119,15 @@ static int gatts_gap_event(struct ble_gap_event *event, void *arg) {
             }
 
             conn_handle = event->connect.conn_handle;
+            common_post_event(BIKE_BLE_SERVER_EVENT, BLE_SERVER_EVENT_CONNECTED);
             break;
 
         case BLE_GAP_EVENT_DISCONNECT:
             ESP_LOGI(tag, "disconnect; reason = %d", event->disconnect.reason);
 
+            common_post_event(BIKE_BLE_SERVER_EVENT, BLE_SERVER_EVENT_DISCONNECTED);
             /* Connection terminated; resume advertising */
-            gatts_advertise();
+            gatts_advertise(ble_adv_duration_ms);
             break;
         case BLE_GAP_EVENT_CONN_UPDATE:
             /* The central has updated the connection parameters. */
@@ -130,7 +139,7 @@ static int gatts_gap_event(struct ble_gap_event *event, void *arg) {
             return 0;
         case BLE_GAP_EVENT_ADV_COMPLETE:
             ESP_LOGI(tag, "adv complete ");
-            gatts_advertise();
+            gatts_advertise(ble_adv_duration_ms);
             break;
         case BLE_GAP_EVENT_SUBSCRIBE:
             ESP_LOGI(tag, "subscribe event; cur_notify=%d; attr_handle_handle = %d, sub reason: %d",
@@ -161,7 +170,7 @@ static void gatts_on_sync(void) {
     ESP_LOGI(tag, "Device Address: ");
     print_addr(addr_val);
     /* Begin advertising */
-    gatts_advertise();
+    gatts_advertise(ble_adv_duration_ms);
 }
 
 static void gatts_on_reset(int reason) {
@@ -180,6 +189,10 @@ void gatts_host_task(void *param) {
 }
 
 esp_err_t ble_server_init() {
+    if (ble_server_inited) {
+        return ESP_OK;
+    }
+
     int rc;
 
     /* Initialize NVS — it is used to store PHY calibration data */
@@ -208,23 +221,17 @@ esp_err_t ble_server_init() {
 
     /* Start the task */
     nimble_port_freertos_init(gatts_host_task);
-
+    ble_server_inited = true;
     return ESP_OK;
 }
 
 esp_err_t ble_server_start_adv(uint16_t duration) {
-    gatts_advertise();
-
+    gatts_advertise(duration);
     return ESP_OK;
-}
-
-bool ble_server_is_adv() {
-    return ble_gap_adv_active() > 0;
 }
 
 esp_err_t ble_server_stop_adv() {
     ble_gap_adv_stop();
-
     return ESP_OK;
 }
 
@@ -237,5 +244,6 @@ esp_err_t ble_server_deinit() {
         return rc;
     }
 
+    ble_server_inited = false;
     return ESP_OK;
 }

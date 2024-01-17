@@ -7,25 +7,27 @@
 #include "lcd/epdpaint.h"
 
 typedef struct {
-    int number; // 整数部分  18
-    int number_len; // 整数部分长度 不够补0
-    int decimal; // 小数部分 9 = 18.9
-    int decimal_len; // 小数长度 0 表示没有
+    int8_t number; // 整数部分  18
+    uint8_t number_len; // 整数部分长度 不够补0
+    int8_t decimal; // 小数部分 9 = 18.9
+    uint8_t decimal_len; // 小数长度 0 表示没有
+    uint8_t point_style; // 小数点样式 0 单点 1 双点
 
-    int x, y; // 坐标x, y
-
-    int digi_width; // 每个文字宽度
-    int digi_thick; // 厚度
-    int digi_gap; // 每个数码管间隔
+    uint8_t digi_width; // 每个文字宽度
+    uint8_t digi_thick; // 厚度
+    uint8_t digi_gap; // 每个数码管间隔
 } digi_view_t;
 
-digi_view_t *digi_view_create(int x, int y, int digi_width, int digi_thick, int digi_gap);
+digi_view_t *digi_view_create(uint8_t digi_width, uint8_t digi_thick, uint8_t digi_gap);
 
-void digi_view_set_text(digi_view_t *digi_view, int number, uint8_t number_len,  int decimal, uint8_t decimal_len);
+void digi_view_set_text(digi_view_t *digi_view, int8_t number, uint8_t number_len,  int8_t decimal, uint8_t decimal_len);
 
-void digi_view_draw(digi_view_t *digi_view, epd_paint_t *epd_paint, uint32_t loop_cnt);
+uint8_t digi_view_calc_width(digi_view_t *digi_view);
 
-void digi_view_draw_ee(digi_view_t *digi_view, epd_paint_t *epd_paint, uint8_t ee_cnt, uint32_t loop_cnt);
+// return endx
+uint8_t digi_view_draw(uint8_t x, uint8_t y, digi_view_t *digi_view, epd_paint_t *epd_paint, uint32_t loop_cnt);
+
+void digi_view_draw_ee(uint8_t x, uint8_t y, digi_view_t *digi_view, epd_paint_t *epd_paint, uint8_t ee_cnt, uint32_t loop_cnt);
 
 void digi_view_deinit(digi_view_t *digi_view);
 

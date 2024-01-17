@@ -178,7 +178,7 @@ static esp_err_t i2c_master_init(void) {
 
 void box_enter_deep_sleep(int sleep_ts) {
     if (sleep_ts > 0) {
-        esp_sleep_enable_timer_wakeup(sleep_ts * 1000000);
+        esp_sleep_enable_timer_wakeup((uint64_t)sleep_ts * 1000000);
     } else if (sleep_ts == 0) {
         esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER);
     }

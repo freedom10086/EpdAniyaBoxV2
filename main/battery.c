@@ -92,6 +92,9 @@ bool battery_start_curving() {
 
 bool battery_is_charge() {
     // 不准 大概吧 以后再优化
+    if (_voltage < 1800) {
+        return false;
+    }
     return (_pre_voltage > 0 && _voltage - _pre_voltage >= 2)
            || (_pre_pre_voltage > 0 && _voltage >= _pre_voltage && _voltage - _pre_pre_voltage >= 2);
 }

@@ -17,6 +17,8 @@
 #include "static/static.h"
 #include "page_manager.h"
 #include "rx8025t.h"
+#include "alert_dialog_page.h"
+#include "bles/ble_server.h"
 
 #define TAG "date-time-page"
 
@@ -142,9 +144,13 @@ void date_time_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     battery_view_deinit(battery_view);
 
     // draw time
-    digi_view_t *time_label = digi_view_create(8, 36, 40, 7, 2);
+    digi_view_t *time_label = digi_view_create(32, 6, 2);
+    time_label->point_style = 1;
     digi_view_set_text(time_label, _hour, 2, _minute, 2);
-    digi_view_draw(time_label, epd_paint, loop_cnt);
+    uint8_t time_label_width = digi_view_calc_width(time_label);
+
+    uint8_t time_label_start_x = (epd_paint->width - time_label_width) / 2;
+    digi_view_draw(time_label_start_x, 40, time_label, epd_paint, loop_cnt);
     digi_view_deinit(time_label);
 
     if (sht31_get_temp_hum(&temperature, &humility)) {
@@ -153,7 +159,7 @@ void date_time_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     }
 
     //epd_paint_draw_string_at(epd_paint, 167, 2, (char *)temp, &Font_HZK16, 1);
-    digi_view_t *temp_label = digi_view_create(16, 164, 18, 3, 2);
+    digi_view_t *temp_label = digi_view_create(18, 3, 2);
     if (temperature_valid) {
         if (temperature > 100) {
             temperature = 100;
@@ -162,15 +168,15 @@ void date_time_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
         epd_paint_draw_string_at(epd_paint, 84, 184, (char *) temp_f, &Font_HZK16, 1);
         digi_view_set_text(temp_label, (int) temperature, 2, (int) (temperature * 10 + (is_minus ? -0.5f : 0.5f)) % 10,
                            1);
-        digi_view_draw(temp_label, epd_paint, loop_cnt);
+        digi_view_draw(16, 164, temp_label, epd_paint, loop_cnt);
     } else {
-        digi_view_draw_ee(temp_label, epd_paint, 3, loop_cnt);
+        digi_view_draw_ee(16, 164, temp_label, epd_paint, 3, loop_cnt);
     }
 
     digi_view_deinit(temp_label);
 
     //epd_paint_draw_string_at(epd_paint, 167, 130, (char *)hum, &Font_HZK16, 1);
-    digi_view_t *hum_label = digi_view_create(116, 164, 18, 3, 2);
+    digi_view_t *hum_label = digi_view_create(18, 3, 2);
     if (humility_valid) {
         if (humility < 0) {
             humility = 0;
@@ -179,9 +185,9 @@ void date_time_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
         }
         epd_paint_draw_string_at(epd_paint, 184, 184, (char *) hum_f, &Font_HZK16, 1);
         digi_view_set_text(hum_label, (int) humility, 2, (int) (humility * 10 + 0.5f) % 10, 1);
-        digi_view_draw(hum_label, epd_paint, loop_cnt);
+        digi_view_draw(116, 164, hum_label, epd_paint, loop_cnt);
     } else {
-        digi_view_draw_ee(temp_label, epd_paint, 3, loop_cnt);
+        digi_view_draw_ee(116, 164, temp_label, epd_paint, 3, loop_cnt);
     }
     digi_view_deinit(hum_label);
 
@@ -207,6 +213,22 @@ void date_time_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
 }
 
 bool date_time_page_key_click(key_event_id_t key_event_type) {
+    switch (key_event_type) {
+        case KEY_CANCEL_LONG_CLICK: {
+            // show alert dialog
+            ble_server_init();
+
+            static alert_dialog_arg_t alert_dialog_arg = {
+                    .title_label = "BLE ON",
+                    .auto_close_ms = 5000
+            };
+            page_manager_show_menu("alert-dialog", &alert_dialog_arg);
+            page_manager_request_update(false);
+            return true;
+        }
+        default:
+            break;
+    }
     return false;
 }
 

@@ -18,7 +18,9 @@
 #include "esp_vfs.h"
 
 #include "confirm_menu_page.h"
+#include "alert_dialog_page.h"
 #include "page_manager.h"
+#include "bles/ble_server.h"
 #include "wifi/my_file_server_common.h"
 
 /*********************
@@ -33,7 +35,9 @@ RTC_DATA_ATTR static uint8_t current_bitmap_page_index = 0;
 
 static char current_filepath[64];
 bool file_system_mounted = false;
+
 static void delete_menu_callback(bool confirm);
+
 static esp_err_t delete_current_image();
 
 static confirm_menu_arg_t confirm_menu_arg = {
@@ -254,11 +258,23 @@ bool image_page_key_click_handle(key_event_id_t key_event_type) {
             current_bitmap_page_index += 1;
             page_manager_request_update(false);
             return true;
-        case KEY_CANCEL_LONG_CLICK:
+        case KEY_CANCEL_SHORT_CLICK:
             // show delete menu
             page_manager_show_menu("confirm-alert", &confirm_menu_arg);
             page_manager_request_update(false);
             return true;
+        case KEY_CANCEL_LONG_CLICK: {
+            // show alert dialog
+            ble_server_init();
+
+            static alert_dialog_arg_t alert_dialog_arg = {
+                    .title_label = "BLE ON",
+                    .auto_close_ms = 5000
+            };
+            page_manager_show_menu("alert-dialog", &alert_dialog_arg);
+            page_manager_request_update(false);
+            return true;
+        }
         default:
             return false;
     }
@@ -272,5 +288,5 @@ void image_page_on_destroy(void *arg) {
 }
 
 int image_page_on_enter_sleep(void *args) {
-    return 1800;
+    return 3600;
 }

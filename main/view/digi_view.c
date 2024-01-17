@@ -54,16 +54,18 @@ uint8_t draw_digi_minus(digi_view_t *view, epd_paint_t *epd_paint, uint8_t x, ui
     uint8_t DIGI_GAP = view->digi_gap;
     uint8_t DIGI_LINE_LENGTH = view->digi_width;
 
-    epd_paint_draw_horizontal_line(epd_paint, x,
-                                   y + DIGI_LINE_LENGTH - 1,
-                                   DIGI_LINE_LENGTH / 2 - DIGI_LINE_WIDTH / 2 * 2, 1);
-    for (int j = 1; j <= DIGI_LINE_WIDTH / 2; ++j) {
-        epd_paint_draw_horizontal_line(epd_paint, x + j,
-                                       y + DIGI_LINE_LENGTH - 1 - j,
-                                       DIGI_LINE_LENGTH / 2 - DIGI_LINE_WIDTH / 2 * 2 - j * 2, 1);
-        epd_paint_draw_horizontal_line(epd_paint, x + j,
-                                       y + DIGI_LINE_LENGTH - 1 + j,
-                                       DIGI_LINE_LENGTH / 2 - DIGI_LINE_WIDTH / 2 * 2 - j * 2, 1);
+    if (epd_paint != NULL) {
+        epd_paint_draw_horizontal_line(epd_paint, x,
+                                       y + DIGI_LINE_LENGTH - 1,
+                                       DIGI_LINE_LENGTH / 2 - DIGI_LINE_WIDTH / 2 * 2, 1);
+        for (int j = 1; j <= DIGI_LINE_WIDTH / 2; ++j) {
+            epd_paint_draw_horizontal_line(epd_paint, x + j,
+                                           y + DIGI_LINE_LENGTH - 1 - j,
+                                           DIGI_LINE_LENGTH / 2 - DIGI_LINE_WIDTH / 2 * 2 - j * 2, 1);
+            epd_paint_draw_horizontal_line(epd_paint, x + j,
+                                           y + DIGI_LINE_LENGTH - 1 + j,
+                                           DIGI_LINE_LENGTH / 2 - DIGI_LINE_WIDTH / 2 * 2 - j * 2, 1);
+        }
     }
 
     return DIGI_LINE_LENGTH / 2 - DIGI_LINE_WIDTH / 2 * 2 + DIGI_GAP;
@@ -79,100 +81,118 @@ int draw_digi_number(digi_view_t *view, epd_paint_t *epd_paint, uint8_t number, 
         mask = mask | 0b10000000;
     }
 
-    for (int i = 0; i < 8; ++i) {
-        uint8_t bit = (mask >> i) & 0x01;
-        if (!bit) {
-            continue;
-        }
+    if (epd_paint != NULL) {
+        for (int i = 0; i < 8; ++i) {
+            uint8_t bit = (mask >> i) & 0x01;
+            if (!bit) {
+                continue;
+            }
 
-        if (i == 0) {
-            for (int j = 0; j < DIGI_LINE_WIDTH; ++j) {
-                epd_paint_draw_horizontal_line(epd_paint, x + j + DIGI_GAP, y + j,
-                                               DIGI_LINE_LENGTH - j * 2 - DIGI_GAP * 2, 1);
-            }
-        } else if (i == 3) {
-            epd_paint_draw_horizontal_line(epd_paint, x + DIGI_LINE_WIDTH / 2 + DIGI_GAP,
-                                           y + DIGI_LINE_LENGTH - 1,
-                                           DIGI_LINE_LENGTH - DIGI_GAP * 2 - DIGI_LINE_WIDTH / 2 * 2, 1);
-            for (int j = 1; j <= DIGI_LINE_WIDTH / 2; ++j) {
-                epd_paint_draw_horizontal_line(epd_paint, x + DIGI_LINE_WIDTH / 2 + DIGI_GAP + j,
-                                               y + DIGI_LINE_LENGTH - 1 - j,
-                                               DIGI_LINE_LENGTH - DIGI_GAP * 2 - DIGI_LINE_WIDTH / 2 * 2 - j * 2, 1);
-                epd_paint_draw_horizontal_line(epd_paint, x + DIGI_LINE_WIDTH / 2 + DIGI_GAP + j,
-                                               y + DIGI_LINE_LENGTH - 1 + j,
-                                               DIGI_LINE_LENGTH - DIGI_GAP * 2 - DIGI_LINE_WIDTH / 2 * 2 - j * 2, 1);
-            }
-        } else if (i == 6) {
-            for (int j = 0; j < DIGI_LINE_WIDTH; ++j) {
-                epd_paint_draw_horizontal_line(epd_paint, x + j + DIGI_GAP,
-                                               y + DIGI_LINE_LENGTH * 2 - 2 - j,
-                                               DIGI_LINE_LENGTH - j * 2 - DIGI_GAP * 2, 1);
-            }
-        } else if (i == 1) {
-            for (int j = 0; j < DIGI_LINE_WIDTH; ++j) {
-                if (j <= DIGI_LINE_WIDTH / 2) {
-                    epd_paint_draw_vertical_line(epd_paint, x + j,
-                                                 y + j + DIGI_GAP,
-                                                 DIGI_LINE_LENGTH - DIGI_GAP * 2 - (DIGI_LINE_WIDTH / 2),
-                                                 1);
+            if (i == 0) {
+                for (int j = 0; j < DIGI_LINE_WIDTH; ++j) {
+                    epd_paint_draw_horizontal_line(epd_paint, x + j + DIGI_GAP, y + j,
+                                                   DIGI_LINE_LENGTH - j * 2 - DIGI_GAP * 2, 1);
+                }
+            } else if (i == 3) {
+                epd_paint_draw_horizontal_line(epd_paint, x + DIGI_LINE_WIDTH / 2 + DIGI_GAP,
+                                               y + DIGI_LINE_LENGTH - 1,
+                                               DIGI_LINE_LENGTH - DIGI_GAP * 2 - DIGI_LINE_WIDTH / 2 * 2, 1);
+                for (int j = 1; j <= DIGI_LINE_WIDTH / 2; ++j) {
+                    epd_paint_draw_horizontal_line(epd_paint, x + DIGI_LINE_WIDTH / 2 + DIGI_GAP + j,
+                                                   y + DIGI_LINE_LENGTH - 1 - j,
+                                                   DIGI_LINE_LENGTH - DIGI_GAP * 2 - DIGI_LINE_WIDTH / 2 * 2 - j * 2,
+                                                   1);
+                    epd_paint_draw_horizontal_line(epd_paint, x + DIGI_LINE_WIDTH / 2 + DIGI_GAP + j,
+                                                   y + DIGI_LINE_LENGTH - 1 + j,
+                                                   DIGI_LINE_LENGTH - DIGI_GAP * 2 - DIGI_LINE_WIDTH / 2 * 2 - j * 2,
+                                                   1);
+                }
+            } else if (i == 6) {
+                for (int j = 0; j < DIGI_LINE_WIDTH; ++j) {
+                    epd_paint_draw_horizontal_line(epd_paint, x + j + DIGI_GAP,
+                                                   y + DIGI_LINE_LENGTH * 2 - 2 - j,
+                                                   DIGI_LINE_LENGTH - j * 2 - DIGI_GAP * 2, 1);
+                }
+            } else if (i == 1) {
+                for (int j = 0; j < DIGI_LINE_WIDTH; ++j) {
+                    if (j <= DIGI_LINE_WIDTH / 2) {
+                        epd_paint_draw_vertical_line(epd_paint, x + j,
+                                                     y + j + DIGI_GAP,
+                                                     DIGI_LINE_LENGTH - DIGI_GAP * 2 - (DIGI_LINE_WIDTH / 2),
+                                                     1);
+                    } else {
+                        epd_paint_draw_vertical_line(epd_paint, x + j,
+                                                     y + j + DIGI_GAP,
+                                                     DIGI_LINE_LENGTH - (j - DIGI_LINE_WIDTH / 2) * 2 - DIGI_GAP * 2 -
+                                                     (DIGI_LINE_WIDTH / 2), 1);
+                    }
+                }
+            } else if (i == 2) {
+                for (int j = 0; j < DIGI_LINE_WIDTH; ++j) {
+                    if (j <= DIGI_LINE_WIDTH / 2) {
+                        epd_paint_draw_vertical_line(epd_paint, x + DIGI_LINE_LENGTH - 1 - j,
+                                                     y + j + DIGI_GAP,
+                                                     DIGI_LINE_LENGTH - DIGI_GAP * 2 - (DIGI_LINE_WIDTH / 2),
+                                                     1);
+                    } else {
+                        epd_paint_draw_vertical_line(epd_paint, x + DIGI_LINE_LENGTH - 1 - j,
+                                                     y + j + DIGI_GAP,
+                                                     DIGI_LINE_LENGTH - (j - DIGI_LINE_WIDTH / 2) * 2 - DIGI_GAP * 2 -
+                                                     (DIGI_LINE_WIDTH / 2), 1);
+                    }
+                }
+            } else if (i == 4) {
+                for (int j = 0; j < DIGI_LINE_WIDTH; ++j) {
+                    if (j > DIGI_LINE_WIDTH / 2) {
+                        epd_paint_draw_vertical_line(epd_paint, x + j,
+                                                     y + j + DIGI_LINE_LENGTH - 1 - DIGI_LINE_WIDTH / 2 + DIGI_GAP,
+                                                     DIGI_LINE_LENGTH - (j - DIGI_LINE_WIDTH / 2) * 2 - DIGI_GAP * 2 -
+                                                     (DIGI_LINE_WIDTH / 2),
+                                                     1);
+                    } else {
+                        epd_paint_draw_vertical_line(epd_paint, x + j,
+                                                     y + j + DIGI_LINE_LENGTH - 1 - DIGI_LINE_WIDTH / 2 + DIGI_GAP -
+                                                     (j - DIGI_LINE_WIDTH / 2) * 2,
+                                                     DIGI_LINE_LENGTH - DIGI_GAP * 2 - (DIGI_LINE_WIDTH / 2), 1);
+                    }
+                }
+            } else if (i == 5) {
+                for (int j = 0; j < DIGI_LINE_WIDTH; ++j) {
+                    if (j > DIGI_LINE_WIDTH / 2) {
+                        epd_paint_draw_vertical_line(epd_paint, x - j + DIGI_LINE_LENGTH - 1,
+                                                     y + j + DIGI_LINE_LENGTH - 1 - DIGI_LINE_WIDTH / 2 + DIGI_GAP,
+                                                     DIGI_LINE_LENGTH - (j - DIGI_LINE_WIDTH / 2) * 2 - DIGI_GAP * 2 -
+                                                     (DIGI_LINE_WIDTH / 2),
+                                                     1);
+                    } else {
+                        epd_paint_draw_vertical_line(epd_paint, x - j + DIGI_LINE_LENGTH - 1,
+                                                     y + j + DIGI_LINE_LENGTH - 1 - DIGI_LINE_WIDTH / 2 + DIGI_GAP -
+                                                     (j - DIGI_LINE_WIDTH / 2) * 2,
+                                                     DIGI_LINE_LENGTH - DIGI_GAP * 2 - (DIGI_LINE_WIDTH / 2), 1);
+                    }
+                }
+            } else {
+                // is 7 draw point
+                if (view->point_style == 0) {
+                    epd_paint_draw_filled_rectangle(epd_paint, x + DIGI_LINE_LENGTH + DIGI_LINE_WIDTH / 2 + DIGI_GAP,
+                                                    y + DIGI_LINE_LENGTH * 2 - DIGI_LINE_WIDTH - DIGI_GAP,
+                                                    x + DIGI_LINE_LENGTH + DIGI_LINE_WIDTH + DIGI_GAP,
+                                                    y + DIGI_LINE_LENGTH * 2 - DIGI_LINE_WIDTH / 2 - DIGI_GAP,
+                                                    1);
                 } else {
-                    epd_paint_draw_vertical_line(epd_paint, x + j,
-                                                 y + j + DIGI_GAP,
-                                                 DIGI_LINE_LENGTH - (j - DIGI_LINE_WIDTH / 2) * 2 - DIGI_GAP * 2 -
-                                                 (DIGI_LINE_WIDTH / 2), 1);
+                    epd_paint_draw_filled_rectangle(epd_paint, x + DIGI_LINE_LENGTH + DIGI_LINE_WIDTH / 2 + DIGI_GAP,
+                                                    y + DIGI_LINE_LENGTH / 2,
+                                                    x + DIGI_LINE_LENGTH + DIGI_LINE_WIDTH + DIGI_GAP,
+                                                    y + DIGI_LINE_LENGTH / 2 + DIGI_LINE_WIDTH / 2,
+                                                    1);
+
+                    epd_paint_draw_filled_rectangle(epd_paint, x + DIGI_LINE_LENGTH + DIGI_LINE_WIDTH / 2 + DIGI_GAP,
+                                                    y + DIGI_LINE_LENGTH + DIGI_LINE_LENGTH / 2 - DIGI_LINE_WIDTH / 2,
+                                                    x + DIGI_LINE_LENGTH + DIGI_LINE_WIDTH + DIGI_GAP,
+                                                    y + DIGI_LINE_LENGTH + DIGI_LINE_LENGTH / 2,
+                                                    1);
                 }
             }
-        } else if (i == 2) {
-            for (int j = 0; j < DIGI_LINE_WIDTH; ++j) {
-                if (j <= DIGI_LINE_WIDTH / 2) {
-                    epd_paint_draw_vertical_line(epd_paint, x + DIGI_LINE_LENGTH - 1 - j,
-                                                 y + j + DIGI_GAP,
-                                                 DIGI_LINE_LENGTH - DIGI_GAP * 2 - (DIGI_LINE_WIDTH / 2),
-                                                 1);
-                } else {
-                    epd_paint_draw_vertical_line(epd_paint, x + DIGI_LINE_LENGTH - 1 - j,
-                                                 y + j + DIGI_GAP,
-                                                 DIGI_LINE_LENGTH - (j - DIGI_LINE_WIDTH / 2) * 2 - DIGI_GAP * 2 -
-                                                 (DIGI_LINE_WIDTH / 2), 1);
-                }
-            }
-        } else if (i == 4) {
-            for (int j = 0; j < DIGI_LINE_WIDTH; ++j) {
-                if (j > DIGI_LINE_WIDTH / 2) {
-                    epd_paint_draw_vertical_line(epd_paint, x + j,
-                                                 y + j + DIGI_LINE_LENGTH - 1 - DIGI_LINE_WIDTH / 2 + DIGI_GAP,
-                                                 DIGI_LINE_LENGTH - (j - DIGI_LINE_WIDTH / 2) * 2 - DIGI_GAP * 2 -
-                                                 (DIGI_LINE_WIDTH / 2),
-                                                 1);
-                } else {
-                    epd_paint_draw_vertical_line(epd_paint, x + j,
-                                                 y + j + DIGI_LINE_LENGTH - 1 - DIGI_LINE_WIDTH / 2 + DIGI_GAP -
-                                                 (j - DIGI_LINE_WIDTH / 2) * 2,
-                                                 DIGI_LINE_LENGTH - DIGI_GAP * 2 - (DIGI_LINE_WIDTH / 2), 1);
-                }
-            }
-        } else if (i == 5) {
-            for (int j = 0; j < DIGI_LINE_WIDTH; ++j) {
-                if (j > DIGI_LINE_WIDTH / 2) {
-                    epd_paint_draw_vertical_line(epd_paint, x - j + DIGI_LINE_LENGTH - 1,
-                                                 y + j + DIGI_LINE_LENGTH - 1 - DIGI_LINE_WIDTH / 2 + DIGI_GAP,
-                                                 DIGI_LINE_LENGTH - (j - DIGI_LINE_WIDTH / 2) * 2 - DIGI_GAP * 2 -
-                                                 (DIGI_LINE_WIDTH / 2),
-                                                 1);
-                } else {
-                    epd_paint_draw_vertical_line(epd_paint, x - j + DIGI_LINE_LENGTH - 1,
-                                                 y + j + DIGI_LINE_LENGTH - 1 - DIGI_LINE_WIDTH / 2 + DIGI_GAP -
-                                                 (j - DIGI_LINE_WIDTH / 2) * 2,
-                                                 DIGI_LINE_LENGTH - DIGI_GAP * 2 - (DIGI_LINE_WIDTH / 2), 1);
-                }
-            }
-        } else {
-            // is 7 draw point
-            epd_paint_draw_filled_rectangle(epd_paint, x + DIGI_LINE_LENGTH + DIGI_LINE_WIDTH / 2 + DIGI_GAP,
-                                            y + DIGI_LINE_LENGTH * 2 - DIGI_LINE_WIDTH - DIGI_GAP,
-                                            x + DIGI_LINE_LENGTH + DIGI_LINE_WIDTH + DIGI_GAP,
-                                            y + DIGI_LINE_LENGTH * 2 - DIGI_LINE_WIDTH / 2 - DIGI_GAP,
-                                            1);
         }
     }
 
@@ -181,7 +201,7 @@ int draw_digi_number(digi_view_t *view, epd_paint_t *epd_paint, uint8_t number, 
 }
 
 
-digi_view_t *digi_view_create(int x, int y, int digi_width, int digi_thick, int digi_gap) {
+digi_view_t *digi_view_create(uint8_t digi_width, uint8_t digi_thick, uint8_t digi_gap) {
     //ESP_LOGI(TAG, "init digi view");
     digi_view_t *view = malloc(sizeof(digi_view_t));
     if (!view) {
@@ -189,24 +209,29 @@ digi_view_t *digi_view_create(int x, int y, int digi_width, int digi_thick, int 
         return NULL;
     }
 
-    view->x = x;
-    view->y = y;
     view->digi_width = digi_width;
     view->digi_thick = digi_thick;
     view->digi_gap = digi_gap;
+    view->point_style = 0;
 
     //ESP_LOGI(TAG, "digi view created");
     return view;
 }
 
-void digi_view_set_text(digi_view_t *digi_view, int number, uint8_t number_len, int decimal, uint8_t decimal_len) {
+void
+digi_view_set_text(digi_view_t *digi_view, int8_t number, uint8_t number_len, int8_t decimal, uint8_t decimal_len) {
     digi_view->number = number;
     digi_view->number_len = number_len;
     digi_view->decimal = decimal;
     digi_view->decimal_len = decimal_len;
 }
 
-void digi_view_draw(digi_view_t *digi_view, epd_paint_t *epd_paint, uint32_t loop_cnt) {
+uint8_t digi_view_calc_width(digi_view_t *digi_view) {
+    uint8_t end_x = digi_view_draw(0, 0, digi_view, NULL, 0);
+    return end_x;
+}
+
+uint8_t digi_view_draw(uint8_t x, uint8_t y, digi_view_t *digi_view, epd_paint_t *epd_paint, uint32_t loop_cnt) {
     bool is_minus = digi_view->number < 0 || (digi_view->decimal_len > 0 && digi_view->decimal < 0); // TODO
     int number = abs(digi_view->number);
 
@@ -216,9 +241,6 @@ void digi_view_draw(digi_view_t *digi_view, epd_paint_t *epd_paint, uint32_t loo
         number = number / 10;
         number_cnt++;
     }
-
-    uint8_t x = digi_view->x;
-    uint8_t y = digi_view->y;
 
     if (is_minus) {
         x += draw_digi_minus(digi_view, epd_paint, x, y);
@@ -265,11 +287,11 @@ void digi_view_draw(digi_view_t *digi_view, epd_paint_t *epd_paint, uint32_t loo
             x += draw_digi_number(digi_view, epd_paint, draw_num, x, y, false);
         }
     }
+
+    return x;
 }
 
-void digi_view_draw_ee(digi_view_t *digi_view, epd_paint_t *epd_paint, uint8_t ee_cnt, uint32_t loop_cnt) {
-    uint8_t x = digi_view->x;
-    uint8_t y = digi_view->y;
+void digi_view_draw_ee(uint8_t x, uint8_t y, digi_view_t *digi_view, epd_paint_t *epd_paint, uint8_t ee_cnt, uint32_t loop_cnt) {
     for (int i = 0; i < ee_cnt; ++i) {
         x += draw_digi_number(digi_view, epd_paint, 10, x, y, false);
     }

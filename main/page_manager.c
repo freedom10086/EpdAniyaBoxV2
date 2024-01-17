@@ -12,6 +12,7 @@
 #include "page/upgrade_page.h"
 #include "page/menu_page.h"
 #include "page/confirm_menu_page.h"
+#include "page/alert_dialog_page.h"
 #include "page/manual_page.h"
 #include "page/image_manage_page.h"
 #include "page/setting_list_page.h"
@@ -20,13 +21,15 @@
 #include "page/battery_page.h"
 #include "page/music_page.h"
 #include "battery.h"
+#include "rx8025t.h"
 
 #define TAG "page-manager"
 #define TOTAL_PAGE 12
-#define TOTAL_MENU 2
+#define TOTAL_MENU 3
 
 static int8_t pre_page_index = -1;
 static int8_t menu_index = -1;
+extern esp_event_loop_handle_t event_loop_handle;
 
 RTC_DATA_ATTR static int8_t current_page_index = -1;
 
@@ -46,14 +49,22 @@ static page_inst_t pages[] = {
                 .on_destroy_page = image_page_on_destroy,
                 .enter_sleep_handler = image_page_on_enter_sleep,
         },
-        [2] = {
+        [DATE_TIME_PAGE_INDEX] = {
+                .page_name = "date-time",
+                .on_create_page = date_time_page_on_create,
+                .on_draw_page = date_time_page_draw,
+                .key_click_handler = date_time_page_key_click,
+                .on_destroy_page = date_time_page_on_destroy,
+                .enter_sleep_handler = date_time_page_on_enter_sleep,
+        },
+        {
                 .page_name = "info",
                 .on_draw_page = info_page_draw,
                 .on_create_page = info_page_on_create,
                 .key_click_handler = info_page_key_click,
                 .enter_sleep_handler = info_page_on_enter_sleep,
         },
-        [3] = {
+        {
                 .page_name = "test",
                 .on_create_page = test_page_on_create,
                 .on_draw_page = test_page_draw,
@@ -61,7 +72,7 @@ static page_inst_t pages[] = {
                 .on_destroy_page = test_page_on_destroy,
                 .enter_sleep_handler = test_page_on_enter_sleep,
         },
-        [4] = {
+        {
                 .page_name = "upgrade",
                 .on_draw_page = upgrade_page_draw,
                 .key_click_handler = upgrade_page_key_click_handle,
@@ -69,14 +80,14 @@ static page_inst_t pages[] = {
                 .on_destroy_page = upgrade_page_on_destroy,
                 .enter_sleep_handler = upgrade_page_on_enter_sleep,
         },
-        [5] = {
+        {
                 .page_name = "manual",
                 .on_draw_page = manual_page_draw,
                 .key_click_handler = manual_page_key_click,
                 .on_create_page = manual_page_on_create,
                 .on_destroy_page = manual_page_on_destroy,
         },
-        [6] = {
+        {
                 .page_name = "image-manage",
                 .on_draw_page = image_manage_page_draw,
                 .key_click_handler = image_manage_page_key_click,
@@ -84,7 +95,7 @@ static page_inst_t pages[] = {
                 .on_destroy_page = image_manage_page_on_destroy,
                 .enter_sleep_handler = image_manage_page_on_enter_sleep,
         },
-        [7] = {
+        {
                 .page_name = "setting-list",
                 .on_draw_page = setting_list_page_draw,
                 .key_click_handler = setting_list_page_key_click,
@@ -93,7 +104,7 @@ static page_inst_t pages[] = {
                 .enter_sleep_handler = setting_list_page_on_enter_sleep,
                 .after_draw_page = setting_list_page_after_draw,
         },
-        [8] = {
+        {
                 .page_name = "ble-device",
                 .on_draw_page = ble_device_page_draw,
                 .key_click_handler = ble_device_page_key_click,
@@ -102,15 +113,8 @@ static page_inst_t pages[] = {
                 .enter_sleep_handler = ble_device_page_on_enter_sleep,
                 .after_draw_page = ble_device_page_after_draw,
         },
-        [9] = {
-                .page_name = "date-time",
-                .on_create_page = date_time_page_on_create,
-                .on_draw_page = date_time_page_draw,
-                .key_click_handler = date_time_page_key_click,
-                .on_destroy_page = date_time_page_on_destroy,
-                .enter_sleep_handler = date_time_page_on_enter_sleep,
-        },
-        [10] = {
+
+        {
                 .page_name = "battery",
                 .on_draw_page = battery_page_draw,
                 .on_create_page = battery_page_on_create,
@@ -118,7 +122,7 @@ static page_inst_t pages[] = {
                 .enter_sleep_handler = battery_page_on_enter_sleep,
                 .on_destroy_page = battery_page_on_destroy,
         },
-        [11] = {
+        {
                 .page_name = "music",
                 .on_draw_page = music_page_draw,
                 .on_create_page = music_page_on_create,
@@ -144,13 +148,29 @@ static page_inst_t menus[] = {
                 .on_create_page = confirm_menu_page_on_create,
                 .on_destroy_page = confirm_menu_page_on_destroy,
                 .after_draw_page = confirm_menu_page_after_draw,
+        },
+        [2] = {
+                .page_name = "alert-dialog",
+                .on_draw_page = alert_dialog_page_draw,
+                .key_click_handler = alert_dialog_page_key_click,
+                .on_create_page = alert_dialog_page_on_create,
+                .on_destroy_page = alert_dialog_page_on_destroy,
+                .after_draw_page = alert_dialog_page_after_draw,
         }
 };
 
-void page_manager_init(char *default_page) {
+static void key_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id,
+                              void *event_data);
+bool page_manager_switch_page_by_index(int8_t dest_page_index, bool push_stack);
+
+void page_manager_init(int8_t page_index) {
+    esp_event_handler_register_with(event_loop_handle,
+                                    BIKE_KEY_EVENT, ESP_EVENT_ANY_ID,
+                                    key_event_handler, NULL);
+
     // reset to -1 when awake from deep sleep
     current_page_index = -1;
-    page_manager_switch_page(default_page, false);
+    page_manager_switch_page_by_index(page_index, false);
 }
 
 int8_t page_manager_get_current_index() {
@@ -173,8 +193,17 @@ bool page_manager_switch_page_by_index(int8_t dest_page_index, bool push_stack) 
 
     if (push_stack) {
         pages[dest_page_index].parent_page_index = current_page_index;
-    } else {
-        pages[dest_page_index].parent_page_index = -1;
+    }
+//    else {
+//        pages[dest_page_index].parent_page_index = -1;
+//    }
+
+    pre_page_index = current_page_index;
+
+    // old page destroy
+    if (pre_page_index >= 0 && pages[pre_page_index].on_destroy_page != NULL) {
+        pages[pre_page_index].on_destroy_page(NULL);
+        ESP_LOGI(TAG, "page %s on destroy", pages[pre_page_index].page_name);
     }
 
     // new page on create
@@ -183,15 +212,7 @@ bool page_manager_switch_page_by_index(int8_t dest_page_index, bool push_stack) 
         ESP_LOGI(TAG, "page %s on create", pages[dest_page_index].page_name);
     }
 
-    pre_page_index = current_page_index;
     current_page_index = dest_page_index;
-
-    // old page destroy
-    if (pre_page_index >= 0 && pages[pre_page_index].on_destroy_page != NULL) {
-        pages[pre_page_index].on_destroy_page(NULL);
-        ESP_LOGI(TAG, "page %s on destroy", pages[pre_page_index].page_name);
-    }
-
     return true;
 }
 
@@ -215,8 +236,7 @@ bool page_manager_close_page() {
     if (curr_page.parent_page_index >= 0) {
         return page_manager_switch_page_by_index(curr_page.parent_page_index, false);
     } else {
-        if (current_page_index == TEMP_PAGE_INDEX
-            || current_page_index == IMAGE_PAGE_INDEX) {
+        if (current_page_index < HOME_PAGE_COUNT) {
             ESP_LOGW(TAG, "current page %s is home page cant close", curr_page.page_name);
             return false;
         }
@@ -265,6 +285,7 @@ void page_manager_show_menu(char *name, void *args) {
     }
 
     if (menu_index != -1) {
+        // close current menu
         page_manager_close_menu();
     }
 
@@ -274,6 +295,88 @@ void page_manager_show_menu(char *name, void *args) {
         ESP_LOGI(TAG, "menu %s on create", menus[idx].page_name);
     }
     menu_index = idx;
+}
+
+static void key_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id,
+                              void *event_data) {
+    //ESP_LOGI(TAG, "rev key click event %ld", event_id);
+    // if menu exist
+    if (page_manager_has_menu()) {
+        page_inst_t current_menu = page_manager_get_current_menu();
+        if (current_menu.key_click_handler) {
+            if (current_menu.key_click_handler(event_id)) {
+                return;
+            }
+        }
+    }
+
+    // if not handle passed to view
+    page_inst_t current_page = page_manager_get_current_page();
+    if (current_page.key_click_handler) {
+        if (current_page.key_click_handler(event_id)) {
+            return;
+        }
+    }
+
+    // finally pass here
+    switch (event_id) {
+        case KEY_UP_SHORT_CLICK:
+            break;
+        case KEY_DOWN_SHORT_CLICK:
+            break;
+        case KEY_CANCEL_SHORT_CLICK:
+            if (page_manager_has_menu()) {
+                page_manager_close_menu();
+                page_manager_request_update(false);
+                return;
+            } else {
+                if (page_manager_close_page()) {
+                    page_manager_request_update(false);
+                }
+                return;
+            }
+            break;
+        case KEY_OK_SHORT_CLICK:
+            if (page_manager_get_current_index() < HOME_PAGE_COUNT) {
+                if (page_manager_has_menu()) {
+                    page_manager_close_menu();
+                    page_manager_request_update(false);
+                    return;
+                } else {
+                    page_manager_show_menu("menu", NULL);
+                    page_manager_request_update(false);
+                    return;
+                }
+            }
+            break;
+        case KEY_OK_LONG_CLICK:
+            if (page_manager_has_menu()) {
+                page_manager_close_menu();
+                page_manager_request_update(false);
+                return;
+            } else {
+                page_manager_show_menu("menu", NULL);
+                page_manager_request_update(false);
+                return;
+            }
+            break;
+        case KEY_UP_LONG_CLICK:
+        case KEY_DOWN_LONG_CLICK:
+            if (page_manager_get_current_index() < HOME_PAGE_COUNT) {
+                int8_t dest_index = (page_manager_get_current_index() + ((event_id == KEY_UP_LONG_CLICK) ? -1 : 1) +
+                                     HOME_PAGE_COUNT) % HOME_PAGE_COUNT;
+                if (page_manager_switch_page_by_index(dest_index, false)) {
+                    page_manager_request_update(false);
+                }
+                return;
+            }
+            break;
+        default:
+            break;
+    }
+
+    // if page not handle key click event here handle
+    ESP_LOGI(TAG, "no page handler key click event %ld", event_id);
 }
 
 void page_manager_close_menu() {
@@ -286,6 +389,7 @@ void page_manager_close_menu() {
     }
 }
 
+// return sleep ts, -1 stop sleep, 0 never wake up by timer
 int page_manager_enter_sleep(uint32_t loop_cnt) {
     if (page_manager_has_menu()) {
         page_manager_close_menu();
@@ -295,30 +399,38 @@ int page_manager_enter_sleep(uint32_t loop_cnt) {
 
     page_inst_t current_page = page_manager_get_current_page();
     if (current_page.enter_sleep_handler != NULL) {
-        return current_page.enter_sleep_handler((void *) loop_cnt);
+        int sleepTs = current_page.enter_sleep_handler((void *) loop_cnt);
+        if (sleepTs != NO_SLEEP_TS) {
+            return sleepTs;
+        }
     }
 
     int8_t battery_level = battery_get_level();
-    if (battery_level > 0) {
-        if (battery_is_charge()) {
-            ESP_LOGI(TAG, "battery is charge use default sleep time");
-            return DEFAULT_SLEEP_TS;
-        }
-        if (battery_level < 5) {
-            // battery low never wake up
-            return 0;
-        }
-        if (battery_level < 20) {
-            return DEFAULT_SLEEP_TS * 5;
-        }
-        if (battery_level < 50) {
-            return DEFAULT_SLEEP_TS * 2;
-        }
+    if (battery_is_charge()) {
+        ESP_LOGI(TAG, "battery is charge use default sleep time");
+        return DEFAULT_SLEEP_TS;
+    }
+    if (battery_level < 5 && battery_level >= 0) {
+        // battery low never wake up
+        return NEVER_WAKE_SLEEP_TS;
+    }
+
+    bool in_night = false;
+    rx8025_time_t t;
+    esp_err_t load_time_err = rx8025t_get_time(&t.year, &t.month, &t.day, &t.week, &t.hour, &t.minute, &t.second);
+    if (load_time_err == ESP_OK) {
+        in_night = t.year >= 24 && (t.hour >= 23 || t.hour <= 9);
+    }
+    if (in_night) {
+        return NIGHT_SLEEP_TS;
+    }
+    if (battery_level < 30 && battery_level >= 0) {
+        return DEFAULT_SLEEP_TS * 5;
     }
     // battery is invalid use default sleep time
     return DEFAULT_SLEEP_TS;
 }
 
 void page_manager_request_update(uint32_t full_refresh) {
-    common_post_event_data(BIKE_REQUEST_UPDATE_DISPLAY_EVENT, 0, &full_refresh, sizeof(full_refresh));
+    common_post_event_data(BIKE_REQUEST_UPDATE_DISPLAY_EVENT, 0, (void *)full_refresh, sizeof(full_refresh));
 }

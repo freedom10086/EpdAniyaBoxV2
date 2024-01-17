@@ -139,7 +139,7 @@ static void imu_task_entry(void *arg) {
     uint8_t continue_timeout_count = 0;
 
     while (1) {
-        uint32_t sleep_ms = continue_timeout_count >= 2 ? 30000 : 8000;
+        uint32_t sleep_ms = continue_timeout_count >= 2 ? 30000 : 4000;
         if (xQueueReceive(imu_int_event_queue, &triggered_gpio, pdMS_TO_TICKS(sleep_ms))) {
             continue_timeout_count = 0;
             int level = gpio_get_level(triggered_gpio);

@@ -11,6 +11,11 @@
 
 void epd_paint_draw_absolute_pixel(epd_paint_t *epd_paint, int x, int y, uint8_t colored);
 
+void epd_paint_draw_char_at(epd_paint_t *epd_paint, int x, int y, char ascii_char, sFONT *font, int colored);
+
+void epd_paint_draw_chinese_char_at(epd_paint_t *epd_paint, int x, int y, uint16_t font_char, sFONT *font, int colored);
+
+
 uint8_t epd_paint_get_pixel(epd_paint_t *epd_paint, int x, int y);
 
 void epd_paint_init(epd_paint_t *epd_paint, unsigned char *image, int width, int height, uint8_t rotate) {
@@ -222,7 +227,7 @@ void epd_paint_draw_string_at(epd_paint_t *epd_paint, int x, int y, const char *
     unsigned int counter = 0;
     int refcolumn = x;
 
-    while (*p_text != 0) {
+    while (*p_text != 0 && refcolumn < epd_paint->width) {
         if (font->is_chinese) {
             if (*p_text < 128) {
                 epd_paint_draw_char_at(epd_paint, refcolumn, y, (char) *p_text, &Font16, colored);
@@ -241,6 +246,26 @@ void epd_paint_draw_string_at(epd_paint_t *epd_paint, int x, int y, const char *
         }
         counter++;
     }
+}
+
+uint16_t epd_paint_calc_string_width(epd_paint_t *epd_paint, const char *text, sFONT *font) {
+    const uint8_t *p_text = (uint8_t *) text;
+    uint16_t width = 0;
+
+    while (*p_text != 0 && width < epd_paint->width) {
+        if (font->is_chinese) {
+            if (*p_text < 128) {
+                p_text++;
+                width += Font16.Width;
+            } else {
+                p_text += 2;
+                width += font->Width;
+            }
+        } else {
+            width += font->Width;
+        }
+    }
+    return width;
 }
 
 /**

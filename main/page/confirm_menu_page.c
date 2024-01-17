@@ -25,8 +25,6 @@ static confirm_menu_arg_t *confirm_menu_arg = NULL;
 void confirm_menu_page_on_create(void *arg) {
     ESP_LOGI(TAG, "menu_page_on_create");
     confirm_menu_arg = (confirm_menu_arg_t *) arg;
-    ESP_LOGI(TAG, "confirm_menu_arg == null ? %d, callback == null ? :%d", confirm_menu_arg == NULL ? 1 : 0,
-             (confirm_menu_arg == NULL || confirm_menu_arg->callback == NULL) ? 1 : 0);
     current_index = 0;
     switching_index = 0;
 }
@@ -119,5 +117,5 @@ bool confirm_menu_page_key_click(key_event_id_t key_event_type) {
 }
 
 void confirm_menu_page_on_destroy(void *arg) {
-
+    confirm_menu_arg = NULL;
 }

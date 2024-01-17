@@ -17,6 +17,16 @@ ESP_EVENT_DECLARE_BASE(BIKE_DATE_TIME_SENSOR_EVENT);
 //将X的第Y位清0
 #define clrbit(x, y) x&=~(1<<y)
 
+typedef struct {
+    uint8_t year;
+    uint8_t month;
+    uint8_t day;
+    uint8_t week;
+    uint8_t hour;
+    uint8_t minute;
+    uint8_t second;
+} rx8025_time_t;
+
 typedef enum {
     RX8025T_SENSOR_INIT_FAILED,
     RX8025T_SENSOR_UPDATE,

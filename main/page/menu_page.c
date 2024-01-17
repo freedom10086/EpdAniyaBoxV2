@@ -124,7 +124,7 @@ bool menu_page_key_click(key_event_id_t key_event_type) {
             change_select(false);
             break;
         default:
-            return false;
+            return true;
     }
     return true;
 }

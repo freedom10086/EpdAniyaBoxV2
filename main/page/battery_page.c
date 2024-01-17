@@ -7,13 +7,30 @@
 #include "page_manager.h"
 #include "lcd/epd_lcd_ssd1680.h"
 #include "bles/ble_server.h"
+#include "confirm_menu_page.h"
 
 #define TAG "battery-page"
 
-static char battery_page_draw_text_buf[64] = {0};
+static char battery_page_draw_text_buf[48] = {0};
+static uint16_t confirm_start_curve_label[] = {0xAABF, 0xBCCA, 0xE7B5, 0xD8B3, 0xA3D0, 0xBCD7, 0x3F, 0x00};
+static uint8_t click_ok_start_curve_label[] = {0xB5, 0xE3, 0xBB, 0xF7, 0x4F, 0x4B, 0xBF, 0xAA, 0xCA, 0xBC, 0xB5, 0xE7,
+                                               0xB3, 0xD8, 0xD0, 0xA3, 0xD7, 0xBC, 0x00};
+
+static void confirm_start_curving_dialog_callback(bool confirm) {
+    if (confirm) {
+        ble_server_init();
+        battery_start_curving();
+        page_manager_request_update(false);
+    }
+}
+
+static confirm_menu_arg_t confirm_start_curving_arg = {
+        .title_label = (char *) confirm_start_curve_label,
+        .callback = confirm_start_curving_dialog_callback
+};
 
 void battery_page_on_create(void *arg) {
-    ble_server_init();
+
 }
 
 void battery_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
@@ -42,10 +59,10 @@ void battery_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     y = LCD_V_RES - 20;
     if (battery_is_curving()) {
         sprintf(battery_page_draw_text_buf, "curving...");
+        epd_paint_draw_string_at(epd_paint, 0, y, battery_page_draw_text_buf, &Font16, 1);
     } else {
-        sprintf(battery_page_draw_text_buf, "click ok start curving");
+        epd_paint_draw_string_at(epd_paint, 20, y, (char *) click_ok_start_curve_label, &Font_HZK16, 1);
     }
-    epd_paint_draw_string_at(epd_paint, 0, y, battery_page_draw_text_buf, &Font16, 1);
     y += 18;
 }
 
@@ -53,7 +70,7 @@ bool battery_page_key_click(key_event_id_t key_event_type) {
     switch (key_event_type) {
         case KEY_OK_SHORT_CLICK:
             if (!battery_is_curving()) {
-                battery_start_curving();
+                page_manager_show_menu("confirm-alert", &confirm_start_curving_arg);
                 page_manager_request_update(false);
             }
             return true;

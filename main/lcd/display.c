@@ -20,6 +20,7 @@
 #include "display.h"
 #include "page_manager.h"
 #include "box_common.h"
+#include "bles/ble_server.h"
 
 /*********************
  *      DEFINES
@@ -41,7 +42,6 @@ static TaskHandle_t x_update_notify_handl = NULL;
 static uint32_t boot_cnt = 0;
 static uint32_t lst_event_tick;
 static bool updating = false;
-static bool holding_updating = false;
 static bool rotation_change = false;
 static uint8_t curr_disp_rotation;
 
@@ -123,12 +123,10 @@ void after_draw_page(uint32_t loop_cnt) {
 
 static void guiTask(void *pvParameter) {
     int8_t page_index = page_manager_get_current_index();
-    if (page_index == IMAGE_PAGE_INDEX) { // image page
-        page_manager_init("image");
+    if (page_index >= 0 && page_index < HOME_PAGE_COUNT) {
+        page_manager_init(page_index);
     } else {
-        // TODO for debug
-        // page_manager_init("setting-list");
-        page_manager_init("temperature");
+        page_manager_init(TEMP_PAGE_INDEX);
     }
 
     x_update_notify_handl = xTaskGetCurrentTaskHandle();
@@ -179,34 +177,30 @@ static void guiTask(void *pvParameter) {
 
     static uint32_t loop_cnt = 1;
     uint32_t last_full_refresh_loop_cnt = loop_cnt;
-    uint32_t last_full_refresh_tick = xTaskGetTickCount();
-    static uint32_t current_tick;
+    static uint32_t current_tick, next_check_display_timeout_tick;
     static uint32_t ulNotificationCount;
-    static uint32_t continue_time_out_count = 0;
     bool wakeup_by_timer = (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_TIMER);
 
     //sleep wait for sensor init
-    vTaskDelay(pdMS_TO_TICKS(50));
+    vTaskDelay(pdMS_TO_TICKS(10));
 
     while (1) {
         // not first loop
-        if (loop_cnt > 1 && !wakeup_by_timer && !holding_updating) {
-            ulNotificationCount = ulTaskGenericNotifyTake(0, pdTRUE, pdMS_TO_TICKS(10000));
+        if (loop_cnt > 1 && !wakeup_by_timer) {
+            // ulNotificationCount > 0 success get or timeout
+            ulNotificationCount = ulTaskGenericNotifyTake(0, pdTRUE, pdMS_TO_TICKS(5000));
             // ESP_LOGI(TAG, "ulTaskGenericNotifyTake %ld", ulNotificationCount);
-            if (ulNotificationCount > 0) { // may > 1 more data ws send
-                continue_time_out_count = 0;
-            } else {
-                /* The call to ulTaskNotifyTake() timed out. */
-                continue_time_out_count += 1;
-            }
         }
 
         current_tick = xTaskGetTickCount();
-        bool display_time_out = pdTICKS_TO_MS(current_tick - lst_event_tick) >= DEEP_SLEEP_TIMEOUT_MS;
+        bool display_timeout = (current_tick >= next_check_display_timeout_tick)
+                && pdTICKS_TO_MS(current_tick - lst_event_tick) >= DEEP_SLEEP_TIMEOUT_MS;
+        if (display_timeout) {
+            next_check_display_timeout_tick = current_tick + pdMS_TO_TICKS(DEEP_SLEEP_TIMEOUT_MS);
+        }
 
-        bool will_enter_deep_sleep = display_time_out || wakeup_by_timer;
-        if (ulNotificationCount > 0 || display_time_out || loop_cnt == 1) {
-            holding_updating = false;
+        bool will_enter_deep_sleep = display_timeout || wakeup_by_timer;
+        if (ulNotificationCount > 0 || loop_cnt == 1 || display_timeout) {
             ESP_LOGI(TAG, "draw loop: %ld, boot_cnt: %ld  ulNotification: %ld lst_full_loop:%ld", loop_cnt, boot_cnt,
                      ulNotificationCount, last_full_refresh_loop_cnt);
 
@@ -215,13 +209,8 @@ static void guiTask(void *pvParameter) {
             // if will enter deep sleep mode use full update
             bool use_full_update_mode = loop_cnt == 1
                                         || loop_cnt - last_full_refresh_loop_cnt >= 60
-                                        || (will_enter_deep_sleep &&
-                                            pdTICKS_TO_MS(current_tick - last_full_refresh_tick) >= 10000);
+                                        || will_enter_deep_sleep;
             bool use_partial_update_mode = !use_full_update_mode;
-
-            //if (display_time_out) {
-            //    panel_ssd1680_clear_display(&panel, 0xff);
-            //}
 
             if (panel._using_partial_mode != use_partial_update_mode) {
                 if (use_partial_update_mode) {
@@ -236,15 +225,17 @@ static void guiTask(void *pvParameter) {
                 rotation_change = false;
             }
 
-            draw_page(epd_paint, loop_cnt);
             updating = true;
+            // clear all holding update request
+            ulTaskGenericNotifyTake(0, pdTRUE, 0);
+
+            draw_page(epd_paint, loop_cnt);
             panel_ssd1680_draw_bitmap(&panel, 0, 0, LCD_H_RES, LCD_V_RES, epd_paint->image);
             panel_ssd1680_refresh(&panel, use_partial_update_mode);
             updating = false;
             after_draw_page(loop_cnt);
 
             if (use_full_update_mode) {
-                last_full_refresh_tick = current_tick;
                 last_full_refresh_loop_cnt = loop_cnt;
             }
 
@@ -252,23 +243,16 @@ static void guiTask(void *pvParameter) {
         }
 
         // enter deep sleep mode
-        if (display_time_out || wakeup_by_timer) {
+        if (display_timeout || wakeup_by_timer) {
             int sleepTs = page_manager_enter_sleep(loop_cnt);
             if (sleepTs >= 0) {
-                if (display_time_out) {
-                    ESP_LOGI(TAG, "%dms timeout enter sleep. sleep ts %d", DEEP_SLEEP_TIMEOUT_MS, sleepTs);
-                }
-
+                ESP_LOGI(TAG, "%dms timeout enter sleep. sleep ts %d", DEEP_SLEEP_TIMEOUT_MS, sleepTs);
                 panel_ssd1680_sleep(&panel);
                 box_enter_deep_sleep(sleepTs);
             } else {
                 // never sleep
 
             }
-        }
-
-        if (display_time_out) {
-            lst_event_tick = current_tick;
         }
     }
 
@@ -283,86 +267,11 @@ static void guiTask(void *pvParameter) {
 void request_display_update_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id,
                                     void *event_data) {
     if (BIKE_REQUEST_UPDATE_DISPLAY_EVENT == event_base) {
-        if (updating) {
-            holding_updating = true;
-            ESP_LOGI(TAG, "still updating hold...");
-        } else {
-            //ESP_LOGI(TAG, "request for update...");
-            int *full_update = (int *) event_data;
-            xTaskGenericNotify(x_update_notify_handl, 0, *full_update,
-                               eIncrement, NULL);
-        }
+        //ESP_LOGI(TAG, "request for update...");
+        int full_update = (int) event_data;
+        xTaskGenericNotify(x_update_notify_handl, 0, full_update,
+                           eIncrement, NULL);
     }
-}
-
-static void key_click_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id,
-                                    void *event_data) {
-    lst_event_tick = xTaskGetTickCount();
-    //ESP_LOGI(TAG, "rev key click event %ld", event_id);
-    // if menu exist
-    if (page_manager_has_menu()) {
-        page_inst_t current_menu = page_manager_get_current_menu();
-        if (current_menu.key_click_handler) {
-            if (current_menu.key_click_handler(event_id)) {
-                return;
-            }
-        }
-    }
-
-    // if not handle passed to view
-    page_inst_t current_page = page_manager_get_current_page();
-    if (current_page.key_click_handler) {
-        if (current_page.key_click_handler(event_id)) {
-            return;
-        }
-    }
-
-    // finally pass here
-    switch (event_id) {
-        case KEY_UP_SHORT_CLICK:
-            break;
-        case KEY_DOWN_SHORT_CLICK:
-            break;
-        case KEY_CANCEL_SHORT_CLICK:
-            if (page_manager_has_menu()) {
-                page_manager_close_menu();
-                page_manager_request_update(false);
-                return;
-            } else {
-                if (page_manager_close_page()) {
-                    page_manager_request_update(false);
-                }
-                return;
-            }
-            break;
-        case KEY_OK_LONG_CLICK:
-            if (page_manager_has_menu()) {
-                page_manager_close_menu();
-                page_manager_request_update(false);
-                return;
-            } else {
-                page_manager_show_menu("menu", NULL);
-                page_manager_request_update(false);
-                return;
-            }
-            break;
-        case KEY_UP_LONG_CLICK:
-        case KEY_DOWN_LONG_CLICK:
-            if (page_manager_get_current_index() == TEMP_PAGE_INDEX) {
-                if (page_manager_switch_page("image", false)) {
-                    page_manager_request_update(false);
-                }
-            } else {
-                if (page_manager_switch_page("temperature", false)) {
-                    page_manager_request_update(false);
-                }
-            }
-        default:
-            break;
-    }
-
-    // if page not handle key click event here handle
-    ESP_LOGI(TAG, "no page handler key click event %ld", event_id);
 }
 
 static void acc_motion_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id,
@@ -383,6 +292,11 @@ static void acc_motion_event_handler(void *event_handler_arg, esp_event_base_t e
     }
 }
 
+static void update_lst_event_tick_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id,
+                                     void *event_data) {
+    lst_event_tick = xTaskGetTickCount();
+}
+
 void display_init(uint32_t boot_count) {
     boot_cnt = boot_count;
     lst_event_tick = xTaskGetTickCount();
@@ -393,7 +307,7 @@ void display_init(uint32_t boot_count) {
     // key click event
     esp_event_handler_register_with(event_loop_handle,
                                     BIKE_KEY_EVENT, ESP_EVENT_ANY_ID,
-                                    key_click_event_handler, NULL);
+                                    update_lst_event_tick_handler, NULL);
 
     // update display event
     esp_event_handler_register_with(event_loop_handle,
@@ -404,5 +318,10 @@ void display_init(uint32_t boot_count) {
     esp_event_handler_register_with(event_loop_handle,
                                     BIKE_MOTION_EVENT, ESP_EVENT_ANY_ID,
                                     acc_motion_event_handler, NULL);
+
+    // ble server event
+    esp_event_handler_register_with(event_loop_handle,
+                                    BIKE_BLE_SERVER_EVENT, ESP_EVENT_ANY_ID,
+                                    update_lst_event_tick_handler, NULL);
 }
 

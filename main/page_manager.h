@@ -8,6 +8,9 @@
 
 #define TEMP_PAGE_INDEX 0
 #define IMAGE_PAGE_INDEX 1
+#define DATE_TIME_PAGE_INDEX 2
+
+#define HOME_PAGE_COUNT 3
 
 typedef void (*on_draw_page_cb)(epd_paint_t *epd_paint, uint32_t loop_cnt);
 
@@ -35,7 +38,7 @@ typedef struct {
     after_draw_page_cb after_draw_page;
 } page_inst_t;
 
-void page_manager_init(char *default_page);
+void page_manager_init(int8_t page_index);
 
 int8_t page_manager_get_current_index();
 

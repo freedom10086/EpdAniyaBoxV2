@@ -6,6 +6,8 @@
 #include <sys/stat.h>
 #include <sys/unistd.h>
 #include "esp_vfs.h"
+#include "esp_random.h"
+#include "esp_timer.h"
 
 #include "setting.h"
 #include "rx8025t.h"
@@ -132,10 +134,18 @@ esp_err_t box_setting_apply(uint8_t cmd, uint8_t *data, uint16_t data_len) {
 }
 
 static esp_err_t open_file(uint8_t file_id, uint16_t file_size) {
-    uint16_t rndId = xTaskGetTickCount() % 60000;
+    uint16_t rndId = esp_random() % 50000 + 10000;
+    box_setting_time_t t;
+    esp_err_t load_time_err = rx8025t_get_time(&t.year, &t.month, &t.day, &t.week, &t.hour, &t.minute, &t.second);
+
     struct stat file_stat;
     do {
-        sprintf(bmp_filepath, "%s/b%d.bmp", FILE_SERVER_BASE_PATH, rndId);
+        if (load_time_err == ESP_OK) {
+            sprintf(bmp_filepath, "%s/%02d%02d%02d%02d%02d%02d_%d.bmp", FILE_SERVER_BASE_PATH,
+                    t.year, t.month, t.day, t.hour, t.minute, t.second, rndId);
+        } else {
+            sprintf(bmp_filepath, "%s/b%d.bmp", FILE_SERVER_BASE_PATH, rndId);
+        }
         rndId += 1;
         ESP_LOGI(TAG, "bmp file path %s for file id %d", bmp_filepath, file_id);
     } while (stat(bmp_filepath, &file_stat) == 0); // == 0  file exist

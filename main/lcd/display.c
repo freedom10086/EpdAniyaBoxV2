@@ -47,6 +47,8 @@ static uint8_t curr_disp_rotation;
 
 extern esp_event_loop_handle_t event_loop_handle;
 
+static void register_event_callbacks();
+
 uint8_t calc_disp_rotation(uint8_t default_rotate) {
     lis3dh_direction_t disp_direction = lis3dh_get_direction();
     switch (disp_direction) {
@@ -184,6 +186,8 @@ static void guiTask(void *pvParameter) {
     //sleep wait for sensor init
     vTaskDelay(pdMS_TO_TICKS(10));
 
+    register_event_callbacks();
+
     while (1) {
         // not first loop
         if (loop_cnt > 1 && !wakeup_by_timer) {
@@ -194,7 +198,7 @@ static void guiTask(void *pvParameter) {
 
         current_tick = xTaskGetTickCount();
         bool display_timeout = (current_tick >= next_check_display_timeout_tick)
-                && pdTICKS_TO_MS(current_tick - lst_event_tick) >= DEEP_SLEEP_TIMEOUT_MS;
+                               && pdTICKS_TO_MS(current_tick - lst_event_tick) >= DEEP_SLEEP_TIMEOUT_MS;
         if (display_timeout) {
             next_check_display_timeout_tick = current_tick + pdMS_TO_TICKS(DEEP_SLEEP_TIMEOUT_MS);
         }
@@ -292,18 +296,11 @@ static void acc_motion_event_handler(void *event_handler_arg, esp_event_base_t e
     }
 }
 
-static void update_lst_event_tick_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id,
-                                     void *event_data) {
+static void update_lst_event_tick_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
     lst_event_tick = xTaskGetTickCount();
 }
 
-void display_init(uint32_t boot_count) {
-    boot_cnt = boot_count;
-    lst_event_tick = xTaskGetTickCount();
-
-    // uxPriority 0 最低
-    xTaskCreate(guiTask, "gui", 4096 * 2, NULL, 1, NULL);
-
+static void register_event_callbacks() {
     // key click event
     esp_event_handler_register_with(event_loop_handle,
                                     BIKE_KEY_EVENT, ESP_EVENT_ANY_ID,
@@ -323,5 +320,13 @@ void display_init(uint32_t boot_count) {
     esp_event_handler_register_with(event_loop_handle,
                                     BIKE_BLE_SERVER_EVENT, ESP_EVENT_ANY_ID,
                                     update_lst_event_tick_handler, NULL);
+}
+
+void display_init(uint32_t boot_count) {
+    boot_cnt = boot_count;
+    lst_event_tick = xTaskGetTickCount();
+
+    // uxPriority 0 最低
+    xTaskCreate(guiTask, "gui", 4096 * 2, NULL, 1, NULL);
 }
 

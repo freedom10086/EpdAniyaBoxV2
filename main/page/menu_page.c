@@ -86,7 +86,8 @@ static void change_select(bool next) {
     common_post_event_data(BIKE_REQUEST_UPDATE_DISPLAY_EVENT, 0, &full_update, sizeof(full_update));
 }
 
-void handle_click_event() {
+void handle_setting_item_event() {
+    page_manager_close_menu();
     if (current_index == 0) {
         // home page
         page_manager_switch_page("temperature", false);
@@ -97,7 +98,6 @@ void handle_click_event() {
         // setting
         page_manager_switch_page("setting-list", true);
     }
-    page_manager_close_menu();
     page_manager_request_update(false);
 }
 
@@ -109,7 +109,7 @@ bool menu_page_key_click(key_event_id_t key_event_type) {
     switch (key_event_type) {
         case KEY_OK_SHORT_CLICK:
             last_key_event_tick = xTaskGetTickCount();
-            handle_click_event();
+            handle_setting_item_event();
             break;
         case KEY_CANCEL_SHORT_CLICK:
             page_manager_close_menu();

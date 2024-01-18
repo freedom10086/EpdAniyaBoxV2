@@ -30,8 +30,11 @@
 static int8_t pre_page_index = -1;
 static int8_t menu_index = -1;
 extern esp_event_loop_handle_t event_loop_handle;
+static QueueHandle_t event_queue;
 
 RTC_DATA_ATTR static int8_t current_page_index = -1;
+
+static void key_event_task_entry(void *arg);
 
 static page_inst_t pages[] = {
         [TEMP_PAGE_INDEX] = {
@@ -159,11 +162,28 @@ static page_inst_t menus[] = {
         }
 };
 
-static void key_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id,
-                              void *event_data);
 bool page_manager_switch_page_by_index(int8_t dest_page_index, bool push_stack);
 
+static void key_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id,
+                              void *event_data) {
+    xQueueSend(event_queue, (void *) &event_id, pdMS_TO_TICKS(10));
+}
+
 void page_manager_init(int8_t page_index) {
+    event_queue = xQueueCreate(10, sizeof(int32_t));
+    TaskHandle_t tsk_hdl;
+    /* Create key click detect task */
+    BaseType_t err = xTaskCreate(
+            key_event_task_entry,
+            "page_manage_task",
+            3072,
+            NULL,
+            uxTaskPriorityGet(NULL),
+            &tsk_hdl);
+    if (err != pdTRUE) {
+        ESP_LOGE(TAG, "create page manager task failed");
+    }
+
     esp_event_handler_register_with(event_loop_handle,
                                     BIKE_KEY_EVENT, ESP_EVENT_ANY_ID,
                                     key_event_handler, NULL);
@@ -297,88 +317,6 @@ void page_manager_show_menu(char *name, void *args) {
     menu_index = idx;
 }
 
-static void key_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id,
-                              void *event_data) {
-    //ESP_LOGI(TAG, "rev key click event %ld", event_id);
-    // if menu exist
-    if (page_manager_has_menu()) {
-        page_inst_t current_menu = page_manager_get_current_menu();
-        if (current_menu.key_click_handler) {
-            if (current_menu.key_click_handler(event_id)) {
-                return;
-            }
-        }
-    }
-
-    // if not handle passed to view
-    page_inst_t current_page = page_manager_get_current_page();
-    if (current_page.key_click_handler) {
-        if (current_page.key_click_handler(event_id)) {
-            return;
-        }
-    }
-
-    // finally pass here
-    switch (event_id) {
-        case KEY_UP_SHORT_CLICK:
-            break;
-        case KEY_DOWN_SHORT_CLICK:
-            break;
-        case KEY_CANCEL_SHORT_CLICK:
-            if (page_manager_has_menu()) {
-                page_manager_close_menu();
-                page_manager_request_update(false);
-                return;
-            } else {
-                if (page_manager_close_page()) {
-                    page_manager_request_update(false);
-                }
-                return;
-            }
-            break;
-        case KEY_OK_SHORT_CLICK:
-            if (page_manager_get_current_index() < HOME_PAGE_COUNT) {
-                if (page_manager_has_menu()) {
-                    page_manager_close_menu();
-                    page_manager_request_update(false);
-                    return;
-                } else {
-                    page_manager_show_menu("menu", NULL);
-                    page_manager_request_update(false);
-                    return;
-                }
-            }
-            break;
-        case KEY_OK_LONG_CLICK:
-            if (page_manager_has_menu()) {
-                page_manager_close_menu();
-                page_manager_request_update(false);
-                return;
-            } else {
-                page_manager_show_menu("menu", NULL);
-                page_manager_request_update(false);
-                return;
-            }
-            break;
-        case KEY_UP_LONG_CLICK:
-        case KEY_DOWN_LONG_CLICK:
-            if (page_manager_get_current_index() < HOME_PAGE_COUNT) {
-                int8_t dest_index = (page_manager_get_current_index() + ((event_id == KEY_UP_LONG_CLICK) ? -1 : 1) +
-                                     HOME_PAGE_COUNT) % HOME_PAGE_COUNT;
-                if (page_manager_switch_page_by_index(dest_index, false)) {
-                    page_manager_request_update(false);
-                }
-                return;
-            }
-            break;
-        default:
-            break;
-    }
-
-    // if page not handle key click event here handle
-    ESP_LOGI(TAG, "no page handler key click event %ld", event_id);
-}
-
 void page_manager_close_menu() {
     if (menu_index != -1) {
         if (menus[menu_index].on_destroy_page != NULL) {
@@ -432,5 +370,92 @@ int page_manager_enter_sleep(uint32_t loop_cnt) {
 }
 
 void page_manager_request_update(uint32_t full_refresh) {
-    common_post_event_data(BIKE_REQUEST_UPDATE_DISPLAY_EVENT, 0, (void *)full_refresh, sizeof(full_refresh));
+    common_post_event_data(BIKE_REQUEST_UPDATE_DISPLAY_EVENT, 0, (void *) full_refresh, sizeof(full_refresh));
+}
+
+static void key_event_task_entry(void *arg) {
+    int32_t event_id;
+    while (1) {
+        if (xQueueReceive(event_queue, &event_id, portMAX_DELAY)) {
+            //ESP_LOGI(TAG, "rev key click event %ld", event_id);
+            // if menu exist
+            if (page_manager_has_menu()) {
+                page_inst_t current_menu = page_manager_get_current_menu();
+                if (current_menu.key_click_handler) {
+                    if (current_menu.key_click_handler(event_id)) {
+                        continue;
+                    }
+                }
+            }
+
+            // if not handle passed to view
+            page_inst_t current_page = page_manager_get_current_page();
+            if (current_page.key_click_handler) {
+                if (current_page.key_click_handler(event_id)) {
+                    continue;
+                }
+            }
+
+            // finally pass here
+            switch (event_id) {
+                case KEY_UP_SHORT_CLICK:
+                    break;
+                case KEY_DOWN_SHORT_CLICK:
+                    break;
+                case KEY_CANCEL_SHORT_CLICK:
+                    if (page_manager_has_menu()) {
+                        page_manager_close_menu();
+                        page_manager_request_update(false);
+                        continue;
+                    } else {
+                        if (page_manager_close_page()) {
+                            page_manager_request_update(false);
+                        }
+                        continue;
+                    }
+                    break;
+                case KEY_OK_SHORT_CLICK:
+                    if (page_manager_get_current_index() < HOME_PAGE_COUNT) {
+                        if (page_manager_has_menu()) {
+                            page_manager_close_menu();
+                            page_manager_request_update(false);
+                            continue;
+                        } else {
+                            page_manager_show_menu("menu", NULL);
+                            page_manager_request_update(false);
+                            continue;
+                        }
+                    }
+                    break;
+                case KEY_OK_LONG_CLICK:
+                    if (page_manager_has_menu()) {
+                        page_manager_close_menu();
+                        page_manager_request_update(false);
+                        continue;
+                    } else {
+                        page_manager_show_menu("menu", NULL);
+                        page_manager_request_update(false);
+                        continue;
+                    }
+                    break;
+                case KEY_UP_LONG_CLICK:
+                case KEY_DOWN_LONG_CLICK:
+                    if (page_manager_get_current_index() < HOME_PAGE_COUNT) {
+                        int8_t dest_index =
+                                (page_manager_get_current_index() + ((event_id == KEY_UP_LONG_CLICK) ? -1 : 1) +
+                                 HOME_PAGE_COUNT) % HOME_PAGE_COUNT;
+                        if (page_manager_switch_page_by_index(dest_index, false)) {
+                            page_manager_request_update(false);
+                        }
+                        continue;
+                    }
+                    break;
+                default:
+                    break;
+            }
+
+            // if page not handle key click event here handle
+            ESP_LOGI(TAG, "no page handler key click event %ld", event_id);
+        }
+    }
 }

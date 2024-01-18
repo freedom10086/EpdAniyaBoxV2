@@ -102,7 +102,7 @@ void app_main() {
 
     ESP_LOGI(TAG, "starting application task");
     // Create the application task with the same priority as the current task
-    xTaskCreate(application_task, "application_task", 3072, NULL, uxTaskPriorityGet(NULL), NULL);
+    xTaskCreate(application_task, "application_task", 4096, NULL, uxTaskPriorityGet(NULL), NULL);
 
     /**
      * init iic

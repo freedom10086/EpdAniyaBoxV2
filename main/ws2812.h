@@ -12,4 +12,6 @@ void ws2812_init();
 
 void ws2812_show_color();
 
+void ws2812_deinit();
+
 #endif //HELLO_WORLD_WS2812_H

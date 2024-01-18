@@ -20,6 +20,8 @@ static uint8_t led_strip_pixels[3];
 rmt_channel_handle_t led_chan = NULL;
 rmt_encoder_handle_t led_encoder = NULL;
 
+static bool inited = false;
+
 /**
  * @brief Simple helper function, converting HSV color space to RGB color space
  *
@@ -71,7 +73,7 @@ void led_strip_hsv2rgb(uint32_t h, uint32_t s, uint32_t v, uint32_t *r, uint32_t
     }
 }
 
-void init_power_gpio() {
+static void init_power_gpio() {
     uint64_t bit_mask = 1ull << LED_PWR_GPIO_NUM;
     gpio_config_t io_config = {
             .pin_bit_mask = bit_mask,
@@ -95,6 +97,10 @@ void led_power_on_off(uint8_t onoff) {
 }
 
 void ws2812_init() {
+    if (inited) {
+        return;
+    }
+
     init_power_gpio();
 
     ESP_LOGI(TAG, "Create RMT TX channel");
@@ -115,7 +121,23 @@ void ws2812_init() {
 
 //    ESP_LOGI(TAG, "Enable RMT TX channel");
 //    ESP_ERROR_CHECK(rmt_enable(led_chan));
+
+    inited = true;
 }
+
+
+void ws2812_deinit() {
+    if (!inited) {
+        return;
+    }
+
+    inited = false;
+
+    rmt_disable(led_chan);
+    rmt_del_encoder(led_encoder);
+    rmt_del_channel(led_chan);
+}
+
 
 void ws2812_show_color() {
     uint32_t red = 0;

@@ -13,6 +13,8 @@
 
 #define BOX_SETTING_CMD_SET_TIME 2
 
+#define BOX_SETTING_CMD_SET_ALARM 3
+
 // [0] id [1, 2] file_size, [..., end] data
 #define BOX_SETTING_CMD_UPLOAD_BMP_START 10
 

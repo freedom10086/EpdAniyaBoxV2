@@ -55,7 +55,7 @@ static void application_task(void *args) {
  *   APPLICATION MAIN
  **********************/
 void app_main() {
-    //esp_log_level_set("*", ESP_LOG_WARN);
+    esp_log_level_set("*", ESP_LOG_WARN);
     //esp_log_level_set("battery", ESP_LOG_WARN);
     //esp_log_level_set("lcd_panel.ssd1680", ESP_LOG_WARN);
     //esp_log_level_set("keyboard", ESP_LOG_WARN);
@@ -65,34 +65,28 @@ void app_main() {
     esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
     printf("Hello world!, boot count %ld wake up cause:%d\n", boot_count, cause);
 
+    uint64_t wakeup_pin_mask = 0;
     switch (cause) {
         case ESP_SLEEP_WAKEUP_TIMER: {
             printf("Wake up from timer.");
             break;
         }
         case ESP_SLEEP_WAKEUP_EXT1: {
-            uint64_t wakeup_pin_mask = esp_sleep_get_ext1_wakeup_status();
-            if (wakeup_pin_mask != 0) {
-                int pin = __builtin_ffsll(wakeup_pin_mask) - 1;
-                printf("Wake up from GPIO %d\n", pin);
-            } else {
-                printf("Wake up from GPIO\n");
-            }
+            wakeup_pin_mask = esp_sleep_get_ext1_wakeup_status();
             break;
         }
         case ESP_SLEEP_WAKEUP_GPIO: {
-            uint64_t wakeup_pin_mask = esp_sleep_get_gpio_wakeup_status();
-            if (wakeup_pin_mask != 0) {
-                int pin = __builtin_ffsll(wakeup_pin_mask) - 1;
-                printf("Wake up from GPIO %d\n", pin);
-            } else {
-                printf("Wake up from GPIO\n");
-            }
+            wakeup_pin_mask = esp_sleep_get_gpio_wakeup_status();
             break;
         }
         case ESP_SLEEP_WAKEUP_UNDEFINED:
         default:
             printf("Not a deep sleep reset\n");
+    }
+
+    if (wakeup_pin_mask > 0) {
+        int pin = __builtin_ffsll(wakeup_pin_mask) - 1;
+        printf("Wake up from GPIO %d\n", pin);
     }
 
     // create event loop
@@ -146,6 +140,9 @@ void app_main() {
      */
     display_init(boot_count);
 
+    // rx8025
+    rx8025t_init();
+
     // beep
     //beep_init();
     //start_beep(1000);
@@ -185,9 +182,9 @@ void box_enter_deep_sleep(int sleep_ts) {
 
 #if SOC_PM_SUPPORT_EXT1_WAKEUP_MODE_PER_PIN
     // EXT1_WAKEUP
-    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup(1ULL << KEY_1_NUM, ESP_GPIO_WAKEUP_GPIO_LOW));
-    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup(1ULL << KEY_2_NUM, ESP_GPIO_WAKEUP_GPIO_LOW));
-    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup(1ULL << KEY_3_NUM, ESP_GPIO_WAKEUP_GPIO_LOW));
+    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << KEY_1_NUM, ESP_GPIO_WAKEUP_GPIO_LOW));
+    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << KEY_2_NUM, ESP_GPIO_WAKEUP_GPIO_LOW));
+    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << KEY_3_NUM, ESP_GPIO_WAKEUP_GPIO_LOW));
 
     // if no external pull-up/downs
     ESP_ERROR_CHECK(rtc_gpio_pullup_en(KEY_1_NUM));
@@ -200,8 +197,11 @@ void box_enter_deep_sleep(int sleep_ts) {
     ESP_ERROR_CHECK(rtc_gpio_pulldown_dis(KEY_3_NUM));
 
     // motion wake up
-    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup(1ULL << IMU_INT_1_GPIO, ESP_GPIO_WAKEUP_GPIO_HIGH));
-    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup(1ULL << IMU_INT_2_GPIO, ESP_GPIO_WAKEUP_GPIO_HIGH));
+    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << IMU_INT_1_GPIO, ESP_GPIO_WAKEUP_GPIO_HIGH));
+    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << IMU_INT_2_GPIO, ESP_GPIO_WAKEUP_GPIO_HIGH));
+
+    // alarm wake up
+    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << RX8025_INT_GPIO_NUM, ESP_GPIO_WAKEUP_GPIO_LOW));
 #else
     // gpio wake up
     const gpio_config_t config = {

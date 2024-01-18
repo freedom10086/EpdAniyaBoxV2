@@ -460,6 +460,8 @@ esp_err_t beep_start_play(const buzzer_musical_score_t *song, uint16_t song_len)
 
 esp_err_t stop_beep();
 
+esp_err_t stop_beep2();
+
 esp_err_t beep_deinit();
 
 esp_err_t beep_get_volume(uint8_t *value);

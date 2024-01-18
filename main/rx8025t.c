@@ -8,6 +8,12 @@
 #include "driver/gpio.h"
 #include "esp_log.h"
 #include "rx8025t.h"
+#include "ws2812.h"
+#include "beep/beep.h"
+#include "key.h"
+#include "LIS3DH.h"
+#include "esp_types.h"
+#include "esp_event.h"
 
 #define I2C_MASTER_NUM              0
 #define I2C_MASTER_TIMEOUT_MS       200
@@ -50,6 +56,11 @@ extern i2c_master_bus_handle_t i2c_bus_handle;
 static i2c_master_dev_handle_t dev_handle;
 static bool rx8025t_inited = false;
 static SemaphoreHandle_t xSemaphore = NULL;
+
+static QueueHandle_t event_queue;
+static TaskHandle_t tsk_hdl;
+
+extern esp_event_loop_handle_t event_loop_handle;
 
 static uint8_t hex2bcd(uint8_t x) {
     uint8_t y;
@@ -109,7 +120,8 @@ static esp_err_t i2c_write(const uint8_t *write_buffer, size_t write_size) {
 }
 
 static void IRAM_ATTR gpio_isr_handler(void *arg) {
-
+    uint8_t data = 0x01;
+    xQueueSendFromISR(event_queue, &data, NULL);
 }
 
 void config_intr_gpio() {
@@ -132,8 +144,54 @@ void config_intr_gpio() {
     ESP_LOGI(TAG, "rx8025t gpio isr add OK");
 }
 
+static void stop_alarm_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
+    stop_beep2();
+}
+
+static void rx8025t_task_entry(void *arg) {
+    event_queue = xQueueCreate(5, sizeof(gpio_num_t));
+    config_intr_gpio();
+    uint8_t data;
+
+    while (1) {
+        if (xQueueReceive(event_queue, &data, portMAX_DELAY)) {
+            // vTaskDelay(pdMS_TO_TICKS(2));
+            if (gpio_get_level(RX8025_INT_GPIO_NUM) == 0) { // isr happens
+                // clear
+                ESP_LOGI(TAG, "isr happens gpio %d goes low", RX8025_INT_GPIO_NUM);
+                // read af
+                uint8_t uf, tf, af;
+                rx8025_read_flags(&uf, &tf, &af);
+                ESP_LOGI(TAG, "flags uf:%d tf:%d af:%d", uf, tf, af);
+                rx8025_clear_flags(uf, tf, af);
+
+                if (af) {
+                    esp_event_handler_register_with(event_loop_handle,BIKE_KEY_EVENT, ESP_EVENT_ANY_ID,stop_alarm_handler, NULL);
+                    esp_event_handler_register_with(event_loop_handle,BIKE_MOTION_EVENT, ESP_EVENT_ANY_ID,stop_alarm_handler, NULL);
+
+                    ws2812_init();
+                    ws2812_show_color();
+                    ws2812_deinit();
+                    ESP_LOGI(TAG, "show alarm color done");
+
+                    beep_init(BEEP_MODE_RMT);
+                    beep_start_play(music_score_tkzc, sizeof(music_score_tkzc) / sizeof(music_score_tkzc[0]));
+                    beep_deinit();
+                    ESP_LOGI(TAG, "play alarm music done");
+
+                    esp_event_handler_unregister_with(event_loop_handle, BIKE_KEY_EVENT, ESP_EVENT_ANY_ID, stop_alarm_handler);
+                    esp_event_handler_unregister_with(event_loop_handle, BIKE_MOTION_EVENT, ESP_EVENT_ANY_ID, stop_alarm_handler);
+                }
+            }
+        }
+    }
+
+    vTaskDelete(NULL);
+}
+
 esp_err_t rx8025t_init() {
     if (rx8025t_inited) {
+        ESP_LOGW(TAG, "already inited return");
         return ESP_OK;
     }
 
@@ -144,6 +202,10 @@ esp_err_t rx8025t_init() {
 
     // portMAX_DELAY
     if (xSemaphoreTake(xSemaphore, pdMS_TO_TICKS(200)) == pdTRUE) {
+        if (rx8025t_inited) {
+            return ESP_OK;
+        }
+
         i2c_device_config_t dev_cfg = {
                 .dev_addr_length = I2C_ADDR_BIT_LEN_7,
                 .device_address = RX8025T_ADDR,
@@ -154,11 +216,19 @@ esp_err_t rx8025t_init() {
         if (err != ESP_OK) {
             return err;
         }
-
-        config_intr_gpio();
+        /* Create key click detect task */
+        BaseType_t create_task_err = xTaskCreate(
+                rx8025t_task_entry,
+                "rx8025t_task",
+                2048,
+                NULL,
+                uxTaskPriorityGet(NULL),
+                &tsk_hdl);
+        if (create_task_err != pdTRUE) {
+            ESP_LOGE(TAG, "create rx8025 alarm detect task failed");
+        }
 
         rx8025t_inited = true;
-
         xSemaphoreGive(xSemaphore);
     }
 
@@ -166,6 +236,17 @@ esp_err_t rx8025t_init() {
 }
 
 esp_err_t rx8025t_deinit() {
+    if (!rx8025t_inited) {
+        return ESP_OK;
+    }
+    vTaskDelete(tsk_hdl);
+    vSemaphoreDelete(xSemaphore);
+    xSemaphore = NULL;
+
+    gpio_isr_handler_remove(RX8025_INT_GPIO_NUM);
+
+    vQueueDelete(event_queue);
+
     rx8025t_inited = false;
     return i2c_master_bus_rm_device(dev_handle);
 }
@@ -369,3 +450,163 @@ esp_err_t rx8025t_clear_fixed_time_intr_flag() {
 
     return i2c_write_byte(ADDR_FLAG, read_buf[0]);
 }
+
+esp_err_t
+rx8025_load_alarm(uint8_t *en, uint8_t *mode, uint8_t *af, uint8_t *minute, uint8_t *hour, uint8_t *day_week) {
+    rx8025t_init();
+
+    uint8_t read_buf[3];
+    esp_err_t err = i2c_read_reg(ADDR_MIN_ALARM, read_buf, sizeof(read_buf));
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    //ESP_LOGI(TAG, "read alarm raw: %x %x %x", read_buf[0], read_buf[1], read_buf[2]);
+
+    // not support every minute mode
+    clrbit(read_buf[0], 7);
+    *minute = bcd2hex(read_buf[0]);
+
+    clrbit(read_buf[1], 7);
+    clrbit(read_buf[1], 6);
+    *hour = bcd2hex(read_buf[1]);
+
+    uint8_t saved_day_week = read_buf[2];
+
+    err = i2c_read_reg(ADDR_EXT, read_buf, sizeof(read_buf));
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    // 0 week, 1 day
+    *mode = (read_buf[0] >> 6) & 0x01;
+    *af = (read_buf[1] >> 3) & 0x01;
+    *en = (read_buf[2] >> 3) & 0x01; // ADDR_CONTROL
+
+    if (*mode) {
+        bool day_ae = ((saved_day_week & 0b10000000) > 0);
+        // day mode
+        *day_week = bcd2hex(saved_day_week & 0x00111111);
+        if (day_ae) {
+            *day_week = *day_week | 0x01 << 7;
+        }
+    } else {
+        // week mode
+        *day_week = saved_day_week;
+    }
+
+    return err;
+}
+
+esp_err_t rx8025_set_alarm(uint8_t en, uint8_t mode, uint8_t minute, uint8_t hour, uint8_t day_week) {
+    rx8025t_init();
+    if (mode) {
+        day_week = hex2bcd(day_week & 0x00111111) | (day_week & 0b10000000);
+    }
+
+    uint8_t write_buf[] = {ADDR_MIN_ALARM, hex2bcd(minute), hex2bcd(hour), day_week};
+    esp_err_t err = i2c_write(write_buf, sizeof(write_buf));
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    uint8_t read_buf[3];
+    err = i2c_read_reg(ADDR_EXT, read_buf, sizeof(read_buf));
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    if (mode) {
+        setbit(read_buf[0], 6);
+    } else {
+        clrbit(read_buf[0], 6);
+    }
+
+    // clear current alarm flag
+    clrbit(read_buf[1], 3);
+
+    if (en) {
+        setbit(read_buf[2], 3);
+    } else {
+        clrbit(read_buf[2], 3);
+    }
+
+    write_buf[0] = ADDR_EXT;
+    write_buf[1] = read_buf[0];
+    write_buf[2] = read_buf[1];
+    write_buf[3] = read_buf[2];
+    return i2c_write(write_buf, sizeof(write_buf));
+}
+
+esp_err_t rx8025_set_alarm_en(uint8_t en) {
+    uint8_t read_buf[1];
+    esp_err_t err = i2c_read_reg(ADDR_CONTROL, read_buf, sizeof(read_buf));
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    if (en) {
+        setbit(read_buf[0], 3);
+    } else {
+        clrbit(read_buf[0], 3);
+    }
+
+    return i2c_write_byte(ADDR_CONTROL, read_buf[0]);
+}
+
+esp_err_t rx8025_read_alarm_flag(uint8_t *flag) {
+    uint8_t read_buf[1];
+    esp_err_t err = i2c_read_reg(ADDR_FLAG, read_buf, sizeof(read_buf));
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    *flag = (read_buf[0] >> 3) & 0x01;
+    return ESP_OK;
+}
+
+esp_err_t rx8025_clear_alarm_flag() {
+    uint8_t read_buf[1];
+    esp_err_t err = i2c_read_reg(ADDR_FLAG, read_buf, sizeof(read_buf));
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    clrbit(read_buf[0], 3);
+    return i2c_write_byte(ADDR_FLAG, read_buf[0]);
+}
+
+esp_err_t rx8025_read_flags(uint8_t *uf, uint8_t *tf, uint8_t *af) {
+    uint8_t read_buf[1];
+    esp_err_t err = i2c_read_reg(ADDR_FLAG, read_buf, sizeof(read_buf));
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    *af = (read_buf[0] >> 3) & 0x01;
+    *tf = (read_buf[0] >> 4) & 0x01;
+    *uf = (read_buf[0] >> 5) & 0x01;
+    return ESP_OK;
+}
+
+esp_err_t rx8025_clear_flags(uint8_t uf, uint8_t tf, uint8_t af) {
+    uint8_t read_buf[1];
+    esp_err_t err = i2c_read_reg(ADDR_FLAG, read_buf, sizeof(read_buf));
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    if (af) {
+        clrbit(read_buf[0], 3);
+    }
+
+    if (tf) {
+        clrbit(read_buf[0], 4);
+    }
+
+    if (uf) {
+        clrbit(read_buf[0], 5);
+    }
+    return i2c_write_byte(ADDR_FLAG, read_buf[0]);
+}
+

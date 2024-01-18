@@ -62,8 +62,24 @@ esp_err_t rx8025t_clear_update_time_intr_flag();
 // max 60 * 4095 second
 esp_err_t rx8025t_set_fixed_time_intr(uint8_t en, uint8_t intr_en, uint16_t total_ts);
 
-esp_err_t rx8025t_read_fixed_time_intr(uint8_t* en, uint8_t* intr_en, uint16_t* total_ts, uint8_t *flag);
+esp_err_t rx8025t_read_fixed_time_intr(uint8_t *en, uint8_t *intr_en, uint16_t *total_ts, uint8_t *flag);
 
 esp_err_t rx8025t_clear_fixed_time_intr_flag();
+
+// mode = 0 week mode, mode == 1 day mode
+// af = alarm status
+esp_err_t rx8025_load_alarm(uint8_t *en, uint8_t *mode, uint8_t *af, uint8_t *minute, uint8_t *hour, uint8_t *day_week);
+
+esp_err_t rx8025_set_alarm(uint8_t en, uint8_t mode, uint8_t minute, uint8_t hour, uint8_t day_week);
+
+esp_err_t rx8025_set_alarm_en(uint8_t en);
+
+esp_err_t rx8025_clear_alarm_flag();
+
+esp_err_t rx8025_read_flags(uint8_t *uf, uint8_t *tf, uint8_t *af);
+
+esp_err_t rx8025_read_alarm_flag(uint8_t *flag);
+
+esp_err_t rx8025_clear_flags(uint8_t uf, uint8_t tf, uint8_t af);
 
 #endif //HELLO_WORLD_RX8025T_H

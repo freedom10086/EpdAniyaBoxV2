@@ -57,6 +57,20 @@ esp_err_t box_setting_load(uint8_t cmd, uint8_t *out, uint16_t *out_len) {
     out[6] = t.second;
     len += 7;
 
+    // load alarm
+    uint8_t alarm_en, alarm_mode, alarm_af, alarm_minute, alarm_hour, alarm_day_week;
+    err = rx8025_load_alarm(&alarm_en, &alarm_mode, &alarm_af, &alarm_minute, &alarm_hour, &alarm_day_week);
+    ESP_LOGI(TAG, "load alarm %d %d %d %d %d %d, res:%d", alarm_en, alarm_mode, alarm_af, alarm_minute, alarm_hour, alarm_day_week, err);
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    out[7] = alarm_en | (alarm_mode << 1) | (alarm_af << 2);
+    out[8] = alarm_minute;
+    out[9] = alarm_hour;
+    out[10] = alarm_day_week;
+    len += 4;
+
     *out_len = len;
     return err;
 }
@@ -72,6 +86,17 @@ esp_err_t box_setting_apply(uint8_t cmd, uint8_t *data, uint16_t data_len) {
             err = rx8025t_set_time(data[0], data[1], data[2], data[3], data[4], data[5], data[6]);
             ESP_LOGI(TAG, "set time %d %d %d %d %d %d %d, res:%d", data[0], data[1], data[2], data[3], data[4], data[5],
                      data[6], err);
+            if (err != ESP_OK) {
+                return err;
+            }
+            return ESP_OK;
+        case BOX_SETTING_CMD_SET_ALARM:
+            if (data_len != 4) {
+                ESP_LOGW(TAG, "BOX_SETTING_CMD_SET_ALARM data len should be 4 but %d", data_len);
+                return ESP_ERR_INVALID_ARG;
+            }
+            err = rx8025_set_alarm(data[0] & 0x01, (data[0] >> 1) & 0x01, data[1], data[2], data[3]);
+            ESP_LOGI(TAG, "BOX_SETTING_CMD_SET_ALARM %d %d %d %d res:%d", data[0], data[1], data[2], data[3], err);
             if (err != ESP_OK) {
                 return err;
             }
@@ -207,7 +232,8 @@ static void check_upload_task_entry(void *arg) {
     if (current_bmp_file_write_size != current_bmp_file_size) {
         // failed
         unlink(bmp_filepath);
-        ESP_LOGW(TAG, "upload bmp file failed fileId:%d name:%s expectSize: %d actualSize:%d", current_bmp_file_id, bmp_filepath,
+        ESP_LOGW(TAG, "upload bmp file failed fileId:%d name:%s expectSize: %d actualSize:%d", current_bmp_file_id,
+                 bmp_filepath,
                  current_bmp_file_size, current_bmp_file_write_size);
     } else {
         ESP_LOGI(TAG, "upload bmp file success fileId:%d name:%s", current_bmp_file_id, bmp_filepath);

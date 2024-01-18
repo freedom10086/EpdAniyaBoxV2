@@ -40,6 +40,8 @@ uint8_t _beep_volume = 0;
 rmt_channel_handle_t buzzer_chan = NULL;
 rmt_encoder_handle_t score_encoder = NULL;
 
+static bool stop_flag = false;
+
 esp_err_t beep_init_pwm_mode() {
     // Prepare and then apply the LEDC PWM timer configuration
     ledc_timer_config_t ledc_timer = {
@@ -98,7 +100,7 @@ esp_err_t beep_init(beep_mode_t mode) {
     }
 
     ESP_ERROR_CHECK(common_init_nvs());
-
+    stop_flag = false;
     return err;
 }
 
@@ -132,9 +134,14 @@ esp_err_t beep_start_beep(uint32_t duration) {
 }
 
 esp_err_t beep_start_play(const buzzer_musical_score_t *song, uint16_t song_len) {
+    stop_flag = false;
+
     ESP_LOGI(TAG, "song length %d", song_len);
     if (beep_mode == BEEP_MODE_PWM) {
         for (size_t i = 0; i < song_len; i++) {
+            if (stop_flag) {
+                return ESP_OK;
+            }
             ESP_LOGI(TAG, "start play song index %d", i);
             ledc_set_freq(LEDC_MODE, LEDC_TIMER, song[i].freq_hz);
             vTaskDelay(pdMS_TO_TICKS(song[i].duration_ms));
@@ -142,6 +149,10 @@ esp_err_t beep_start_play(const buzzer_musical_score_t *song, uint16_t song_len)
     } else {
         //ESP_ERROR_CHECK(rmt_enable(buzzer_chan));
         for (size_t i = 0; i < song_len; i++) {
+            if (stop_flag) {
+                return ESP_OK;
+            }
+
             rmt_transmit_config_t tx_config = {
                     .loop_count = song[i].duration_ms * song[i].freq_hz / 1000,
             };
@@ -171,6 +182,11 @@ esp_err_t stop_beep() {
         rmt_disable(buzzer_chan);
     }
 
+    return ESP_OK;
+}
+
+esp_err_t stop_beep2() {
+    stop_flag = true;
     return ESP_OK;
 }
 

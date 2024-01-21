@@ -186,6 +186,7 @@ void gatts_host_task(void *param) {
 
     gatt_svr_deinit();
     nimble_port_freertos_deinit();
+    ble_server_inited = false;
 }
 
 esp_err_t ble_server_init() {
@@ -236,6 +237,10 @@ esp_err_t ble_server_stop_adv() {
 }
 
 esp_err_t ble_server_deinit() {
+    if (!ble_server_inited) {
+        return ESP_OK;
+    }
+
     int rc = nimble_port_stop();
     if (rc == 0) {
         nimble_port_deinit();

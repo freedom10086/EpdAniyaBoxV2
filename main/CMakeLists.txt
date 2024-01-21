@@ -18,7 +18,7 @@ set(srcs "lcd/font8.c" "lcd/font12.c" "lcd/font16.c" "lcd/font20.c" "lcd/font24.
 idf_component_register(SRCS ${srcs}
         EMBED_FILES "lcd/HZK16.bin"
         EMBED_FILES "static/favicon.ico" "static/ota.html" "static/upload_script.html" "static/setting.html"
-        EMBED_FILES "static/aniya_200.bmp" "static/aniya_200_1.bmp"
+        EMBED_FILES "static/aniya_200_1.bmp"
         EMBED_FILES "static/icon_wifi.bmp" "static/icon_ble.bmp" "static/icon_sat.bmp" "static/icon_upgrade.bmp"
         EMBED_FILES "static/ic_close_32.bmp" "static/ic_home_32.bmp" "static/ic_image_32.bmp" "static/ic_info_32.bmp" "static/ic_manual_32.bmp"
         EMBED_FILES "static/ic_setting_32.bmp" "static/ic_upgrade_32.bmp" "static/ic_reboot_32.bmp" "static/ic_back_32.bmp" "static/ic_ble_32.bmp"

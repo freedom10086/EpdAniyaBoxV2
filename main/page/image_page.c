@@ -22,6 +22,8 @@
 #include "page_manager.h"
 #include "bles/ble_server.h"
 #include "wifi/my_file_server_common.h"
+#include "battery.h"
+#include "view/battery_view.h"
 
 /*********************
  *      DEFINES
@@ -31,10 +33,13 @@
 #define IS_FILE_EXT(filename, ext) \
     (strcasecmp(&filename[strlen(filename) - sizeof(ext) + 1], ext) == 0)
 
-RTC_DATA_ATTR static uint8_t current_bitmap_page_index = 0;
+RTC_DATA_ATTR static int16_t current_bitmap_page_index = 0;
+RTC_DATA_ATTR static int16_t total_image_file_count = -1;
 
 static char current_filepath[64];
 bool file_system_mounted = false;
+
+static void calc_total_image_file_count();
 
 static void delete_menu_callback(bool confirm);
 
@@ -50,7 +55,6 @@ static void delete_menu_callback(bool confirm) {
     if (!confirm) {
         return;
     }
-
     delete_current_image();
 }
 
@@ -153,21 +157,40 @@ void image_page_on_create(void *arg) {
     }
 }
 
+static bool check_is_valid_image_file(struct dirent * entry, char * entrypath, size_t dirpath_len, struct stat *entry_stat) {
+    if (entry->d_type != DT_REG) {
+        return  false;
+    }
+
+    strlcpy(entrypath + dirpath_len, entry->d_name, sizeof(entrypath) - dirpath_len);
+    if (stat(entrypath, entry_stat) == -1) {
+        ESP_LOGE(TAG, "Failed to stat %s", entry->d_name);
+        return  false;;
+    }
+    static char entrysize[16];
+    sprintf(entrysize, "%ld", (*entry_stat).st_size);
+    ESP_LOGI(TAG, "Found %s (%s bytes)", entry->d_name, entrysize);
+
+    if ((*entry_stat).st_size > MAX_FILE_SIZE) {
+        return  false;;
+    }
+
+    if (!IS_FILE_EXT(entry->d_name, ".bmp") && !IS_FILE_EXT(entry->d_name, ".jpg")) {
+        return  false;;
+    }
+    return true;
+}
+
 void image_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     epd_paint_clear(epd_paint, 0);
     if (current_bitmap_page_index == 0) {
         epd_paint_draw_bitmap(epd_paint, 0, 0, LCD_H_RES, LCD_V_RES, (uint8_t *) aniya_200_1_bmp_start,
                               aniya_200_1_bmp_end - aniya_200_1_bmp_start, 1);
-    } else if (current_bitmap_page_index == 1) {
-        epd_paint_draw_bitmap(epd_paint, 0, 0, LCD_H_RES, LCD_V_RES, (uint8_t *) aniya_200_bmp_start,
-                              aniya_200_bmp_end - aniya_200_bmp_start, 1);
     } else if (file_system_mounted) {
         // read from file
-        uint8_t file_index = current_bitmap_page_index - 2;
         bool finded = false;
 
         char entrypath[64];
-        char entrysize[16];
 
         struct dirent *entry;
         struct stat entry_stat;
@@ -184,39 +207,25 @@ void image_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
             ESP_LOGE(TAG, "Failed to stat dir : %s", entrypath);
         } else {
             ESP_LOGI(TAG, "list dir : %s", entrypath);
-            uint8_t curr_file_index = 0;
+            uint16_t curr_file_index = 1; // start from 1 because has one default image
             /* Iterate over all files / folders and fetch their names and sizes */
             while ((entry = readdir(dir)) != NULL) {
-                if (entry->d_type != DT_REG) {
+                if (!check_is_valid_image_file(entry, entrypath, dirpath_len, &entry_stat)) {
                     continue;
                 }
 
-                strlcpy(entrypath + dirpath_len, entry->d_name, sizeof(entrypath) - dirpath_len);
-                if (stat(entrypath, &entry_stat) == -1) {
-                    ESP_LOGE(TAG, "Failed to stat %s", entry->d_name);
-                    continue;
-                }
-                sprintf(entrysize, "%ld", entry_stat.st_size);
-                ESP_LOGI(TAG, "Found %s (%s bytes)", entry->d_name, entrysize);
-
-                if (entry_stat.st_size > MAX_FILE_SIZE) {
-                    continue;
-                }
-
-                if (!IS_FILE_EXT(entry->d_name, ".bmp") && !IS_FILE_EXT(entry->d_name, ".jpg")) {
-                    continue;
-                }
-
-                if (file_index == curr_file_index) {
+                if (current_bitmap_page_index == curr_file_index) {
                     // finded
                     finded = true;
                     strlcpy(entrypath + dirpath_len, entry->d_name, sizeof(entrypath) - dirpath_len);
                     display_file(epd_paint, loop_cnt, entrypath, entry_stat.st_size);
-                    break;
+                    // break; not break to calc total file count
                 }
 
                 curr_file_index++;
             }
+
+            total_image_file_count = curr_file_index;
             closedir(dir);
         }
 
@@ -229,10 +238,48 @@ void image_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
         current_bitmap_page_index = 0;
         image_page_draw(epd_paint, loop_cnt);
     }
+
+    // draw battery icon if battery low
+    int8_t battery_level = battery_get_level();
+    if (battery_level >= 0 && battery_level < 20) {
+        battery_view_t *battery_view = battery_view_create(4, 183, 26, 16);
+        battery_view_draw(battery_view, epd_paint, battery_get_level(), loop_cnt);
+        battery_view_deinit(battery_view);
+    }
+}
+
+static void calc_total_image_file_count() {
+    char entrypath[64];
+    struct dirent *entry;
+    /* Retrieve the base path of file storage to construct the full path */
+    strcpy(entrypath, FILE_SERVER_BASE_PATH);
+    strlcpy(entrypath + strlen(FILE_SERVER_BASE_PATH), "/", sizeof(entrypath) - strlen(FILE_SERVER_BASE_PATH));
+
+    DIR *dir = opendir(entrypath);
+    const size_t dirpath_len = strlen(entrypath);
+    struct stat entry_stat;
+
+    if (!dir) {
+        ESP_LOGE(TAG, "Failed to stat dir : %s", entrypath);
+        total_image_file_count = 0;
+    } else {
+        ESP_LOGI(TAG, "list dir : %s", entrypath);
+        uint16_t valid_file_count = 0;
+        /* Iterate over all files / folders and fetch their names and sizes */
+        while ((entry = readdir(dir)) != NULL) {
+            if (!check_is_valid_image_file(entry, entrypath, dirpath_len, &entry_stat)) {
+                continue;
+            }
+            valid_file_count++;
+        }
+
+        total_image_file_count = valid_file_count;
+        closedir(dir);
+    }
 }
 
 static esp_err_t delete_current_image() {
-    if (current_bitmap_page_index == 0 || current_bitmap_page_index == 1) {
+    if (current_bitmap_page_index == 0) {
         return ESP_FAIL;
     }
 
@@ -252,6 +299,12 @@ bool image_page_key_click_handle(key_event_id_t key_event_type) {
     switch (key_event_type) {
         case KEY_UP_SHORT_CLICK:
             current_bitmap_page_index -= 1;
+            if (current_bitmap_page_index < 0) {
+                if (total_image_file_count < 0) {
+                    calc_total_image_file_count();
+                }
+                current_bitmap_page_index += total_image_file_count;
+            }
             page_manager_request_update(false);
             return true;
         case KEY_DOWN_SHORT_CLICK:

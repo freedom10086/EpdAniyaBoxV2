@@ -357,7 +357,7 @@ int page_manager_enter_sleep(uint32_t loop_cnt) {
     rx8025_time_t t;
     esp_err_t load_time_err = rx8025t_get_time(&t.year, &t.month, &t.day, &t.week, &t.hour, &t.minute, &t.second);
     if (load_time_err == ESP_OK) {
-        in_night = t.year >= 24 && (t.hour >= 23 || t.hour <= 9);
+        in_night = (t.year >= 24 && t.year <= 35) && (t.hour >= 23 || t.hour <= 9);
     }
     if (in_night) {
         return NIGHT_SLEEP_TS;

@@ -128,7 +128,7 @@ void config_intr_gpio() {
     gpio_config_t io_config = {
             .pin_bit_mask = (1ull << RX8025_INT_GPIO_NUM),
             .mode = GPIO_MODE_INPUT,
-            .intr_type = GPIO_INTR_NEGEDGE,
+            .intr_type = GPIO_INTR_LOW_LEVEL,
             .pull_up_en = 0,
             .pull_down_en = 0,
     };
@@ -144,7 +144,8 @@ void config_intr_gpio() {
     ESP_LOGI(TAG, "rx8025t gpio isr add OK");
 }
 
-static void stop_alarm_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
+static void
+stop_alarm_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
     stop_beep2();
 }
 
@@ -153,38 +154,47 @@ static void rx8025t_task_entry(void *arg) {
     config_intr_gpio();
     uint8_t data;
 
-    while (1) {
-        if (xQueueReceive(event_queue, &data, portMAX_DELAY)) {
-            // vTaskDelay(pdMS_TO_TICKS(2));
-            if (gpio_get_level(RX8025_INT_GPIO_NUM) == 0) { // isr happens
-                // clear
-                ESP_LOGI(TAG, "isr happens gpio %d goes low", RX8025_INT_GPIO_NUM);
-                // read af
-                uint8_t uf, tf, af;
-                rx8025_read_flags(&uf, &tf, &af);
-                ESP_LOGI(TAG, "flags uf:%d tf:%d af:%d", uf, tf, af);
-                rx8025_clear_flags(uf, tf, af);
+    do {
+        // vTaskDelay(pdMS_TO_TICKS(2));
+        if (gpio_get_level(RX8025_INT_GPIO_NUM) == 0) { // isr happens
+            gpio_isr_handler_remove(RX8025_INT_GPIO_NUM);
 
-                if (af) {
-                    esp_event_handler_register_with(event_loop_handle,BIKE_KEY_EVENT, ESP_EVENT_ANY_ID,stop_alarm_handler, NULL);
-                    esp_event_handler_register_with(event_loop_handle,BIKE_MOTION_EVENT, ESP_EVENT_ANY_ID,stop_alarm_handler, NULL);
+            // clear
+            ESP_LOGI(TAG, "isr happens gpio %d goes low", RX8025_INT_GPIO_NUM);
+            // read af
+            uint8_t uf, tf, af;
+            rx8025_read_flags(&uf, &tf, &af);
+            ESP_LOGI(TAG, "flags uf:%d tf:%d af:%d", uf, tf, af);
+            rx8025_clear_flags(uf, tf, af);
 
-                    ws2812_init();
-                    ws2812_show_color();
-                    ws2812_deinit();
-                    ESP_LOGI(TAG, "show alarm color done");
+            if (af) {
+                // read time check alarm is valid
 
-                    beep_init(BEEP_MODE_RMT);
-                    beep_start_play(music_score_tkzc, sizeof(music_score_tkzc) / sizeof(music_score_tkzc[0]));
-                    beep_deinit();
-                    ESP_LOGI(TAG, "play alarm music done");
+                esp_event_handler_register_with(event_loop_handle, BIKE_KEY_EVENT, ESP_EVENT_ANY_ID, stop_alarm_handler,
+                                                NULL);
+                esp_event_handler_register_with(event_loop_handle, BIKE_MOTION_EVENT, ESP_EVENT_ANY_ID,
+                                                stop_alarm_handler, NULL);
 
-                    esp_event_handler_unregister_with(event_loop_handle, BIKE_KEY_EVENT, ESP_EVENT_ANY_ID, stop_alarm_handler);
-                    esp_event_handler_unregister_with(event_loop_handle, BIKE_MOTION_EVENT, ESP_EVENT_ANY_ID, stop_alarm_handler);
-                }
+                ws2812_init();
+                ws2812_show_color();
+                ws2812_deinit();
+                ESP_LOGI(TAG, "show alarm color done");
+
+                beep_init(BEEP_MODE_RMT);
+                beep_start_play(music_score_tkzc, sizeof(music_score_tkzc) / sizeof(music_score_tkzc[0]));
+                beep_deinit();
+                ESP_LOGI(TAG, "play alarm music done");
+
+                esp_event_handler_unregister_with(event_loop_handle, BIKE_KEY_EVENT, ESP_EVENT_ANY_ID,
+                                                  stop_alarm_handler);
+                esp_event_handler_unregister_with(event_loop_handle, BIKE_MOTION_EVENT, ESP_EVENT_ANY_ID,
+                                                  stop_alarm_handler);
             }
+
+            gpio_isr_handler_add(RX8025_INT_GPIO_NUM, gpio_isr_handler, (void *) RX8025_INT_GPIO_NUM);
         }
-    }
+        xQueueReceive(event_queue, &data, portMAX_DELAY);
+    } while (1);
 
     vTaskDelete(NULL);
 }

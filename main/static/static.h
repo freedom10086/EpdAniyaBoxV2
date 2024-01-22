@@ -54,4 +54,8 @@ extern const uint8_t ic_music_bmp_end[] asm("_binary_ic_music_32_bmp_end");
 
 extern const uint8_t ic_battery_bmp_start[] asm("_binary_ic_battery_32_bmp_start");
 extern const uint8_t ic_battery_bmp_end[] asm("_binary_ic_battery_32_bmp_end");
+
+// https://www.qqxiuzi.cn/bianma/zifuji.php
+// 蓝牙已打开
+static const uint8_t text_ble_on[] = {0xC0,0xB6, 0xD1, 0xC0, 0xD2, 0xD1, 0xB4, 0xF2, 0xBF, 0xAA, 0x00};
 #endif

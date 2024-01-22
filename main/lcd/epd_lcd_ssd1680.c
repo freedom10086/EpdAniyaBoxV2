@@ -149,7 +149,7 @@ esp_err_t new_panel_ssd1680(lcd_ssd1680_panel_t *panel,
         ESP_ERROR_CHECK(gpio_config(&io_config));
 
         //install gpio isr service
-        gpio_install_isr_service(0);
+        //gpio_install_isr_service(0);
         //hook isr handler for specific gpio pin
         gpio_isr_handler_add(panel->busy_gpio_num, busy_gpio_isr_handler, NULL);
     }

@@ -28,7 +28,7 @@ static bool ignore_long_pressed[KEY_COUNT];
 
 static uint32_t time_diff_ms, tick_diff, key_up_tick_diff;
 
-static void IRAM_ATTR gpio_isr_handler(void *arg) {
+static void IRAM_ATTR key_gpio_isr_handler(void *arg) {
     uint32_t gpio_num = (uint32_t) arg;
     xQueueSendFromISR(event_queue, &gpio_num, NULL);
 }
@@ -83,6 +83,8 @@ static void key_task_entry(void *arg) {
         if (xQueueReceive(event_queue, &clicked_gpio, portMAX_DELAY)) {
             // vTaskDelay(pdMS_TO_TICKS(2));
             uint8_t index = key_gpio_num_to_index(clicked_gpio);
+            gpio_isr_handler_remove(clicked_gpio);
+
             if (gpio_get_level(clicked_gpio) == 0) {
                 // key down
                 //ESP_LOGI(TAG, "key %d click down detect...", clicked_gpio);
@@ -127,6 +129,7 @@ static void key_task_entry(void *arg) {
             }
 
             tick_count[index] = xTaskGetTickCount();
+            gpio_isr_handler_add(clicked_gpio, key_gpio_isr_handler, (void *) clicked_gpio);
         }
     }
 
@@ -182,11 +185,11 @@ void key_init() {
     }
 
     //install gpio isr service
-    gpio_install_isr_service(0);
+    //gpio_install_isr_service(0);
 
     //hook isr handler for specific gpio pin
     for (uint8_t i = 0; i < KEY_COUNT; ++i) {
-        gpio_isr_handler_add(key_num_list[i], gpio_isr_handler, (void *) key_num_list[i]);
+        gpio_isr_handler_add(key_num_list[i], key_gpio_isr_handler, (void *) key_num_list[i]);
     }
 
     ESP_LOGI(TAG, "keyboard isr detect add OK");

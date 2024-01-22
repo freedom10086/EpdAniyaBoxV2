@@ -110,12 +110,10 @@ static void date_time_event_handler(void *arg, esp_event_base_t event_base, int3
 void date_time_page_on_create(void *arg) {
     ESP_LOGI(TAG, "=== on create ===");
 
-    rx8025t_init();
     sht31_init();
 
     rx8025t_get_time(&_year, &_month, &_day, &_week, &_hour, &_minute, &_second);
 
-    ESP_LOGI(TAG, "=== on create ===");
     esp_event_handler_register_with(event_loop_handle,
                                     BIKE_TEMP_HUM_SENSOR_EVENT, ESP_EVENT_ANY_ID,
                                     tem_hum_event_handler, NULL);
@@ -123,7 +121,7 @@ void date_time_page_on_create(void *arg) {
     esp_event_handler_register_with(event_loop_handle,
                                     BIKE_DATE_TIME_SENSOR_EVENT, ESP_EVENT_ANY_ID,
                                     date_time_event_handler, NULL);
-
+    ESP_LOGI(TAG, "=== created ===");
 }
 
 void date_time_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
@@ -219,7 +217,7 @@ bool date_time_page_key_click(key_event_id_t key_event_type) {
             ble_server_init();
 
             static alert_dialog_arg_t alert_dialog_arg = {
-                    .title_label = "BLE ON",
+                    .title_label = (char *)text_ble_on,
                     .auto_close_ms = 5000
             };
             page_manager_show_menu("alert-dialog", &alert_dialog_arg);

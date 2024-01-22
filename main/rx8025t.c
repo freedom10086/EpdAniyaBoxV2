@@ -55,9 +55,7 @@ ESP_EVENT_DEFINE_BASE(BIKE_DATE_TIME_SENSOR_EVENT);
 extern i2c_master_bus_handle_t i2c_bus_handle;
 static i2c_master_dev_handle_t dev_handle;
 static bool rx8025t_inited = false;
-static SemaphoreHandle_t xSemaphore = NULL;
 
-static QueueHandle_t event_queue;
 static TaskHandle_t tsk_hdl;
 
 extern esp_event_loop_handle_t event_loop_handle;
@@ -119,28 +117,26 @@ static esp_err_t i2c_write(const uint8_t *write_buffer, size_t write_size) {
     return ret;
 }
 
-static void IRAM_ATTR gpio_isr_handler(void *arg) {
-    uint8_t data = 0x01;
-    xQueueSendFromISR(event_queue, &data, NULL);
+static void IRAM_ATTR rx8025_gpio_isr_handler(void *arg) {
+    vTaskGenericNotifyGiveFromISR(tsk_hdl, 0, NULL);
 }
 
-void config_intr_gpio() {
+static void config_intr_gpio() {
     gpio_config_t io_config = {
             .pin_bit_mask = (1ull << RX8025_INT_GPIO_NUM),
             .mode = GPIO_MODE_INPUT,
-            .intr_type = GPIO_INTR_LOW_LEVEL,
+            .intr_type = GPIO_INTR_NEGEDGE,
             .pull_up_en = 0,
             .pull_down_en = 0,
     };
+
     ESP_ERROR_CHECK(gpio_config(&io_config));
 
-    ESP_LOGI(TAG, "rx8025t int io %d, level %d", RX8025_INT_GPIO_NUM, gpio_get_level(RX8025_INT_GPIO_NUM));
-
     //install gpio isr service
-    gpio_install_isr_service(0);
+    //gpio_install_isr_service(0);
 
     //hook isr handler for specific gpio pin
-    gpio_isr_handler_add(RX8025_INT_GPIO_NUM, gpio_isr_handler, (void *) RX8025_INT_GPIO_NUM);
+    gpio_isr_handler_add(RX8025_INT_GPIO_NUM, rx8025_gpio_isr_handler, (void *) RX8025_INT_GPIO_NUM);
     ESP_LOGI(TAG, "rx8025t gpio isr add OK");
 }
 
@@ -150,12 +146,10 @@ stop_alarm_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t
 }
 
 static void rx8025t_task_entry(void *arg) {
-    event_queue = xQueueCreate(5, sizeof(gpio_num_t));
-    config_intr_gpio();
-    uint8_t data;
 
-    do {
-        // vTaskDelay(pdMS_TO_TICKS(2));
+    config_intr_gpio();
+
+    while(true) {
         if (gpio_get_level(RX8025_INT_GPIO_NUM) == 0) { // isr happens
             gpio_isr_handler_remove(RX8025_INT_GPIO_NUM);
 
@@ -191,57 +185,47 @@ static void rx8025t_task_entry(void *arg) {
                                                   stop_alarm_handler);
             }
 
-            gpio_isr_handler_add(RX8025_INT_GPIO_NUM, gpio_isr_handler, (void *) RX8025_INT_GPIO_NUM);
+            // clear all holding notification
+            ulTaskGenericNotifyTake(0, pdTRUE, 0);
+            gpio_isr_handler_add(RX8025_INT_GPIO_NUM, rx8025_gpio_isr_handler, (void *) RX8025_INT_GPIO_NUM);
         }
-        xQueueReceive(event_queue, &data, portMAX_DELAY);
-    } while (1);
+
+        uint32_t notify_value = ulTaskGenericNotifyTake(0, pdTRUE, portMAX_DELAY);
+        ESP_LOGI(TAG, "get notify value %ld", notify_value);
+    }
 
     vTaskDelete(NULL);
 }
 
 esp_err_t rx8025t_init() {
     if (rx8025t_inited) {
-        ESP_LOGW(TAG, "already inited return");
         return ESP_OK;
     }
 
-    if (xSemaphore == NULL) {
-        xSemaphore = xSemaphoreCreateBinary();
-        xSemaphoreGive(xSemaphore);
+    i2c_device_config_t dev_cfg = {
+            .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+            .device_address = RX8025T_ADDR,
+            .scl_speed_hz = 100000,
+    };
+
+    esp_err_t err = i2c_master_bus_add_device(i2c_bus_handle, &dev_cfg, &dev_handle);
+    if (err != ESP_OK) {
+        return err;
     }
 
-    // portMAX_DELAY
-    if (xSemaphoreTake(xSemaphore, pdMS_TO_TICKS(200)) == pdTRUE) {
-        if (rx8025t_inited) {
-            return ESP_OK;
-        }
-
-        i2c_device_config_t dev_cfg = {
-                .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-                .device_address = RX8025T_ADDR,
-                .scl_speed_hz = 100000,
-        };
-
-        esp_err_t err = i2c_master_bus_add_device(i2c_bus_handle, &dev_cfg, &dev_handle);
-        if (err != ESP_OK) {
-            return err;
-        }
-        /* Create key click detect task */
-        BaseType_t create_task_err = xTaskCreate(
-                rx8025t_task_entry,
-                "rx8025t_task",
-                2048,
-                NULL,
-                uxTaskPriorityGet(NULL),
-                &tsk_hdl);
-        if (create_task_err != pdTRUE) {
-            ESP_LOGE(TAG, "create rx8025 alarm detect task failed");
-        }
-
-        rx8025t_inited = true;
-        xSemaphoreGive(xSemaphore);
+    BaseType_t create_task_err = xTaskCreate(
+            rx8025t_task_entry,
+            "rx8025t_task",
+            3072,
+            NULL,
+            0,
+            &tsk_hdl);
+    if (create_task_err != pdTRUE) {
+        ESP_LOGE(TAG, "create rx8025 alarm detect task failed");
     }
 
+    rx8025t_inited = true;
+    ESP_LOGI(TAG, "init success!");
     return ESP_OK;
 }
 
@@ -249,15 +233,12 @@ esp_err_t rx8025t_deinit() {
     if (!rx8025t_inited) {
         return ESP_OK;
     }
-    vTaskDelete(tsk_hdl);
-    vSemaphoreDelete(xSemaphore);
-    xSemaphore = NULL;
 
+    vTaskDelete(tsk_hdl);
     gpio_isr_handler_remove(RX8025_INT_GPIO_NUM);
 
-    vQueueDelete(event_queue);
-
     rx8025t_inited = false;
+    ESP_LOGI(TAG, "deinit success!");
     return i2c_master_bus_rm_device(dev_handle);
 }
 

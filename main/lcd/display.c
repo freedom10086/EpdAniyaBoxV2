@@ -131,8 +131,6 @@ static void guiTask(void *pvParameter) {
         page_manager_init(TEMP_PAGE_INDEX);
     }
 
-    x_update_notify_handl = xTaskGetCurrentTaskHandle();
-
     spi_driver_init(DISP_SPI_HOST,
                     DISP_MISO_GPIO_NUM, DISP_MOSI_GPIO_NUM, DISP_CLK_GPIO_NUM,
                     DISP_BUFF_SIZE, SPI_DMA_CH_AUTO);
@@ -327,6 +325,6 @@ void display_init(uint32_t boot_count) {
     lst_event_tick = xTaskGetTickCount();
 
     // uxPriority 0 最低
-    xTaskCreate(guiTask, "gui", 4096 * 2, NULL, 1, NULL);
+    xTaskCreate(guiTask, "gui", 4096 * 2, NULL, 1, &x_update_notify_handl);
 }
 

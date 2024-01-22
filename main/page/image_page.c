@@ -321,7 +321,7 @@ bool image_page_key_click_handle(key_event_id_t key_event_type) {
             ble_server_init();
 
             static alert_dialog_arg_t alert_dialog_arg = {
-                    .title_label = "BLE ON",
+                    .title_label = (char *)text_ble_on,
                     .auto_close_ms = 5000
             };
             page_manager_show_menu("alert-dialog", &alert_dialog_arg);

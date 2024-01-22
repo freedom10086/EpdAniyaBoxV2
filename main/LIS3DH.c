@@ -46,7 +46,7 @@ static esp_err_t i2c_write_byte(uint8_t reg_addr, uint8_t data) {
     return ret;
 }
 
-static void IRAM_ATTR gpio_isr_handler(void *arg) {
+static void IRAM_ATTR mpu_gpio_isr_handler(void *arg) {
     gpio_num_t gpio_num = (gpio_num_t) arg;
     xQueueSendFromISR(imu_int_event_queue, &gpio_num, NULL);
     // ESP_LOGI(TAG, "imu isr triggered %d", gpio_num);
@@ -108,6 +108,8 @@ static void imu_task_entry(void *arg) {
 
 
     imu_int_event_queue = xQueueCreate(10, sizeof(gpio_num_t));
+
+
     // INT GPIO
     // Default: push-pull output forced to GND
     // high trigger
@@ -128,11 +130,11 @@ static void imu_task_entry(void *arg) {
     lis3dh_get_click_src(&single_click, &double_click);
 
     //install gpio isr service
-    gpio_install_isr_service(0);
+    //gpio_install_isr_service(0);
 
     //hook isr handler for specific gpio pin
-    gpio_isr_handler_add(IMU_INT_1_GPIO, gpio_isr_handler, (void *) IMU_INT_1_GPIO);
-    gpio_isr_handler_add(IMU_INT_2_GPIO, gpio_isr_handler, (void *) IMU_INT_2_GPIO);
+    gpio_isr_handler_add(IMU_INT_1_GPIO, mpu_gpio_isr_handler, (void *) IMU_INT_1_GPIO);
+    gpio_isr_handler_add(IMU_INT_2_GPIO, mpu_gpio_isr_handler, (void *) IMU_INT_2_GPIO);
     ESP_LOGI(TAG, "imu motion detect isr add OK");
 
     gpio_num_t triggered_gpio;
@@ -429,7 +431,7 @@ uint8_t lis3dh_config_motion_detect() {
     BaseType_t err = xTaskCreate(
             imu_task_entry,
             "imu_task",
-            2048,
+            3072,
             NULL,
             uxTaskPriorityGet(NULL),
             &imu_tsk_hdl);

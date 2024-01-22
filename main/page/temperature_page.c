@@ -17,10 +17,7 @@
 #include "static/static.h"
 #include "page_manager.h"
 
-#ifdef CONFIG_BT_BLUEDROID_ENABLED
 #include "esp_bt.h"
-#include <esp_bt_main.h>
-#endif
 
 #include "alert_dialog_page.h"
 #include "bles/ble_server.h"
@@ -149,15 +146,13 @@ void temperature_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
                               icon_wifi_bmp_end - icon_wifi_bmp_start, 1);
         icon_x += 26;
     }
-#ifdef CONFIG_BT_BLUEDROID_ENABLED
-    if (esp_bluedroid_get_status() == ESP_BLUEDROID_STATUS_ENABLED) {
+    if (esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED) {
         // ble icon
         epd_paint_draw_bitmap(epd_paint, icon_x, 183, 11, 16,
                               (uint8_t *) icon_ble_bmp_start,
                               icon_ble_bmp_end - icon_ble_bmp_start, 1);
         icon_x += 15;
     }
-#endif
 }
 
 bool temperature_page_key_click_handle(key_event_id_t key_event_type) {
@@ -167,7 +162,7 @@ bool temperature_page_key_click_handle(key_event_id_t key_event_type) {
             ble_server_init();
 
             static alert_dialog_arg_t alert_dialog_arg = {
-                    .title_label = "BLE ON",
+                    .title_label = (char *)text_ble_on,
                     .auto_close_ms = 5000
             };
             page_manager_show_menu("alert-dialog", &alert_dialog_arg);

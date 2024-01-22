@@ -100,9 +100,12 @@ void app_main() {
 
     //esp_event_loop_delete(esp_gps->event_loop_hdl);
 
+    //install gpio isr service
+    gpio_install_isr_service(0);
+
     ESP_LOGI(TAG, "starting application task");
     // Create the application task with the same priority as the current task
-    xTaskCreate(application_task, "application_task", 4096, NULL, uxTaskPriorityGet(NULL), NULL);
+    xTaskCreate(application_task, "application_task", 4096, NULL, 2, NULL);
 
     /**
      * init iic
@@ -130,24 +133,12 @@ void app_main() {
     battery_init();
 
     /**
-     * ws2812
-     */
-    //ws2812_init();
-    //ws2812_show_color();
-
-    /**
      * lcd
      */
     display_init(boot_count);
 
     // rx8025
     rx8025t_init();
-
-    // beep
-    //beep_init();
-    //start_beep(1000);
-    //vTaskDelay(pdMS_TO_TICKS(1000));
-    //stop_beep();
 }
 
 /**

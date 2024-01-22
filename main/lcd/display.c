@@ -44,6 +44,7 @@ static uint32_t lst_event_tick;
 static bool updating = false;
 static bool rotation_change = false;
 static uint8_t curr_disp_rotation;
+static bool request_update = false;
 
 extern esp_event_loop_handle_t event_loop_handle;
 
@@ -178,7 +179,7 @@ static void guiTask(void *pvParameter) {
     static uint32_t loop_cnt = 1;
     uint32_t last_full_refresh_loop_cnt = loop_cnt;
     static uint32_t current_tick, next_check_display_timeout_tick;
-    static uint32_t ulNotificationCount;
+    static uint32_t ulNotificationCount, tick_to_wait;
     bool wakeup_by_timer = (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_TIMER);
 
     //sleep wait for sensor init
@@ -187,12 +188,13 @@ static void guiTask(void *pvParameter) {
     register_event_callbacks();
 
     while (1) {
-        // not first loop
-        if (loop_cnt > 1 && !wakeup_by_timer) {
-            // ulNotificationCount > 0 success get or timeout
-            ulNotificationCount = ulTaskGenericNotifyTake(0, pdTRUE, pdMS_TO_TICKS(5000));
-            // ESP_LOGI(TAG, "ulTaskGenericNotifyTake %ld", ulNotificationCount);
+        tick_to_wait = pdMS_TO_TICKS(5000);
+        if (wakeup_by_timer || request_update || loop_cnt == 1) {
+            tick_to_wait = 0;
         }
+
+        ulNotificationCount = ulTaskGenericNotifyTake(0, pdTRUE, tick_to_wait);
+        //ESP_LOGI(TAG, "ulTaskGenericNotifyTake %ld wait %ldms", ulNotificationCount, tick_to_wait);
 
         current_tick = xTaskGetTickCount();
         bool display_timeout = (current_tick >= next_check_display_timeout_tick)
@@ -202,7 +204,7 @@ static void guiTask(void *pvParameter) {
         }
 
         bool will_enter_deep_sleep = display_timeout || wakeup_by_timer;
-        if (ulNotificationCount > 0 || loop_cnt == 1 || display_timeout) {
+        if (ulNotificationCount > 0 || tick_to_wait == 0 || display_timeout) {
             ESP_LOGI(TAG, "draw loop: %ld, boot_cnt: %ld  ulNotification: %ld lst_full_loop:%ld", loop_cnt, boot_cnt,
                      ulNotificationCount, last_full_refresh_loop_cnt);
 
@@ -229,9 +231,14 @@ static void guiTask(void *pvParameter) {
 
             updating = true;
             // clear all holding update request
-            ulTaskGenericNotifyTake(0, pdTRUE, 0);
+            ulNotificationCount = ulTaskGenericNotifyTake(0, pdTRUE, 0);
+            if (ulNotificationCount > 0) {
+                ESP_LOGI(TAG, "clear all holding notification %ld", ulNotificationCount);
+            }
 
+            request_update = false;
             draw_page(epd_paint, loop_cnt);
+
             panel_ssd1680_draw_bitmap(&panel, 0, 0, LCD_H_RES, LCD_V_RES, epd_paint->image);
             panel_ssd1680_refresh(&panel, use_partial_update_mode);
             updating = false;
@@ -269,10 +276,13 @@ static void guiTask(void *pvParameter) {
 void request_display_update_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id,
                                     void *event_data) {
     if (BIKE_REQUEST_UPDATE_DISPLAY_EVENT == event_base) {
-        //ESP_LOGI(TAG, "request for update...");
+        uint32_t before_value;
         int full_update = (int) event_data;
+        request_update = true;
+
         xTaskGenericNotify(x_update_notify_handl, 0, full_update,
-                           eIncrement, NULL);
+                           eIncrement, &before_value);
+        ESP_LOGI(TAG, "request for update... %ld", before_value);
     }
 }
 

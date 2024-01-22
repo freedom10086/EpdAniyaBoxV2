@@ -112,8 +112,6 @@ void date_time_page_on_create(void *arg) {
 
     sht31_init();
 
-    rx8025t_get_time(&_year, &_month, &_day, &_week, &_hour, &_minute, &_second);
-
     esp_event_handler_register_with(event_loop_handle,
                                     BIKE_TEMP_HUM_SENSOR_EVENT, ESP_EVENT_ANY_ID,
                                     tem_hum_event_handler, NULL);
@@ -128,35 +126,41 @@ void date_time_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     ESP_LOGI(TAG, "=== on draw ===");
     epd_paint_clear(epd_paint, 0);
 
-    // draw date
-    sprintf(date_time_page_draw_text_buf, "20%d-%02d-%02d", _year, _month, _day);
-    epd_paint_draw_string_at(epd_paint, 0, 0, date_time_page_draw_text_buf, &Font16, 1);
-    epd_paint_draw_string_at(epd_paint, 120, 0, (char *) week_label, &Font_HZK16, 1);
-    uint8_t ok_week = check_week(_week);
-    epd_paint_draw_string_at(epd_paint, 152, 0, (char *) week_num[ok_week], &Font_HZK16, 1);
+    rx8025t_get_time(&_year, &_month, &_day, &_week, &_hour, &_minute, &_second);
+
+    if (_year >= 23 && _year < 30) {
+        // draw date
+        sprintf(date_time_page_draw_text_buf, "20%d.%d.%d", _year, _month, _day);
+        epd_paint_draw_string_at(epd_paint, 0, 0, date_time_page_draw_text_buf, &Font16, 1);
+        epd_paint_draw_string_at(epd_paint, 120, 0, (char *) week_label, &Font_HZK16, 1);
+        uint8_t ok_week = check_week(_week);
+        epd_paint_draw_string_at(epd_paint, 152, 0, (char *) week_num[ok_week], &Font_HZK16, 1);
+
+        // draw time
+        digi_view_t *time_label = digi_view_create(32, 6, 2);
+        time_label->point_style = 1;
+        digi_view_set_text(time_label, _hour, 2, _minute, 2);
+        uint8_t time_label_width = digi_view_calc_width(time_label);
+
+        uint8_t time_label_start_x = (epd_paint->width - time_label_width) / 2;
+        digi_view_draw(time_label_start_x, 40, time_label, epd_paint, loop_cnt);
+        digi_view_deinit(time_label);
+    } else {
+        uint8_t text_len = epd_paint_calc_string_width(epd_paint, (char *)datetime_need_set, &Font_HZK16);
+        epd_paint_draw_string_at(epd_paint, (epd_paint->width - text_len) / 2, 100, (char *) datetime_need_set, &Font_HZK16, 1);
+    }
 
     // battery
-    uint8_t icon_x = 4;
     battery_view_t *battery_view = battery_view_create(174, 0, 26, 16);
     battery_view_draw(battery_view, epd_paint, battery_get_level(), loop_cnt);
     battery_view_deinit(battery_view);
-
-    // draw time
-    digi_view_t *time_label = digi_view_create(32, 6, 2);
-    time_label->point_style = 1;
-    digi_view_set_text(time_label, _hour, 2, _minute, 2);
-    uint8_t time_label_width = digi_view_calc_width(time_label);
-
-    uint8_t time_label_start_x = (epd_paint->width - time_label_width) / 2;
-    digi_view_draw(time_label_start_x, 40, time_label, epd_paint, loop_cnt);
-    digi_view_deinit(time_label);
 
     if (sht31_get_temp_hum(&temperature, &humility)) {
         temperature_valid = true;
         humility_valid = true;
     }
 
-    //epd_paint_draw_string_at(epd_paint, 167, 2, (char *)temp, &Font_HZK16, 1);
+    // temp
     digi_view_t *temp_label = digi_view_create(18, 3, 2);
     if (temperature_valid) {
         if (temperature > 100) {
@@ -173,7 +177,7 @@ void date_time_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
 
     digi_view_deinit(temp_label);
 
-    //epd_paint_draw_string_at(epd_paint, 167, 130, (char *)hum, &Font_HZK16, 1);
+    // hum
     digi_view_t *hum_label = digi_view_create(18, 3, 2);
     if (humility_valid) {
         if (humility < 0) {
@@ -185,20 +189,11 @@ void date_time_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
         digi_view_set_text(hum_label, (int) humility, 2, (int) (humility * 10 + 0.5f) % 10, 1);
         digi_view_draw(116, 164, hum_label, epd_paint, loop_cnt);
     } else {
-        digi_view_draw_ee(116, 164, temp_label, epd_paint, 3, loop_cnt);
+        digi_view_draw_ee(116, 164, hum_label, epd_paint, 3, loop_cnt);
     }
     digi_view_deinit(hum_label);
 
-    wifi_mode_t wifi_mode;
-    esp_err_t err = esp_wifi_get_mode(&wifi_mode);
-    //ESP_LOGI(TAG, "current wifi mdoe: %d, %d %s", wifi_mode, err, esp_err_to_name(err));
-    if (ESP_OK == err && wifi_mode != WIFI_MODE_NULL) {
-        // wifi icon
-        epd_paint_draw_bitmap(epd_paint, icon_x, 183, 22, 16,
-                              (uint8_t *) icon_wifi_bmp_start,
-                              icon_wifi_bmp_end - icon_wifi_bmp_start, 1);
-        icon_x += 26;
-    }
+
 #ifdef CONFIG_BT_BLUEDROID_ENABLED
     if (esp_bluedroid_get_status() == ESP_BLUEDROID_STATUS_ENABLED) {
         // ble icon

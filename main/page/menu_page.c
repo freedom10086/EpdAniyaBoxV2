@@ -16,12 +16,10 @@
 
 static uint32_t last_key_event_tick;
 static uint8_t current_index = 0;
-static uint32_t switching_index = 0;
 
 void menu_page_on_create(void *arg) {
     ESP_LOGI(TAG, "menu_page_on_create");
     last_key_event_tick = xTaskGetTickCount();
-    switching_index = 0;
 }
 
 void menu_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
@@ -29,6 +27,8 @@ void menu_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
         page_manager_close_menu();
         return;
     }
+
+    ESP_LOGI(TAG, "=== on draw ===");
 
     //ESP_LOGI(TAG, "menu_page_draw");
     epd_paint_clear_range(epd_paint, 0, MENU_START_Y, LCD_H_RES, LCD_V_RES, 0);
@@ -76,11 +76,10 @@ void menu_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
 }
 
 void menu_page_after_draw(uint32_t loop_cnt) {
-    switching_index = 0;
+
 }
 
 static void change_select(bool next) {
-    switching_index = xTaskGetTickCount();
     current_index = (current_index + MENU_ITEM_COUNT + (next ? 1 : -1)) % MENU_ITEM_COUNT;
     int full_update = 0;
     common_post_event_data(BIKE_REQUEST_UPDATE_DISPLAY_EVENT, 0, &full_update, sizeof(full_update));
@@ -102,10 +101,6 @@ void handle_setting_item_event() {
 }
 
 bool menu_page_key_click(key_event_id_t key_event_type) {
-    if (switching_index > 0 && xTaskGetTickCount() - switching_index < configTICK_RATE_HZ * 2) {
-        ESP_LOGW(TAG, "handle pre click ignore %d", key_event_type);
-        return true;
-    }
     switch (key_event_type) {
         case KEY_OK_SHORT_CLICK:
             last_key_event_tick = xTaskGetTickCount();

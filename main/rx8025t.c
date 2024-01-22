@@ -151,7 +151,7 @@ static void rx8025t_task_entry(void *arg) {
 
     while(true) {
         if (gpio_get_level(RX8025_INT_GPIO_NUM) == 0) { // isr happens
-            gpio_isr_handler_remove(RX8025_INT_GPIO_NUM);
+            gpio_intr_disable(RX8025_INT_GPIO_NUM);
 
             // clear
             ESP_LOGI(TAG, "isr happens gpio %d goes low", RX8025_INT_GPIO_NUM);
@@ -187,7 +187,7 @@ static void rx8025t_task_entry(void *arg) {
 
             // clear all holding notification
             ulTaskGenericNotifyTake(0, pdTRUE, 0);
-            gpio_isr_handler_add(RX8025_INT_GPIO_NUM, rx8025_gpio_isr_handler, (void *) RX8025_INT_GPIO_NUM);
+            gpio_intr_enable(RX8025_INT_GPIO_NUM);
         }
 
         uint32_t notify_value = ulTaskGenericNotifyTake(0, pdTRUE, portMAX_DELAY);

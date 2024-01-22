@@ -9,6 +9,7 @@
 #include "freertos/queue.h"
 #include "esp_timer.h"
 #include "esp_log.h"
+#include "box_common.h"
 
 #include "common_utils.h"
 #include "key.h"
@@ -24,16 +25,18 @@ static QueueHandle_t event_queue;
 static esp_timer_handle_t timers[KEY_COUNT];
 static uint32_t tick_count[KEY_COUNT];
 static uint32_t key_up_tick_count[KEY_COUNT];
+static uint8_t key_stage[KEY_COUNT];
 static bool ignore_long_pressed[KEY_COUNT];
 
 static uint32_t time_diff_ms, tick_diff, key_up_tick_diff;
+static uint32_t short_click_count;
 
 static void IRAM_ATTR key_gpio_isr_handler(void *arg) {
     uint32_t gpio_num = (uint32_t) arg;
     xQueueSendFromISR(event_queue, &gpio_num, NULL);
 }
 
-static uint8_t key_gpio_num_to_index(gpio_num_t gpio_num) {
+static int8_t key_gpio_num_to_index(gpio_num_t gpio_num) {
     for (uint8_t i = 0; i < KEY_COUNT; ++i) {
         if (key_num_list[i] == gpio_num) {
             return i;
@@ -61,6 +64,7 @@ static void timer_callback(void *arg) {
                                    &time_diff_ms,
                                    sizeof(time_diff_ms));
         }
+        key_stage[index] = 1;
     }
 }
 
@@ -78,23 +82,33 @@ static void key_task_entry(void *arg) {
         ESP_ERROR_CHECK(esp_timer_create(&timer_args, &timers[i]));
     }
 
+    // key stage 0 wait key up, 1 wait key done
+    for (uint8_t i = 0; i < KEY_COUNT; ++i) {
+        key_stage[i] = 1;
+    }
+
+    gpio_num_t num = box_get_wakeup_ionum();
+    if (key_gpio_num_to_index(num) >= 0) {
+        xQueueSend(event_queue, &num, 0);
+    }
+
     gpio_num_t clicked_gpio;
     while (1) {
         if (xQueueReceive(event_queue, &clicked_gpio, portMAX_DELAY)) {
             // vTaskDelay(pdMS_TO_TICKS(2));
             uint8_t index = key_gpio_num_to_index(clicked_gpio);
-            gpio_isr_handler_remove(clicked_gpio);
+            gpio_intr_disable(clicked_gpio);
+            bool key_down = gpio_get_level(clicked_gpio) == 0;
 
-            if (gpio_get_level(clicked_gpio) == 0) {
-                // key down
+            if (key_down && key_stage[index] == 1) { // key down
                 //ESP_LOGI(TAG, "key %d click down detect...", clicked_gpio);
                 if (!esp_timer_is_active(timers[index])) {
                     ignore_long_pressed[index] = false;
-                    ESP_LOGI(TAG, "start timer for %d", index);
+                    // ESP_LOGI(TAG, "start timer for %d", index);
                     esp_timer_start_once(timers[index], KEY_LONG_PRESS_TIME_GAP * 1000);
                 }
-            } else if (gpio_get_level(clicked_gpio) == 1) {
-                // key up
+                key_stage[index] = 0;
+            } else if (!key_down && key_stage[index] == 0) { // key up
                 //ESP_LOGI(TAG, "key %d click up detect...", clicked_gpio);
                 tick_diff = xTaskGetTickCount() - tick_count[index];
                 time_diff_ms = pdTICKS_TO_MS(tick_diff);
@@ -115,21 +129,24 @@ static void key_task_entry(void *arg) {
                         esp_timer_stop(timers[index]);
                     }
 
-                    ESP_LOGI(TAG, "key %d(io: %d) short press", index, clicked_gpio);
+                    ESP_LOGI(TAG, "key %d(io: %d) short press cnt:%ld", index, clicked_gpio, short_click_count++);
                     common_post_event_data(BIKE_KEY_EVENT,
                                            key_event_map[index][0],
                                            &time_diff_ms,
                                            sizeof(time_diff_ms));
                 } else {
-                    ESP_LOGW(TAG, "key up to quickly gpio:%d, time diff:%ldms", clicked_gpio,
+                    ESP_LOGW(TAG, "key up too quickly gpio:%d, time diff:%ldms", clicked_gpio,
                              pdTICKS_TO_MS(key_up_tick_diff));
                 }
 
                 key_up_tick_count[index] = xTaskGetTickCount();
+                key_stage[index] = 1;
+            } else {
+                ESP_LOGW(TAG, "key %d(io: %d) invalid state, level:%d state:%d", index, clicked_gpio, !key_down, key_stage[index]);
             }
 
             tick_count[index] = xTaskGetTickCount();
-            gpio_isr_handler_add(clicked_gpio, key_gpio_isr_handler, (void *) clicked_gpio);
+            gpio_intr_enable(clicked_gpio);
         }
     }
 

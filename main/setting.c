@@ -16,7 +16,7 @@
 #define TAG "BOX_SETTING"
 
 #define MAX_BMP_FILE_SIZE 8192
-#define CHECK_BMP_UPLOAD_TIMEOUT 200
+#define CHECK_BMP_UPLOAD_TIMEOUT 300
 
 static uint8_t ping = 0;
 static SemaphoreHandle_t xSemaphore = NULL;
@@ -216,6 +216,7 @@ static void check_upload_task_entry(void *arg) {
         if (ulNotificationCount > 0) {
             // success get
         } else {
+            ESP_LOGW(TAG, "get write notify timeout remain:%d", remain);
             // timeout
             break;
         }

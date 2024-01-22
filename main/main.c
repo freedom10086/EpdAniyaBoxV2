@@ -55,39 +55,16 @@ static void application_task(void *args) {
  *   APPLICATION MAIN
  **********************/
 void app_main() {
-    esp_log_level_set("*", ESP_LOG_WARN);
-    //esp_log_level_set("battery", ESP_LOG_WARN);
-    //esp_log_level_set("lcd_panel.ssd1680", ESP_LOG_WARN);
-    //esp_log_level_set("keyboard", ESP_LOG_WARN);
-    //esp_log_level_set("display", ESP_LOG_WARN);
+    //esp_log_level_set("*", ESP_LOG_WARN);
+    esp_log_level_set("battery", ESP_LOG_WARN);
+    esp_log_level_set("lcd_panel.ssd1680", ESP_LOG_WARN);
+    // esp_log_level_set("keyboard", ESP_LOG_WARN);
+    // esp_log_level_set("display", ESP_LOG_WARN);
+    esp_log_level_set("LIS3DH", ESP_LOG_WARN);
+    //esp_log_level_set("page-manager", ESP_LOG_WARN);
 
     boot_count++;
-    esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
-    printf("Hello world!, boot count %ld wake up cause:%d\n", boot_count, cause);
-
-    uint64_t wakeup_pin_mask = 0;
-    switch (cause) {
-        case ESP_SLEEP_WAKEUP_TIMER: {
-            printf("Wake up from timer.");
-            break;
-        }
-        case ESP_SLEEP_WAKEUP_EXT1: {
-            wakeup_pin_mask = esp_sleep_get_ext1_wakeup_status();
-            break;
-        }
-        case ESP_SLEEP_WAKEUP_GPIO: {
-            wakeup_pin_mask = esp_sleep_get_gpio_wakeup_status();
-            break;
-        }
-        case ESP_SLEEP_WAKEUP_UNDEFINED:
-        default:
-            printf("Not a deep sleep reset\n");
-    }
-
-    if (wakeup_pin_mask > 0) {
-        int pin = __builtin_ffsll(wakeup_pin_mask) - 1;
-        printf("Wake up from GPIO %d\n", pin);
-    }
+    box_get_wakeup_ionum();
 
     // create event loop
     esp_event_loop_args_t loop_args = {
@@ -112,6 +89,11 @@ void app_main() {
      */
     i2c_master_init();
 
+    /**
+     * key
+     */
+    key_init();
+
     esp_err_t lis3dh_error = lis3dh_init(LIS3DH_LOW_POWER_MODE, LIS3DH_ACC_RANGE_2,
                                          LIS3DH_ACC_SAMPLE_RATE_25);
     if (lis3dh_error == ESP_OK) {
@@ -121,11 +103,6 @@ void app_main() {
     }
 
     lis3dh_config_motion_detect();
-
-    /**
-     * key
-     */
-    key_init();
 
     /**
      * battery detect
@@ -204,4 +181,34 @@ void box_enter_deep_sleep(int sleep_ts) {
 #endif
     ESP_LOGI(TAG, "enter deep sleep mode, sleep %ds", sleep_ts);
     esp_deep_sleep_start();
+}
+
+gpio_num_t box_get_wakeup_ionum() {
+    esp_sleep_wakeup_cause_t cause = esp_sleep_get_wakeup_cause();
+    printf("Hello world!, boot count %ld wake up cause:%d\n", boot_count, cause);
+    uint64_t wakeup_pin_mask = 0;
+    switch (cause) {
+        case ESP_SLEEP_WAKEUP_TIMER: {
+            printf("Wake up from timer.");
+            break;
+        }
+        case ESP_SLEEP_WAKEUP_EXT1: {
+            wakeup_pin_mask = esp_sleep_get_ext1_wakeup_status();
+            break;
+        }
+        case ESP_SLEEP_WAKEUP_GPIO: {
+            wakeup_pin_mask = esp_sleep_get_gpio_wakeup_status();
+            break;
+        }
+        case ESP_SLEEP_WAKEUP_UNDEFINED:
+        default:
+            printf("Not a deep sleep reset\n");
+    }
+
+    if (wakeup_pin_mask > 0) {
+        int pin = __builtin_ffsll(wakeup_pin_mask) - 1;
+        printf("Wake up from GPIO %d\n", pin);
+        return pin;
+    }
+    return GPIO_NUM_NC;
 }

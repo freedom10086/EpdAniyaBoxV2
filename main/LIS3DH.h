@@ -129,7 +129,9 @@ esp_err_t lis3dh_deinit();
 esp_err_t
 lis3dh_current_mode(lis3dh_mode_t *mode, lis3dh_acc_range_t *acc_range, lis3dh_acc_sample_rage_t *acc_sample_rate);
 
-esp_err_t lis3dh_set_sample_rate(lis3dh_acc_sample_rage_t acc_sample_rate);
+esp_err_t lis3dh_set_acc_range(bool high_res, lis3dh_acc_range_t acc_range);
+
+esp_err_t lis3dh_set_sample_rate(bool low_pow, lis3dh_acc_sample_rage_t acc_sample_rate);
 
 esp_err_t lis3dh_shutdown();
 

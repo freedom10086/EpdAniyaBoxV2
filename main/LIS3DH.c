@@ -22,14 +22,17 @@ ESP_EVENT_DEFINE_BASE(BIKE_MOTION_EVENT);
 // for 8G, try 10-20. for 4G try 20-40. for 2G try 40-80
 #define CLICKTHRESHHOLD 100
 
+#define ENABLE_INT2 0
+
 static bool lis3dh_inited = false;
 static TaskHandle_t imu_tsk_hdl = NULL;
 static QueueHandle_t imu_int_event_queue;
-static lis3dh_mode_t _mode;
-static lis3dh_acc_range_t _acc_range;
-static lis3dh_acc_sample_rage_t _acc_sample_rate;
 
+RTC_DATA_ATTR lis3dh_mode_t _acc_mode = LIS3DH_NORMAL_MODE;
+RTC_DATA_ATTR lis3dh_acc_range_t _acc_range = LIS3DH_ACC_RANGE_2;
+RTC_DATA_ATTR lis3dh_acc_sample_rage_t _acc_sample_rate = LIS3DH_ACC_SAMPLE_RATE_0;
 RTC_DATA_ATTR lis3dh_direction_t lis3dsh_direction = LIS3DH_DIR_TOP;
+RTC_DATA_ATTR bool _acc_motion_detect_sensor_inited = false;
 
 extern i2c_master_bus_handle_t i2c_bus_handle;
 static i2c_master_dev_handle_t dev_handle;
@@ -53,68 +56,78 @@ static void IRAM_ATTR mpu_gpio_isr_handler(void *arg) {
 }
 
 static void imu_task_entry(void *arg) {
-    // INT1 config
-    // for motion detect
-    uint8_t d = 0;
+    if (!_acc_motion_detect_sensor_inited) {
+        ESP_LOGI(TAG, "config for motion and click detect");
+        // INT1 config
+        // for motion detect
+        uint8_t d = 0;
 
-    // // high pass filter logic
-    // LIS3DH_HPF_AOI_INT1, LIS3DH_HPF_CUTOFF1, LIS3DH_HPF_NORMAL_MODE
-    i2c_write_byte(LIS3DH_REG_CTRL_REG2, LIS3DH_HPF_AOI_INT1 | LIS3DH_HPF_CUTOFF1 | LIS3DH_HPF_NORMAL_MODE);
+        // // high pass filter logic
+        // LIS3DH_HPF_AOI_INT1, LIS3DH_HPF_CUTOFF1, LIS3DH_HPF_NORMAL_MODE
+        i2c_write_byte(LIS3DH_REG_CTRL_REG2, LIS3DH_HPF_AOI_INT1 | LIS3DH_HPF_CUTOFF1 | LIS3DH_HPF_NORMAL_MODE);
 
-    // INT1 AND INT2 Latch
-    d = 0b00001010;
-    i2c_write_byte(LIS3DH_REG_CTRL_REG5, d);
+        // INT1 AND INT2 Latch
+        d = 0b00001010;
+        i2c_write_byte(LIS3DH_REG_CTRL_REG5, d);
 
-    // 0x7f = max 0~127 -> 0 ~ range
-    d = 10;
-    i2c_write_byte(LIS3DH_REG_INT1_THS, d);
+        // 0x7f = max 0~127 -> 0 ~ range
+        d = 4;
+        i2c_write_byte(LIS3DH_REG_INT1_THS, d);
 
-    // two intr min
-    // x / sample rate // eg 25hz, x = 10  / 25 = 500ms
-    d = 10;
-    i2c_write_byte(LIS3DH_REG_INT1_DURATION, d);
+        // two intr min
+        // x / sample rate // eg 25hz, x = 10 / 25 = 400ms
+        d = 10;
+        i2c_write_byte(LIS3DH_REG_INT1_DURATION, d);
 
-    d = 0b00101010;
-    i2c_write_byte(LIS3DH_REG_INT1_CFG, d);
+        d = 0b00101010;
+        i2c_write_byte(LIS3DH_REG_INT1_CFG, d);
 
-    // IA1 enable on int1
-    d = 0b01000000;
-    i2c_write_byte(LIS3DH_REG_CTRL_REG3, d);
+        // IA1 enable on int1
+        d = 0b01000000;
+        i2c_write_byte(LIS3DH_REG_CTRL_REG3, d);
 
+#if ENABLE_INT2
+        // INT2 config
+        // for click detect
+        d = 0x15; // single click or 0x2a double click
+        i2c_write_byte(LIS3DH_REG_CLICK_CFG, d);
 
-    // INT2 config
-    // for click detect
-    d = 0x15; // single click or 0x2a double click
-    i2c_write_byte(LIS3DH_REG_CLICK_CFG, d);
+        // 0 ~ 127
+        i2c_write_byte(LIS3DH_REG_CLICK_THS, CLICKTHRESHHOLD);
 
-    // 0 ~ 127
-    i2c_write_byte(LIS3DH_REG_CLICK_THS, CLICKTHRESHHOLD);
+        // Time acceleration has to fall below threshold for a valid click.
+        // 2 / 25hz = 100ms
+        i2c_write_byte(LIS3DH_REG_TIME_LIMIT, 2);
 
-    // Time acceleration has to fall below threshold for a valid click.
-    // 2 / 25hz = 100ms
-    i2c_write_byte(LIS3DH_REG_TIME_LIMIT, 2);
+        // hold-off time before allowing detection after click event
+        // 2 / 10hz = 100ms
+        i2c_write_byte(LIS3DH_REG_TIME_LATENCY, 2);
 
-    // hold-off time before allowing detection after click event
-    // 2 / 10hz = 100ms
-    i2c_write_byte(LIS3DH_REG_TIME_LATENCY, 2);
+        // hold-off time before allowing detection after click event
+        // 10 / 25hz = 500ms
+        i2c_write_byte(LIS3DH_REG_TIME_WINDOW, 10);
 
-    // hold-off time before allowing detection after click event
-    // 10 / 25hz = 500ms
-    i2c_write_byte(LIS3DH_REG_TIME_WINDOW, 10);
+        // en I2_CLICK Click interrupt on INT2
+        d = 0x00 | (0x01 << 7);
+        i2c_write_byte(LIS3DH_REG_CTRL_REG6, d);
+#else
+        i2c_write_byte(LIS3DH_REG_CTRL_REG6, 0);
+#endif
 
-    // en I2_CLICK Click interrupt on INT2
-    d = 0x00 | (0x01 << 7);
-    i2c_write_byte(LIS3DH_REG_CTRL_REG6, d);
+        _acc_motion_detect_sensor_inited = true;
+    }
 
-
-    imu_int_event_queue = xQueueCreate(10, sizeof(gpio_num_t));
-
+    imu_int_event_queue = xQueueCreate(6, sizeof(gpio_num_t));
 
     // INT GPIO
     // Default: push-pull output forced to GND
     // high trigger
     gpio_config_t io_config = {
+#if ENABLE_INT2
             .pin_bit_mask = (1ull << IMU_INT_1_GPIO) | (1ull << IMU_INT_2_GPIO),
+#else
+            .pin_bit_mask = (1ull << IMU_INT_1_GPIO),
+#endif
             .mode = GPIO_MODE_INPUT,
             .intr_type = GPIO_INTR_POSEDGE,
             .pull_up_en = 0,
@@ -122,19 +135,30 @@ static void imu_task_entry(void *arg) {
     };
     ESP_ERROR_CHECK(gpio_config(&io_config));
 
-    ESP_LOGI(TAG, "imu int1 io %d, level %d", IMU_INT_1_GPIO, gpio_get_level(IMU_INT_1_GPIO));
-    uint8_t has_int1;
-    lis3dh_get_int1_src(&has_int1);
-    ESP_LOGI(TAG, "imu int2 io %d, level %d", IMU_INT_2_GPIO, gpio_get_level(IMU_INT_2_GPIO));
-    uint8_t single_click, double_click;
-    lis3dh_get_click_src(&single_click, &double_click);
+    if (gpio_get_level(IMU_INT_1_GPIO)) {
+        uint8_t has_int1;
+        lis3dh_get_int1_src(&has_int1);
+
+        ESP_LOGI(TAG, "imu int1 io %d, level %d", IMU_INT_1_GPIO, gpio_get_level(IMU_INT_1_GPIO));
+    }
+#if ENABLE_INT2
+    if (gpio_get_level(IMU_INT_2_GPIO)) {
+        uint8_t single_click, double_click;
+        lis3dh_get_click_src(&single_click, &double_click);
+
+        ESP_LOGI(TAG, "imu int2 io %d, level %d, single:%d double:%d", IMU_INT_1_GPIO, gpio_get_level(IMU_INT_2_GPIO),
+                 single_click, double_click);
+    }
+#endif
 
     //install gpio isr service
     //gpio_install_isr_service(0);
 
     //hook isr handler for specific gpio pin
     gpio_isr_handler_add(IMU_INT_1_GPIO, mpu_gpio_isr_handler, (void *) IMU_INT_1_GPIO);
+#if ENABLE_INT2
     gpio_isr_handler_add(IMU_INT_2_GPIO, mpu_gpio_isr_handler, (void *) IMU_INT_2_GPIO);
+#endif
     ESP_LOGI(TAG, "imu motion detect isr add OK");
 
     gpio_num_t triggered_gpio;
@@ -146,6 +170,7 @@ static void imu_task_entry(void *arg) {
             continue_timeout_count = 0;
             int level = gpio_get_level(triggered_gpio);
             ESP_LOGI(TAG, "imu isr event io:%d level:%d", triggered_gpio, level);
+            gpio_intr_disable(triggered_gpio);
             if (triggered_gpio == IMU_INT_1_GPIO) {
                 uint8_t has_int1;
                 lis3dh_get_int1_src(&has_int1);
@@ -163,8 +188,9 @@ static void imu_task_entry(void *arg) {
                                        &triggered_gpio,
                                        sizeof(triggered_gpio));
             }
+            gpio_intr_enable(triggered_gpio);
         } else {
-            continue_timeout_count ++;
+            continue_timeout_count++;
             // time out read acc sensor to calc display direction
             lis3dh_direction_t direction = lis3dh_calc_direction();
             ESP_LOGI(TAG, "calc display rotation %d", direction);
@@ -190,56 +216,27 @@ uint8_t lis3dh_who_am_i() {
 }
 
 esp_err_t lis3dh_init(lis3dh_mode_t mode, lis3dh_acc_range_t acc_range, lis3dh_acc_sample_rage_t acc_sample_rate) {
-    i2c_device_config_t dev_cfg = {
-            .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-            .device_address = LIS3DH_ADDR,
-            .scl_speed_hz = 100000,
-    };
-    ESP_ERROR_CHECK(i2c_master_bus_add_device(i2c_bus_handle, &dev_cfg, &dev_handle));
+    if (dev_handle == NULL) {
+        i2c_device_config_t dev_cfg = {
+                .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+                .device_address = LIS3DH_ADDR,
+                .scl_speed_hz = 100000,
+        };
+        ESP_ERROR_CHECK(i2c_master_bus_add_device(i2c_bus_handle, &dev_cfg, &dev_handle));
 
-    uint8_t who_am_i = lis3dh_who_am_i();
-    if (who_am_i != 0x33) {
-        lis3dh_inited = false;
-        return ESP_FAIL;
+        uint8_t who_am_i = lis3dh_who_am_i();
+        if (who_am_i != 0x33) {
+            lis3dh_inited = false;
+            return ESP_FAIL;
+        }
     }
 
-    _mode = mode;
-    lis3dh_set_sample_rate(acc_sample_rate);
+    lis3dh_set_sample_rate(mode == LIS3DH_LOW_POWER_MODE, acc_sample_rate);
 
-    //Build CTRL_REG4
-    uint8_t data = 0;
-
-    //set high resolution
-    if (mode == LIS3DH_HIGH_RES_MODE) {
-        data |= 0x08;
-    }
-
-    //  Convert scaling
-    switch (acc_range) {
-        default:
-        case LIS3DH_ACC_RANGE_2:
-            data |= (0x00 << 4);
-            break;
-        case LIS3DH_ACC_RANGE_4:
-            data |= (0x01 << 4);
-            break;
-        case LIS3DH_ACC_RANGE_8:
-            data |= (0x02 << 4);
-            break;
-        case LIS3DH_ACC_RANGE_16:
-            data |= (0x03 << 4);
-            break;
-    }
-
-    ESP_LOGI(TAG, "write to CTRL_REG4 %x", data);
-    i2c_write_byte(LIS3DH_REG_CTRL_REG4, data);
-
-    _mode = mode;
-    _acc_range = acc_range;
-    _acc_sample_rate = acc_sample_rate;
+    lis3dh_set_acc_range(mode == LIS3DH_HIGH_RES_MODE, acc_range);
 
     lis3dh_inited = true;
-
+    ESP_LOGI(TAG, "imu inited!");
     return ESP_OK;
 }
 
@@ -252,9 +249,13 @@ esp_err_t lis3dh_deinit() {
         imu_tsk_hdl = NULL;
     }
 
+    esp_err_t err = ESP_OK;
+    if (dev_handle != NULL) {
+        err = i2c_master_bus_rm_device(dev_handle);
+        dev_handle = NULL;
+    }
     lis3dh_inited = false;
-
-    return i2c_master_bus_rm_device(dev_handle);
+    return err;
 }
 
 esp_err_t lis3dh_current_mode(lis3dh_mode_t *mode, lis3dh_acc_range_t *acc_range,
@@ -285,11 +286,57 @@ esp_err_t lis3dh_current_mode(lis3dh_mode_t *mode, lis3dh_acc_range_t *acc_range
     return ESP_OK;
 }
 
-esp_err_t lis3dh_set_sample_rate(lis3dh_acc_sample_rage_t acc_sample_rate) {
+esp_err_t lis3dh_set_acc_range(bool high_res, lis3dh_acc_range_t acc_range) {
+    bool hr = _acc_mode == LIS3DH_HIGH_RES_MODE;
+    if (hr == high_res && _acc_range == acc_range) {
+        return ESP_OK;
+    }
+
+    uint8_t data = 0;
+    //set high resolution
+    if (high_res) {
+        data |= 0x08;
+    }
+
+    //  Convert scaling
+    switch (acc_range) {
+        default:
+        case LIS3DH_ACC_RANGE_2:
+            data |= (0x00 << 4);
+            break;
+        case LIS3DH_ACC_RANGE_4:
+            data |= (0x01 << 4);
+            break;
+        case LIS3DH_ACC_RANGE_8:
+            data |= (0x02 << 4);
+            break;
+        case LIS3DH_ACC_RANGE_16:
+            data |= (0x03 << 4);
+            break;
+    }
+
+    ESP_LOGI(TAG, "write to CTRL_REG4 %x", data);
+    esp_err_t err = i2c_write_byte(LIS3DH_REG_CTRL_REG4, data);
+    if (err == ESP_OK) {
+        _acc_range = acc_range;
+        if (high_res) {
+            _acc_mode = LIS3DH_HIGH_RES_MODE;
+        }
+    }
+
+    return err;
+}
+
+esp_err_t lis3dh_set_sample_rate(bool low_power, lis3dh_acc_sample_rage_t acc_sample_rate) {
+    bool lp = _acc_mode == LIS3DH_LOW_POWER_MODE;
+    if (lp == low_power && acc_sample_rate == _acc_sample_rate) {
+        return ESP_OK;
+    }
+
     uint8_t data = LIS3DH_ACC_SAMPLE_RATE_0;
     //Build CTRL_REG1
     // page 16 set CTRL_REG1[3](LPen bit)
-    if (_mode == LIS3DH_LOW_POWER_MODE) {
+    if (low_power) {
         data |= 0x08;
     }
 
@@ -323,15 +370,18 @@ esp_err_t lis3dh_set_sample_rate(lis3dh_acc_sample_rage_t acc_sample_rate) {
     // en accx y z
     data |= 0x07;
     ESP_LOGI(TAG, "write to CTRL_REG1 %x", data);
-    i2c_write_byte(LIS3DH_REG_CTRL_REG1, data);
-
-    _acc_sample_rate = acc_sample_rate;
-
-    return ESP_OK;
+    esp_err_t err = i2c_write_byte(LIS3DH_REG_CTRL_REG1, data);
+    if (err == ESP_OK) {
+        _acc_sample_rate = acc_sample_rate;
+        if (low_power) {
+            _acc_mode = LIS3DH_LOW_POWER_MODE;
+        }
+    }
+    return err;
 }
 
 esp_err_t lis3dh_shutdown() {
-    return lis3dh_set_sample_rate(LIS3DH_ACC_SAMPLE_RATE_0);
+    return lis3dh_set_sample_rate(true, LIS3DH_ACC_SAMPLE_RATE_0);
 }
 
 uint8_t lis3dh_read_status() {

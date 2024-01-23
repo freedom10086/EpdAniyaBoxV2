@@ -5,6 +5,7 @@
 #include "menu_page.h"
 #include "static/static.h"
 #include "page_manager.h"
+#include "LIS3DH.h"
 
 #define TAG "menu_page"
 
@@ -12,22 +13,32 @@
 #define MENU_START_Y 144
 #define MENU_ITEM_HEIGHT 56
 #define MENU_ITEM_WIDTH 50
-#define MENU_AUTO_CLOSE_TIMEOUT_TS 30
+#define MENU_AUTO_CLOSE_TIMEOUT_TS 20
 
-static uint32_t last_key_event_tick;
 static uint8_t current_index = 0;
+RTC_DATA_ATTR static esp_timer_handle_t auto_close_timer_hdl = NULL;
+
+static void auto_close_timer_callback(void *arg) {
+    ESP_LOGI(TAG, "auto close menu triggered");
+    page_manager_close_menu();
+    page_manager_request_update(false);
+}
 
 void menu_page_on_create(void *arg) {
     ESP_LOGI(TAG, "menu_page_on_create");
-    last_key_event_tick = xTaskGetTickCount();
+
+    const esp_timer_create_args_t auto_close_timer_args = {
+            .callback = &auto_close_timer_callback,
+            /* argument specified here will be passed to timer callback function */
+            .arg = NULL,
+            .name = "auto-close-menu"
+    };
+
+    ESP_ERROR_CHECK(esp_timer_create(&auto_close_timer_args, &auto_close_timer_hdl));
+    ESP_ERROR_CHECK(esp_timer_start_once(auto_close_timer_hdl, MENU_AUTO_CLOSE_TIMEOUT_TS * 1000 * 1000));
 }
 
 void menu_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
-    if (xTaskGetTickCount() - last_key_event_tick > configTICK_RATE_HZ * MENU_AUTO_CLOSE_TIMEOUT_TS) {
-        page_manager_close_menu();
-        return;
-    }
-
     ESP_LOGI(TAG, "=== on draw ===");
 
     //ESP_LOGI(TAG, "menu_page_draw");
@@ -101,9 +112,12 @@ void handle_setting_item_event() {
 }
 
 bool menu_page_key_click(key_event_id_t key_event_type) {
+    if (auto_close_timer_hdl != NULL) {
+        esp_timer_restart(auto_close_timer_hdl, MENU_AUTO_CLOSE_TIMEOUT_TS * 1000 * 1000);
+    }
+
     switch (key_event_type) {
         case KEY_OK_SHORT_CLICK:
-            last_key_event_tick = xTaskGetTickCount();
             handle_setting_item_event();
             break;
         case KEY_CANCEL_SHORT_CLICK:
@@ -111,12 +125,18 @@ bool menu_page_key_click(key_event_id_t key_event_type) {
             page_manager_request_update(false);
             break;
         case KEY_DOWN_SHORT_CLICK:
-            last_key_event_tick = xTaskGetTickCount();
-            change_select(true);
+            if (lis3dh_get_direction() == LIS3DH_DIR_LEFT)  {
+                change_select(false);
+            } else {
+                change_select(true);
+            }
             break;
         case KEY_UP_SHORT_CLICK:
-            last_key_event_tick = xTaskGetTickCount();
-            change_select(false);
+            if (lis3dh_get_direction() == LIS3DH_DIR_LEFT)  {
+                change_select(true);
+            } else {
+                change_select(false);
+            }
             break;
         default:
             return true;
@@ -125,5 +145,9 @@ bool menu_page_key_click(key_event_id_t key_event_type) {
 }
 
 void menu_page_on_destroy(void *arg) {
-
+    if (auto_close_timer_hdl != NULL) {
+        esp_timer_stop(auto_close_timer_hdl);
+        esp_timer_delete(auto_close_timer_hdl);
+        auto_close_timer_hdl = NULL;
+    }
 }

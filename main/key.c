@@ -209,5 +209,5 @@ void key_init() {
         gpio_isr_handler_add(key_num_list[i], key_gpio_isr_handler, (void *) key_num_list[i]);
     }
 
-    ESP_LOGI(TAG, "keyboard isr detect add OK");
+    ESP_LOGI(TAG, "inited");
 }

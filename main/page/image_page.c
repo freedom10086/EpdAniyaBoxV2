@@ -261,10 +261,10 @@ static void calc_total_image_file_count() {
 
     if (!dir) {
         ESP_LOGE(TAG, "Failed to stat dir : %s", entrypath);
-        total_image_file_count = 0;
+        total_image_file_count = 1;
     } else {
         ESP_LOGI(TAG, "list dir : %s", entrypath);
-        uint16_t valid_file_count = 0;
+        uint16_t valid_file_count = 1;
         /* Iterate over all files / folders and fetch their names and sizes */
         while ((entry = readdir(dir)) != NULL) {
             if (!check_is_valid_image_file(entry, entrypath, dirpath_len, &entry_stat)) {
@@ -274,6 +274,7 @@ static void calc_total_image_file_count() {
         }
 
         total_image_file_count = valid_file_count;
+        ESP_LOGI(TAG, "calc total file count %d", total_image_file_count);
         closedir(dir);
     }
 }
@@ -291,6 +292,10 @@ static esp_err_t delete_current_image() {
 
     unlink(current_filepath);
     current_bitmap_page_index -= 1;
+    if (total_image_file_count > 0) {
+        total_image_file_count -= 1;
+    }
+
     ESP_LOGI(TAG, "delete file %s", current_filepath);
     return ESP_OK;
 }

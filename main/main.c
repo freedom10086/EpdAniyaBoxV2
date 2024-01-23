@@ -56,12 +56,12 @@ static void application_task(void *args) {
  **********************/
 void app_main() {
     //esp_log_level_set("*", ESP_LOG_WARN);
-    esp_log_level_set("battery", ESP_LOG_WARN);
+    //esp_log_level_set("battery", ESP_LOG_WARN);
     esp_log_level_set("lcd_panel.ssd1680", ESP_LOG_WARN);
     // esp_log_level_set("keyboard", ESP_LOG_WARN);
     // esp_log_level_set("display", ESP_LOG_WARN);
-    esp_log_level_set("LIS3DH", ESP_LOG_WARN);
-    //esp_log_level_set("page-manager", ESP_LOG_WARN);
+    // esp_log_level_set("LIS3DH", ESP_LOG_WARN);
+    esp_log_level_set("page-manager", ESP_LOG_WARN);
 
     boot_count++;
     box_get_wakeup_ionum();
@@ -94,16 +94,6 @@ void app_main() {
      */
     key_init();
 
-    esp_err_t lis3dh_error = lis3dh_init(LIS3DH_LOW_POWER_MODE, LIS3DH_ACC_RANGE_2,
-                                         LIS3DH_ACC_SAMPLE_RATE_25);
-    if (lis3dh_error == ESP_OK) {
-        ESP_LOGI(TAG, "lis3dh init success");
-    } else {
-        ESP_LOGW(TAG, "lis3dh init failed");
-    }
-
-    lis3dh_config_motion_detect();
-
     /**
      * battery detect
      */
@@ -116,6 +106,9 @@ void app_main() {
 
     // rx8025
     rx8025t_init();
+
+    lis3dh_init(LIS3DH_LOW_POWER_MODE, LIS3DH_ACC_RANGE_2,LIS3DH_ACC_SAMPLE_RATE_25);
+    lis3dh_config_motion_detect();
 }
 
 /**

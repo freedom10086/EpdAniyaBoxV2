@@ -248,6 +248,7 @@ static void guiTask(void *pvParameter) {
                 last_full_refresh_loop_cnt = loop_cnt;
             }
 
+            ESP_LOGI(TAG, "draw page done %ld", loop_cnt);
             loop_cnt += 1;
         }
 
@@ -336,5 +337,6 @@ void display_init(uint32_t boot_count) {
 
     // uxPriority 0 最低
     xTaskCreate(guiTask, "gui", 4096 * 2, NULL, 1, &x_update_notify_handl);
+    ESP_LOGI(TAG, "inited");
 }
 

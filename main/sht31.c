@@ -164,7 +164,6 @@ void sht31_init() {
     uint8_t failed_cnt = 0;
     uint8_t data[3];
 
-    sht31_reset();
     sht31_start:
     i2c_read(SHT31_READSTATUS, data, 3);
     if (data[2] != crc8(data, 2)) {
@@ -172,6 +171,7 @@ void sht31_init() {
         failed_cnt++;
         if (failed_cnt >= 3) {
             ESP_LOGE(TAG, "read sht31 status failed for 3 times...");
+            sht31_reset();
             return;
         }
         vTaskDelay(pdMS_TO_TICKS(3));
@@ -194,7 +194,10 @@ void sht31_deinit() {
 bool sht31_read_temp_hum() {
     uint8_t readbuffer[6];
 
-    i2c_write_cmd(SHT31_MEAS_MEDREP); // med 10, high 20
+    esp_err_t err = i2c_write_cmd(SHT31_MEAS_MEDREP); // med 10, high 20
+    if (err != ESP_OK) {
+        return false;
+    }
 
     uint8_t retry_cnt = 0;
     read:
@@ -209,6 +212,9 @@ bool sht31_read_temp_hum() {
             ESP_LOGW(TAG, "retry read. %d", retry_cnt);
             goto read;
         }
+
+        ESP_LOGW(TAG, "read failed for 3 times reset...");
+        sht31_reset();
         return false;
     }
 

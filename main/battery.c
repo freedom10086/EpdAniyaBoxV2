@@ -280,7 +280,7 @@ static void battery_task_entry(void *arg) {
     int8_t before_level, current_level;
     while (1) {
         adc_power_on_off(1);
-        vTaskDelay(pdMS_TO_TICKS(5));
+        vTaskDelay(pdMS_TO_TICKS(3));
         ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, ADC1_CHAN, &_adc_raw));
         adc_power_on_off(0);
 
@@ -340,7 +340,7 @@ void battery_init(void) {
         ESP_LOGE(TAG, "create battery detect task failed");
     }
 
-    ESP_LOGI(TAG, "battery task init OK");
+    ESP_LOGI(TAG, "inited");
 }
 
 

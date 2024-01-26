@@ -56,11 +56,11 @@ static void application_task(void *args) {
  **********************/
 void app_main() {
     //esp_log_level_set("*", ESP_LOG_WARN);
-    //esp_log_level_set("battery", ESP_LOG_WARN);
+    esp_log_level_set("battery", ESP_LOG_WARN);
     esp_log_level_set("lcd_panel.ssd1680", ESP_LOG_WARN);
-    // esp_log_level_set("keyboard", ESP_LOG_WARN);
-    // esp_log_level_set("display", ESP_LOG_WARN);
-    // esp_log_level_set("LIS3DH", ESP_LOG_WARN);
+    esp_log_level_set("keyboard", ESP_LOG_WARN);
+    esp_log_level_set("display", ESP_LOG_WARN);
+    esp_log_level_set("LIS3DH", ESP_LOG_WARN);
     esp_log_level_set("page-manager", ESP_LOG_WARN);
 
     boot_count++;
@@ -107,6 +107,7 @@ void app_main() {
     // rx8025
     rx8025t_init();
 
+    vTaskDelay(pdMS_TO_TICKS(1000));
     lis3dh_init(LIS3DH_LOW_POWER_MODE, LIS3DH_ACC_RANGE_2,LIS3DH_ACC_SAMPLE_RATE_25);
     lis3dh_config_motion_detect();
 }

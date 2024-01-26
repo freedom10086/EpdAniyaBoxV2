@@ -146,8 +146,8 @@ void date_time_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
         digi_view_draw(time_label_start_x, 40, time_label, epd_paint, loop_cnt);
         digi_view_deinit(time_label);
     } else {
-        uint8_t text_len = epd_paint_calc_string_width(epd_paint, (char *)datetime_need_set, &Font_HZK16);
-        epd_paint_draw_string_at(epd_paint, (epd_paint->width - text_len) / 2, 100, (char *) datetime_need_set, &Font_HZK16, 1);
+        uint8_t text_len = epd_paint_calc_string_width(epd_paint, (char *)text_datetime_need_set, &Font_HZK16);
+        epd_paint_draw_string_at(epd_paint, (epd_paint->width - text_len) / 2, 100, (char *) text_datetime_need_set, &Font_HZK16, 1);
     }
 
     // battery

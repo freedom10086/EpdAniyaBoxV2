@@ -26,11 +26,11 @@ typedef struct {
     uint8_t red;
 } pixel_color;
 
-enum ALIGN {
+typedef enum ALIGN {
     ALIGN_START = 0,
     ALIGN_CENTER,
     ALIGN_END
-};
+}ALIGN_t;
 
 void epd_paint_init(epd_paint_t *epd, unsigned char *image, int width, int height, uint8_t rotate);
 
@@ -47,6 +47,15 @@ void epd_paint_reverse_range(epd_paint_t *epd_paint, int start_x, int start_y, i
 void epd_paint_draw_pixel(epd_paint_t *epd_paint, int x, int y, int colored);
 
 void epd_paint_draw_string_at(epd_paint_t *epd_paint, int x, int y, const char *text, sFONT *font, int colored);
+
+void epd_paint_draw_string_at_position(epd_paint_t *epd_paint, int x, int y, int endx, int endy,
+                                       const char *text, sFONT *font, ALIGN_t halign, ALIGN_t valign, int colored);
+
+void epd_paint_draw_string_at_hposition(epd_paint_t *epd_paint, int x, int y, int endx,
+                                        const char *text, sFONT *font, ALIGN_t halign, int colored);
+
+void epd_paint_draw_string_at_vposition(epd_paint_t *epd_paint, int x, int y, int endy,
+                                        const char *text, sFONT *font, ALIGN_t valign, int colored);
 
 uint16_t epd_paint_calc_string_width(epd_paint_t *epd_paint, const char *text, sFONT *font);
 

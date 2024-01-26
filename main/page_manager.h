@@ -9,8 +9,9 @@
 #define TEMP_PAGE_INDEX 0
 #define IMAGE_PAGE_INDEX 1
 #define DATE_TIME_PAGE_INDEX 2
+#define TOMATO_PAGE_INDEX 3
 
-#define HOME_PAGE_COUNT 3
+#define HOME_PAGE_COUNT 4
 
 typedef void (*on_draw_page_cb)(epd_paint_t *epd_paint, uint32_t loop_cnt);
 

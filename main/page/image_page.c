@@ -346,5 +346,5 @@ void image_page_on_destroy(void *arg) {
 }
 
 int image_page_on_enter_sleep(void *args) {
-    return 3600;
+    return 5400;
 }

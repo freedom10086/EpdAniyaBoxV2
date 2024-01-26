@@ -20,11 +20,12 @@
 #include "page/data_time_page.h"
 #include "page/battery_page.h"
 #include "page/music_page.h"
+#include "page/tomato_clock.h"
 #include "battery.h"
 #include "rx8025t.h"
 
 #define TAG "page-manager"
-#define TOTAL_PAGE 12
+#define TOTAL_PAGE 13
 #define TOTAL_MENU 3
 
 static int8_t pre_page_index = -1;
@@ -59,6 +60,14 @@ static page_inst_t pages[] = {
                 .key_click_handler = date_time_page_key_click,
                 .on_destroy_page = date_time_page_on_destroy,
                 .enter_sleep_handler = date_time_page_on_enter_sleep,
+        },
+        [TOMATO_PAGE_INDEX] = {
+                .page_name = "tomato",
+                .on_create_page = tomato_page_on_create,
+                .on_draw_page = tomato_page_draw,
+                .key_click_handler = tomato_page_key_click,
+                .on_destroy_page = tomato_page_on_destroy,
+                .enter_sleep_handler = tomato_page_on_enter_sleep,
         },
         {
                 .page_name = "info",

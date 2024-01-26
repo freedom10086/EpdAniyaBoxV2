@@ -248,6 +248,39 @@ void epd_paint_draw_string_at(epd_paint_t *epd_paint, int x, int y, const char *
     }
 }
 
+void epd_paint_draw_string_at_position(epd_paint_t *epd_paint, int x, int y, int endx, int endy,
+                                       const char *text, sFONT *font, ALIGN_t halign, ALIGN_t valign, int colored) {
+    int start_x = x;
+    if (halign == ALIGN_END) {
+        start_x = endx - epd_paint_calc_string_width(epd_paint, text, font);
+        start_x = max(start_x, x);
+    } else if (halign == ALIGN_CENTER) {
+        start_x = ((endx - x) - epd_paint_calc_string_width(epd_paint, text, font)) / 2;
+        start_x = max(start_x, x);
+    }
+
+    int start_y = y;
+    if (valign == ALIGN_END) {
+        start_y = endy - font->Height;
+        start_y = max(start_y, y);
+    } else if (valign == ALIGN_CENTER) {
+        start_y = ((endy - y) - font->Height) / 2;
+        start_y = max(start_y, y);
+    }
+
+    epd_paint_draw_string_at(epd_paint, start_x, start_y, text, font, colored);
+}
+
+void epd_paint_draw_string_at_hposition(epd_paint_t *epd_paint, int x, int y, int endx,
+                                        const char *text, sFONT *font, ALIGN_t halign, int colored) {
+    epd_paint_draw_string_at_position(epd_paint, x, y, endx, y, text, font, halign, ALIGN_START, colored);
+}
+
+void epd_paint_draw_string_at_vposition(epd_paint_t *epd_paint, int x, int y, int endy,
+                                        const char *text, sFONT *font, ALIGN_t valign, int colored) {
+    epd_paint_draw_string_at_position(epd_paint, x, y, x, endy, text, font, ALIGN_START, valign, colored);
+}
+
 uint16_t epd_paint_calc_string_width(epd_paint_t *epd_paint, const char *text, sFONT *font) {
     const uint8_t *p_text = (uint8_t *) text;
     uint16_t width = 0;
@@ -440,7 +473,8 @@ void dither(uint8_t *gray_data, uint8_t width, uint8_t height) {
     }
 }
 
-static void draw_gray_color(epd_paint_t *epd_paint, int x, int y, int end_x, int end_y, const uint8_t *bmp_data, int colored) {
+static void
+draw_gray_color(epd_paint_t *epd_paint, int x, int y, int end_x, int end_y, const uint8_t *bmp_data, int colored) {
     uint8_t gray_color;
     for (int j = y; j < end_y; ++j) {
         for (int i = x; i < end_x; ++i) {

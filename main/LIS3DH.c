@@ -71,7 +71,7 @@ static void imu_task_entry(void *arg) {
         i2c_write_byte(LIS3DH_REG_CTRL_REG5, d);
 
         // 0x7f = max 0~127 -> 0 ~ range
-        d = 4;
+        d = 6;
         i2c_write_byte(LIS3DH_REG_INT1_THS, d);
 
         // two intr min

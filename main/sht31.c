@@ -12,7 +12,7 @@
 #include "sht31.h"
 
 #define I2C_MASTER_NUM              0
-#define I2C_MASTER_TIMEOUT_MS       100
+#define I2C_MASTER_TIMEOUT_MS       200
 
 #define SHT31_ADDR                 0x44
 #define SHT31_MEAS_HIGHREP_STRETCH 0x2C06 /**< Measurement High Repeatability with Clock Stretch Enabled */

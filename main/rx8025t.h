@@ -6,6 +6,12 @@
 #define HELLO_WORLD_RX8025T_H
 
 #include <esp_event_base.h>
+#include "esp_types.h"
+#include "esp_event.h"
+#include "time.h"
+
+#include "event_common.h"
+#include "common_utils.h"
 
 ESP_EVENT_DECLARE_BASE(BIKE_DATE_TIME_SENSOR_EVENT);
 
@@ -28,9 +34,11 @@ typedef struct {
 } rx8025_time_t;
 
 typedef enum {
-    RX8025T_SENSOR_INIT_FAILED,
+    RX8025T_SENSOR_INIT_FAILED = 0,
     RX8025T_SENSOR_UPDATE,
     RX8025T_SENSOR_READ_FAILED,
+    RX8025T_SENSOR_ALARM_INTR,
+    RX8025T_SENSOR_FIX_TIME_INTR,
 } rx8025t_event_id_t;
 
 typedef struct {
@@ -51,6 +59,8 @@ rx8025t_set_time(uint8_t year, uint8_t month, uint8_t day, uint8_t week, uint8_t
 
 esp_err_t rx8025t_get_time(uint8_t *year, uint8_t *month, uint8_t *day, uint8_t *week, uint8_t *hour, uint8_t *minute,
                            uint8_t *second);
+
+esp_err_t rx8025t_get_time_ts(time_t *ts);
 
 // per_second true: second mode, false: minute mode
 esp_err_t rx8025t_set_update_time_intr(uint8_t en, uint8_t per_minute);
@@ -81,5 +91,7 @@ esp_err_t rx8025_read_flags(uint8_t *uf, uint8_t *tf, uint8_t *af);
 esp_err_t rx8025_read_alarm_flag(uint8_t *flag);
 
 esp_err_t rx8025_clear_flags(uint8_t uf, uint8_t tf, uint8_t af);
+
+esp_err_t rx8025_read_ctrl(uint8_t *uie, uint8_t *tie, uint8_t *aie);
 
 #endif //HELLO_WORLD_RX8025T_H

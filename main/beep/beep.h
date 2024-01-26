@@ -14,6 +14,7 @@
 #define BEEP_GPIO_NUM 15
 
 typedef enum {
+    BEEP_MODE_NONE = 0,
     BEEP_MODE_PWM,
     BEEP_MODE_RMT
 } beep_mode_t;
@@ -89,13 +90,21 @@ typedef struct {
 } buzzer_musical_score_t;
 
 static const buzzer_musical_score_t music_score_beep[] = {
-        {4000, 300}
+        {4000, 500}
 };
 
 static const buzzer_musical_score_t music_score_beep_beep[] = {
+        {4000, 300},
+        {0,    100},
+        {4000, 300}
+};
+
+static const buzzer_musical_score_t music_score_beep_beep_beep[] = {
         {4000, 200},
         {0,    100},
-        {4000, 200}
+        {4000, 200},
+        {0,    100},
+        {4000, 200},
 };
 
 
@@ -174,15 +183,6 @@ static const buzzer_musical_score_t music_score_1[] = {
         {587, 800},
 };
 
-static const buzzer_musical_score_t normal_beep_score[] = {
-        {4000, 600},
-};
-
-static const buzzer_musical_score_t normal_beep_beep_score[] = {
-        {4000, 500,},
-        {0,    300,},
-        {4000, 500}
-};
 
 #define NOTE_TS_NORMAL 800
 static const buzzer_musical_score_t music_score_hszy[] = {
@@ -459,8 +459,6 @@ esp_err_t beep_start_beep(uint32_t duration);
 esp_err_t beep_start_play(const buzzer_musical_score_t *song, uint16_t song_len);
 
 esp_err_t stop_beep();
-
-esp_err_t stop_beep2();
 
 esp_err_t beep_deinit();
 

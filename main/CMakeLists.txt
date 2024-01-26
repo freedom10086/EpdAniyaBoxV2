@@ -10,7 +10,7 @@ set(srcs "lcd/font8.c" "lcd/font12.c" "lcd/font16.c" "lcd/font20.c" "lcd/font24.
         "beep/beep.c" "beep/musical_score_encoder.c"
         "view/list_view.c" "view/digi_view.c" "view/battery_view.c"
         "lcd/epd_lcd_ssd1680.c" "page/menu_page.c" "page/confirm_menu_page.c" "page/alert_dialog_page.c" "page/test_page.c" "page/info_page.c"
-        "lcd/display.c" "page/image_page.c" "page/temperature_page.c" "page/upgrade_page.c"
+        "lcd/display.c" "page/image_page.c" "page/temperature_page.c" "page/upgrade_page.c" "page/tomato_clock.c"
         "page/manual_page.c" "page/image_manage_page.c" "page/ble_device_page.c" "page/setting_list_page.c" "page/data_time_page.c" "page/battery_page.c" "page/music_page.c"
         "page_manager.c"
         "main.c")
@@ -22,5 +22,6 @@ idf_component_register(SRCS ${srcs}
         EMBED_FILES "static/icon_wifi.bmp" "static/icon_ble.bmp" "static/icon_sat.bmp" "static/icon_upgrade.bmp"
         EMBED_FILES "static/ic_close_32.bmp" "static/ic_home_32.bmp" "static/ic_image_32.bmp" "static/ic_info_32.bmp" "static/ic_manual_32.bmp"
         EMBED_FILES "static/ic_setting_32.bmp" "static/ic_upgrade_32.bmp" "static/ic_reboot_32.bmp" "static/ic_back_32.bmp" "static/ic_ble_32.bmp"
-        EMBED_FILES "static/ic_music_32.bmp" "static/ic_battery_32.bmp"
+        EMBED_FILES "static/ic_music_32.bmp" "static/ic_battery_32.bmp" "static/ic_tomato_32.bmp" "static/ic_studying_32.bmp" "static/ic_playing_32.bmp"
+        EMBED_FILES "static/ic_summary_32.bmp"
         INCLUDE_DIRS ".")

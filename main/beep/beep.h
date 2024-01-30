@@ -27,6 +27,19 @@ typedef enum {
 typedef enum note {
     NOTE_NONE = 0,
 
+    NOTE1_BASE_BASS = 131,
+    NOTE1_BASE_BASS_H = 139, // 1#
+    NOTE2_BASE_BASS = 147,
+    NOTE2_BASE_BASS_H = 156,
+    NOTE3_BASE_BASS = 165,
+    NOTE4_BASE_BASS = 175,
+    NOTE4_BASE_BASS_H = 185,
+    NOTE5_BASE_BASS = 196,
+    NOTE5_BASE_BASS_H = 208,
+    NOTE6_BASE_BASS = 220,
+    NOTE6_BASE_BASS_H = 233,
+    NOTE7_BASE_BASS = 247,
+
     NOTE1_BASS = 262,
     NOTE1_BASS_H = 277, // 1#
     NOTE2_BASS = 294,
@@ -347,8 +360,6 @@ static const buzzer_musical_score_t music_score_hszy[] = {
         {NOTE6_HIGH,      NOTE_TS_NORMAL},
         {NOTE_NONE,       NOTE_TS_NORMAL},
         {NOTE_NONE,       NOTE_TS_NORMAL},
-
-        {NOTE5_HIGH_HIGH, NOTE_TS_NORMAL},
 };
 
 static const buzzer_musical_score_t music_score_xxx[] = {

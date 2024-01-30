@@ -58,7 +58,7 @@ void app_main() {
     //esp_log_level_set("*", ESP_LOG_WARN);
     esp_log_level_set("battery", ESP_LOG_WARN);
     esp_log_level_set("lcd_panel.ssd1680", ESP_LOG_WARN);
-    esp_log_level_set("keyboard", ESP_LOG_WARN);
+    // esp_log_level_set("keyboard", ESP_LOG_WARN);
     esp_log_level_set("display", ESP_LOG_WARN);
     esp_log_level_set("LIS3DH", ESP_LOG_WARN);
     esp_log_level_set("page-manager", ESP_LOG_WARN);

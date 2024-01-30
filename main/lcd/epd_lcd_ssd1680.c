@@ -359,6 +359,7 @@ esp_err_t update_full(lcd_ssd1680_panel_t *ssd1680) {
     lcd_cmd(ssd1680, SSD1680_CMD_MASTER_ACTIVATION, NULL, 0);
     lcd_cmd(ssd1680, 0xFF, NULL, 0);
 #else
+    // Display with DISPLAY Mode 1
     lcd_cmd(ssd1680, SSD1680_CMD_DISPLAY_UPDATE_CONTROL_2, (uint8_t[]) {0xC7}, 1);
     lcd_cmd(ssd1680, SSD1680_CMD_MASTER_ACTIVATION, NULL, 0);
 #endif
@@ -373,6 +374,7 @@ esp_err_t update_part(lcd_ssd1680_panel_t *ssd1680) {
     lcd_cmd(ssd1680, SSD1680_CMD_MASTER_ACTIVATION, NULL, 0);
     lcd_cmd(ssd1680, 0xFF, NULL, 0);
 #else
+    // Display with DISPLAY Mode 2
     lcd_cmd(ssd1680, SSD1680_CMD_DISPLAY_UPDATE_CONTROL_2, (uint8_t[]) {0xCF}, 1);
     lcd_cmd(ssd1680, SSD1680_CMD_MASTER_ACTIVATION, NULL, 0);
 #endif

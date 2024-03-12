@@ -221,7 +221,7 @@ epd_paint_draw_chinese_char_at(epd_paint_t *epd_paint, int x, int y, uint16_t fo
 /**
 *  @brief: epd_paint displays a string on the frame buffer but not refresh
 */
-void epd_paint_draw_string_at(epd_paint_t *epd_paint, int x, int y, const char *text, sFONT *font, int colored) {
+uint8_t epd_paint_draw_string_at(epd_paint_t *epd_paint, int x, int y, const char *text, sFONT *font, int colored) {
     const uint8_t *p_text = (uint8_t *) text;
     uint16_t chinese_text;
     unsigned int counter = 0;
@@ -246,9 +246,10 @@ void epd_paint_draw_string_at(epd_paint_t *epd_paint, int x, int y, const char *
         }
         counter++;
     }
+    return refcolumn;
 }
 
-void epd_paint_draw_string_at_position(epd_paint_t *epd_paint, int x, int y, int endx, int endy,
+uint8_t epd_paint_draw_string_at_position(epd_paint_t *epd_paint, int x, int y, int endx, int endy,
                                        const char *text, sFONT *font, ALIGN_t halign, ALIGN_t valign, int colored) {
     int start_x = x;
     if (halign == ALIGN_END) {
@@ -264,11 +265,11 @@ void epd_paint_draw_string_at_position(epd_paint_t *epd_paint, int x, int y, int
         start_y = endy - font->Height;
         start_y = max(start_y, y);
     } else if (valign == ALIGN_CENTER) {
-        start_y = ((endy - y) - font->Height) / 2;
+        start_y = ((endy + y + 1) - font->Height) / 2;
         start_y = max(start_y, y);
     }
 
-    epd_paint_draw_string_at(epd_paint, start_x, start_y, text, font, colored);
+    return epd_paint_draw_string_at(epd_paint, start_x, start_y, text, font, colored);
 }
 
 void epd_paint_draw_string_at_hposition(epd_paint_t *epd_paint, int x, int y, int endx,
@@ -296,6 +297,7 @@ uint16_t epd_paint_calc_string_width(epd_paint_t *epd_paint, const char *text, s
             }
         } else {
             width += font->Width;
+            p_text++;
         }
     }
     return width;
@@ -360,15 +362,15 @@ void epd_paint_draw_rectangle(epd_paint_t *epd_paint, int x0, int y0, int x1, in
 }
 
 /**
-*  @brief: epd_paint draws a filled rectangle
+*  @brief: epd_paint draws a filled rectangle include endx endy
 */
-void epd_paint_draw_filled_rectangle(epd_paint_t *epd_paint, int x0, int y0, int x1, int y1, int colored) {
+void epd_paint_draw_filled_rectangle(epd_paint_t *epd_paint, int startx, int starty, int endx, int endy, int colored) {
     int min_x, min_y, max_x, max_y;
     int i;
-    min_x = x1 > x0 ? x0 : x1;
-    max_x = x1 > x0 ? x1 : x0;
-    min_y = y1 > y0 ? y0 : y1;
-    max_y = y1 > y0 ? y1 : y0;
+    min_x = endx > startx ? startx : endx;
+    max_x = endx > startx ? endx : startx;
+    min_y = endy > starty ? starty : endy;
+    max_y = endy > starty ? endy : starty;
 
     for (i = min_x; i <= max_x; i++) {
         epd_paint_draw_vertical_line(epd_paint, i, min_y, max_y - min_y + 1, colored);

@@ -8,7 +8,7 @@ set(srcs "lcd/font8.c" "lcd/font12.c" "lcd/font16.c" "lcd/font20.c" "lcd/font24.
         "bles/ble_server.c" "bles/gatt_svr.c"
         "sht31.c" "LIS3DH.c" "rx8025t.c" "ws2812.c" "ws2812_encoder.c"
         "beep/beep.c" "beep/musical_score_encoder.c"
-        "view/list_view.c" "view/digi_view.c" "view/battery_view.c"
+        "view/list_view.c" "view/digi_view.c" "view/battery_view.c" "view/switch_view.c" "view/checkbox_view.c" "view/slider_view.c"
         "lcd/epd_lcd_ssd1680.c" "page/menu_page.c" "page/confirm_menu_page.c" "page/alert_dialog_page.c" "page/test_page.c" "page/info_page.c"
         "lcd/display.c" "page/image_page.c" "page/temperature_page.c" "page/upgrade_page.c" "page/tomato_clock.c"
         "page/manual_page.c" "page/image_manage_page.c" "page/ble_device_page.c" "page/setting_list_page.c" "page/data_time_page.c" "page/battery_page.c" "page/music_page.c"

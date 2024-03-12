@@ -46,9 +46,9 @@ void epd_paint_reverse_range(epd_paint_t *epd_paint, int start_x, int start_y, i
 
 void epd_paint_draw_pixel(epd_paint_t *epd_paint, int x, int y, int colored);
 
-void epd_paint_draw_string_at(epd_paint_t *epd_paint, int x, int y, const char *text, sFONT *font, int colored);
+uint8_t epd_paint_draw_string_at(epd_paint_t *epd_paint, int x, int y, const char *text, sFONT *font, int colored);
 
-void epd_paint_draw_string_at_position(epd_paint_t *epd_paint, int x, int y, int endx, int endy,
+uint8_t epd_paint_draw_string_at_position(epd_paint_t *epd_paint, int x, int y, int endx, int endy,
                                        const char *text, sFONT *font, ALIGN_t halign, ALIGN_t valign, int colored);
 
 void epd_paint_draw_string_at_hposition(epd_paint_t *epd_paint, int x, int y, int endx,

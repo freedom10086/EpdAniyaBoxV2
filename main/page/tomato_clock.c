@@ -8,8 +8,7 @@
 #include "static/static.h"
 #include "page_manager.h"
 #include "confirm_menu_page.h"
-#include "rx8025t.h"
-#include "ws2812.h"
+#include "max31328.h"
 #include "common_utils.h"
 #include "beep/beep.h"
 
@@ -69,18 +68,6 @@ static void timer_callback(void *arg) {
     }
 }
 
-static void rx8025_timer_callback(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
-    ESP_LOGI(TAG, "rev fix time timer");
-
-    rx8025t_get_time_ts(&_current_ts);
-    if (_current_ts == 0) {
-        return;
-    }
-    if (auto_change_stage()) {
-        page_manager_request_update(false);
-    }
-}
-
 static void create_time_arrive_timer(bool check_current_ts) {
     if (curr_stage != TOMATO_STUDYING
         && curr_stage != TOMATO_PLAYING
@@ -97,7 +84,7 @@ static void create_time_arrive_timer(bool check_current_ts) {
     }
 
     if (check_current_ts) {
-        rx8025t_get_time_ts(&_current_ts);
+        max31328_get_time_ts(&_current_ts);
         if (_current_ts == 0) {
             return;
         }
@@ -139,9 +126,7 @@ static void create_time_arrive_timer(bool check_current_ts) {
 }
 
 void tomato_page_on_create(void *arg) {
-    esp_event_handler_register_with(event_loop_handle,
-                                    BIKE_DATE_TIME_SENSOR_EVENT, RX8025T_SENSOR_FIX_TIME_INTR,
-                                    rx8025_timer_callback, NULL);
+
 
     create_time_arrive_timer(true);
 }
@@ -168,7 +153,7 @@ void tomato_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     epd_paint_clear(epd_paint, 0);
 
     if (loop_cnt > 1) {
-        rx8025t_get_time_ts(&_current_ts);
+        max31328_get_time_ts(&_current_ts);
     }
 
     auto_change_stage();
@@ -328,20 +313,14 @@ static void adjust_loop_count(bool add) {
 
 static void start_study() {
     if (curr_loop == 1) {
-        rx8025t_set_fixed_time_intr(0, 0, 60);
+        //rx8025t_set_fixed_time_intr(0, 0, 60);
     }
 
-    rx8025t_get_time_ts(&study_start_ts);
+    max31328_get_time_ts(&study_start_ts);
     ESP_LOGI(TAG, "start studying current ts %lld", study_start_ts);
 
     _current_ts = study_start_ts;
     create_time_arrive_timer(false);
-
-    ws2812_init();
-    ws2812_enable(true);
-
-    ws2812_show_color_seq(ws2812_color_red_blink_500, sizeof(ws2812_color_red_blink_500) / sizeof(ws2812_color_red_blink_500[0]));
-    ws2812_deinit();
 
     beep_init(BEEP_MODE_RMT);
     beep_start_play(music_score_beep, sizeof(music_score_beep) / sizeof(buzzer_musical_score_t));
@@ -349,17 +328,11 @@ static void start_study() {
 }
 
 static void start_play() {
-    rx8025t_get_time_ts(&play_start_ts);
+    max31328_get_time_ts(&play_start_ts);
     ESP_LOGI(TAG, "start playing current ts %lld", play_start_ts);
 
     _current_ts = play_start_ts;
     create_time_arrive_timer(false);
-
-    ws2812_init();
-    ws2812_enable(true);
-
-    ws2812_show_color_seq(ws2812_color_green_blink_500, sizeof(ws2812_color_green_blink_500) / sizeof(ws2812_color_green_blink_500[0]));
-    ws2812_deinit();
 
     beep_init(BEEP_MODE_RMT);
     beep_start_play(music_score_beep_beep, sizeof(music_score_beep_beep) / sizeof(buzzer_musical_score_t));
@@ -368,15 +341,7 @@ static void start_play() {
 
 static void summary() {
     // disable fix time timer
-    rx8025t_set_fixed_time_intr(0, 0, 60);
-
     create_time_arrive_timer(false);
-
-    ws2812_init();
-    ws2812_enable(true);
-
-    ws2812_show_color_seq(ws2812_color_blue_blink_500, sizeof(ws2812_color_blue_blink_500) / sizeof(ws2812_color_blue_blink_500[0]));
-    ws2812_deinit();
 
     beep_init(BEEP_MODE_RMT);
     beep_start_play(music_score_beep_beep_beep, sizeof(music_score_beep_beep_beep) / sizeof(buzzer_musical_score_t));
@@ -464,13 +429,8 @@ void tomato_page_on_destroy(void *arg) {
 
     if (curr_stage != TOMATO_INIT) {
         // disable fixtime timer
-        rx8025t_set_fixed_time_intr(0, 0, 60);
+        //rx8025t_set_fixed_time_intr(0, 0, 60);
     }
-
-    esp_event_handler_unregister_with(event_loop_handle,
-                                      BIKE_DATE_TIME_SENSOR_EVENT,
-                                      RX8025T_SENSOR_FIX_TIME_INTR,
-                                      rx8025_timer_callback);
 }
 
 int tomato_page_on_enter_sleep(void *arg) {

@@ -10,8 +10,8 @@
 #include "esp_timer.h"
 
 #include "setting.h"
-#include "rx8025t.h"
-#include "wifi/my_file_server_common.h"
+#include "max31328.h"
+#include "file/my_file_common.h"
 
 #define TAG "BOX_SETTING"
 
@@ -43,7 +43,7 @@ esp_err_t box_setting_load(uint8_t cmd, uint8_t *out, uint16_t *out_len) {
     uint16_t len = 0;
 
     box_setting_time_t t;
-    err = rx8025t_get_time(&t.year, &t.month, &t.day, &t.week, &t.hour, &t.minute, &t.second);
+    err = max31328_get_time(&t.year, &t.month, &t.day, &t.week, &t.hour, &t.minute, &t.second);
     if (err != ESP_OK) {
         return err;
     }
@@ -58,8 +58,8 @@ esp_err_t box_setting_load(uint8_t cmd, uint8_t *out, uint16_t *out_len) {
     len += 7;
 
     // load alarm
-    uint8_t alarm_en, alarm_mode, alarm_af, alarm_minute, alarm_hour, alarm_day_week;
-    err = rx8025_load_alarm(&alarm_en, &alarm_mode, &alarm_af, &alarm_minute, &alarm_hour, &alarm_day_week);
+    uint8_t alarm_en, alarm_mode, alarm_af, alarm_second, alarm_minute, alarm_hour, alarm_day_week;
+    err = max31328_load_alarm1(&alarm_en, &alarm_mode, &alarm_af, &alarm_second, &alarm_minute, &alarm_hour, &alarm_day_week);
     ESP_LOGI(TAG, "load alarm %d %d %d %d %d %d, res:%d", alarm_en, alarm_mode, alarm_af, alarm_minute, alarm_hour, alarm_day_week, err);
     if (err != ESP_OK) {
         return err;
@@ -83,7 +83,7 @@ esp_err_t box_setting_apply(uint8_t cmd, uint8_t *data, uint16_t data_len) {
                 ESP_LOGW(TAG, "BOX_SETTING_CMD_SET_TIME data len should be 7 but %d", data_len);
                 return ESP_ERR_INVALID_ARG;
             }
-            err = rx8025t_set_time(data[0], data[1], data[2], data[3], data[4], data[5], data[6]);
+            err = max31328_set_time(data[0], data[1], data[2], data[3], data[4], data[5], data[6]);
             ESP_LOGI(TAG, "set time %d %d %d %d %d %d %d, res:%d", data[0], data[1], data[2], data[3], data[4], data[5],
                      data[6], err);
             if (err != ESP_OK) {
@@ -95,7 +95,8 @@ esp_err_t box_setting_apply(uint8_t cmd, uint8_t *data, uint16_t data_len) {
                 ESP_LOGW(TAG, "BOX_SETTING_CMD_SET_ALARM data len should be 4 but %d", data_len);
                 return ESP_ERR_INVALID_ARG;
             }
-            err = rx8025_set_alarm(data[0] & 0x01, (data[0] >> 1) & 0x01, data[1], data[2], data[3]);
+            // TODO alarm second
+            err = max31328_set_alarm1(data[0] & 0x01, (data[0] >> 1) & 0x01, 0, data[1], data[2], data[3]);
             ESP_LOGI(TAG, "BOX_SETTING_CMD_SET_ALARM %d %d %d %d res:%d", data[0], data[1], data[2], data[3], err);
             if (err != ESP_OK) {
                 return err;
@@ -161,7 +162,7 @@ esp_err_t box_setting_apply(uint8_t cmd, uint8_t *data, uint16_t data_len) {
 static esp_err_t open_file(uint8_t file_id, uint16_t file_size) {
     uint16_t rndId = esp_random() % 50000 + 10000;
     box_setting_time_t t;
-    esp_err_t load_time_err = rx8025t_get_time(&t.year, &t.month, &t.day, &t.week, &t.hour, &t.minute, &t.second);
+    esp_err_t load_time_err = max31328_get_time(&t.year, &t.month, &t.day, &t.week, &t.hour, &t.minute, &t.second);
 
     struct stat file_stat;
     do {

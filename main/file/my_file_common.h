@@ -15,17 +15,9 @@ extern "C" {
 #define MAX_FILE_SIZE   (256*1024) // 256 KB
 #define MAX_FILE_SIZE_STR "256KB"
 
-typedef struct {
-    httpd_handle_t server_hdl;
-} http_server_t;
-
 esp_err_t mount_storage(const char *base_path, bool format_when_failed);
 
 esp_err_t unmount_storage();
-
-esp_err_t register_file_server(const char *base_path, httpd_handle_t server);
-
-esp_err_t unregister_file_server(httpd_handle_t server);
 
 #ifdef __cplusplus
 }

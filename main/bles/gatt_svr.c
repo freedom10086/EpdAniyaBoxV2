@@ -12,7 +12,7 @@
 #include "ble_server.h"
 #include "ble/my_ble_uuid.h"
 #include "battery.h"
-#include "sht31.h"
+#include "sht40.h"
 #include "setting.h"
 
 #define TAG "BLE_SERVER_SVC"
@@ -273,7 +273,7 @@ static int gatt_svr_chr_access_environment_info(uint16_t conn_handle, uint16_t a
 
     switch (uuid16) {
         case BLE_UUID_CHAR_TEMPERATURE:
-            if (sht31_get_temp_hum(&temp, &hum)) {
+            if (sht40_get_temp_hum(&temp, &hum)) {
                 ESP_LOGI(TAG, "BLE_UUID_CHAR_TEMPERATURE %.2f", temp);
                 int16_t int16_temp = (int16_t)(temp * 100);
                 uint8_t data[] = {int16_temp >> 8 & 0xff, int16_temp & 0xff};
@@ -283,7 +283,7 @@ static int gatt_svr_chr_access_environment_info(uint16_t conn_handle, uint16_t a
             }
             return rc == 0 ? 0 : BLE_ATT_ERR_INSUFFICIENT_RES;
         case BLE_UUID_CHAR_HUMIDITY:
-            if (sht31_get_temp_hum(&temp, &hum)) {
+            if (sht40_get_temp_hum(&temp, &hum)) {
                 ESP_LOGI(TAG, "BLE_UUID_CHAR_HUMIDITY %.2f", hum);
                 uint16_t uint16_hum = (uint16_t)(hum * 100);
                 uint8_t data[] = {uint16_hum >> 8 & 0xff, uint16_hum & 0xff};
@@ -443,7 +443,7 @@ int gatt_svr_init(void) {
      * for counting Semaphore */
     notify_sem = xSemaphoreCreateCounting(32, 0);
 
-    sht31_init();
+    sht40_init();
 
     esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_DEFAULT, ESP_PWR_LVL_N9);
 

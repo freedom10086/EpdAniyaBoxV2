@@ -14,7 +14,6 @@
 #include "page/confirm_menu_page.h"
 #include "page/alert_dialog_page.h"
 #include "page/manual_page.h"
-#include "page/image_manage_page.h"
 #include "page/setting_list_page.h"
 #include "page/ble_device_page.h"
 #include "page/data_time_page.h"
@@ -22,7 +21,7 @@
 #include "page/music_page.h"
 #include "page/tomato_clock.h"
 #include "battery.h"
-#include "rx8025t.h"
+#include "max31328.h"
 
 #define TAG "page-manager"
 #define TOTAL_PAGE 13
@@ -98,14 +97,6 @@ static page_inst_t pages[] = {
                 .key_click_handler = manual_page_key_click,
                 .on_create_page = manual_page_on_create,
                 .on_destroy_page = manual_page_on_destroy,
-        },
-        {
-                .page_name = "image-manage",
-                .on_draw_page = image_manage_page_draw,
-                .key_click_handler = image_manage_page_key_click,
-                .on_create_page = image_manage_page_on_create,
-                .on_destroy_page = image_manage_page_on_destroy,
-                .enter_sleep_handler = image_manage_page_on_enter_sleep,
         },
         {
                 .page_name = "setting-list",
@@ -363,8 +354,8 @@ int page_manager_enter_sleep(uint32_t loop_cnt) {
     }
 
     bool in_night = false;
-    rx8025_time_t t;
-    esp_err_t load_time_err = rx8025t_get_time(&t.year, &t.month, &t.day, &t.week, &t.hour, &t.minute, &t.second);
+    max31328_time_t t;
+    esp_err_t load_time_err = max31328_get_time(&t.year, &t.month, &t.day, &t.week, &t.hour, &t.minute, &t.second);
     if (load_time_err == ESP_OK) {
         in_night = (t.year >= 24 && t.year <= 35) && (t.hour >= 23 || t.hour <= 9);
     }
@@ -411,7 +402,7 @@ static void key_event_task_entry(void *arg) {
                     break;
                 case KEY_DOWN_SHORT_CLICK:
                     break;
-                case KEY_CANCEL_SHORT_CLICK:
+                case KEY_FN_SHORT_CLICK:
                     if (page_manager_has_menu()) {
                         page_manager_close_menu();
                         page_manager_request_update(false);
@@ -447,12 +438,9 @@ static void key_event_task_entry(void *arg) {
                         continue;
                     }
                     break;
-                case KEY_UP_LONG_CLICK:
-                case KEY_DOWN_LONG_CLICK:
+                case KEY_FN_DB_CLICK:
                     if (page_manager_get_current_index() < HOME_PAGE_COUNT) {
-                        int8_t dest_index =
-                                (page_manager_get_current_index() + ((event_id == KEY_UP_LONG_CLICK) ? -1 : 1) +
-                                 HOME_PAGE_COUNT) % HOME_PAGE_COUNT;
+                        int8_t dest_index = (page_manager_get_current_index() +  1) % HOME_PAGE_COUNT;
                         if (page_manager_switch_page_by_index(dest_index, false)) {
                             page_manager_request_update(false);
                         }

@@ -21,7 +21,7 @@
 #include "alert_dialog_page.h"
 #include "page_manager.h"
 #include "bles/ble_server.h"
-#include "wifi/my_file_server_common.h"
+#include "file/my_file_common.h"
 #include "battery.h"
 #include "view/battery_view.h"
 
@@ -316,12 +316,12 @@ bool image_page_key_click_handle(key_event_id_t key_event_type) {
             current_bitmap_page_index += 1;
             page_manager_request_update(false);
             return true;
-        case KEY_CANCEL_SHORT_CLICK:
+        case KEY_FN_SHORT_CLICK:
             // show delete menu
             page_manager_show_menu("confirm-alert", &confirm_menu_arg);
             page_manager_request_update(false);
             return true;
-        case KEY_CANCEL_LONG_CLICK: {
+        case KEY_FN_LONG_CLICK: {
             // show alert dialog
             ble_server_init();
 

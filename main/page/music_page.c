@@ -64,7 +64,7 @@ bool music_page_key_click(key_event_id_t key_event_type) {
                     break;
             }
             return true;
-        case KEY_CANCEL_SHORT_CLICK:
+        case KEY_FN_SHORT_CLICK:
             page_manager_close_page();
             page_manager_request_update(false);
             return true;

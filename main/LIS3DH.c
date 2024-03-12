@@ -11,7 +11,7 @@
 #define TAG "LIS3DH"
 
 ESP_EVENT_DEFINE_BASE(BIKE_MOTION_EVENT);
-#define I2C_MASTER_TIMEOUT_MS       500
+#define I2C_MASTER_TIMEOUT_MS       100
 
 // https://learn.adafruit.com/adafruit-lis3dh-triple-axis-accelerometer-breakout/arduino
 // https://github.com/adafruit/Adafruit_LIS3DH/tree/master
@@ -21,8 +21,6 @@ ESP_EVENT_DEFINE_BASE(BIKE_MOTION_EVENT);
 // this strongly depend on the range! for 16G, try 5-10
 // for 8G, try 10-20. for 4G try 20-40. for 2G try 40-80
 #define CLICKTHRESHHOLD 100
-
-#define ENABLE_INT2 0
 
 static bool lis3dh_inited = false;
 static TaskHandle_t imu_tsk_hdl = NULL;
@@ -39,13 +37,13 @@ static i2c_master_dev_handle_t dev_handle;
 
 static esp_err_t i2c_read_reg(uint8_t reg_addr, uint8_t *data, size_t len) {
     return i2c_master_transmit_receive(dev_handle, &reg_addr, 1,
-                                       data, len, I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+                                       data, len, I2C_MASTER_TIMEOUT_MS);
 }
 
 static esp_err_t i2c_write_byte(uint8_t reg_addr, uint8_t data) {
     esp_err_t ret;
     uint8_t write_buf[2] = {reg_addr, data};
-    ret = i2c_master_transmit(dev_handle, write_buf, sizeof(write_buf), I2C_MASTER_TIMEOUT_MS / portTICK_PERIOD_MS);
+    ret = i2c_master_transmit(dev_handle, write_buf, sizeof(write_buf), I2C_MASTER_TIMEOUT_MS);
     return ret;
 }
 
@@ -123,11 +121,7 @@ static void imu_task_entry(void *arg) {
     // Default: push-pull output forced to GND
     // high trigger
     gpio_config_t io_config = {
-#if ENABLE_INT2
-            .pin_bit_mask = (1ull << IMU_INT_1_GPIO) | (1ull << IMU_INT_2_GPIO),
-#else
             .pin_bit_mask = (1ull << IMU_INT_1_GPIO),
-#endif
             .mode = GPIO_MODE_INPUT,
             .intr_type = GPIO_INTR_POSEDGE,
             .pull_up_en = 0,
@@ -141,24 +135,12 @@ static void imu_task_entry(void *arg) {
 
         ESP_LOGI(TAG, "imu int1 io %d, level %d", IMU_INT_1_GPIO, gpio_get_level(IMU_INT_1_GPIO));
     }
-#if ENABLE_INT2
-    if (gpio_get_level(IMU_INT_2_GPIO)) {
-        uint8_t single_click, double_click;
-        lis3dh_get_click_src(&single_click, &double_click);
-
-        ESP_LOGI(TAG, "imu int2 io %d, level %d, single:%d double:%d", IMU_INT_1_GPIO, gpio_get_level(IMU_INT_2_GPIO),
-                 single_click, double_click);
-    }
-#endif
 
     //install gpio isr service
     //gpio_install_isr_service(0);
 
     //hook isr handler for specific gpio pin
     gpio_isr_handler_add(IMU_INT_1_GPIO, mpu_gpio_isr_handler, (void *) IMU_INT_1_GPIO);
-#if ENABLE_INT2
-    gpio_isr_handler_add(IMU_INT_2_GPIO, mpu_gpio_isr_handler, (void *) IMU_INT_2_GPIO);
-#endif
     ESP_LOGI(TAG, "imu motion detect isr add OK");
 
     gpio_num_t triggered_gpio;
@@ -220,7 +202,7 @@ esp_err_t lis3dh_init(lis3dh_mode_t mode, lis3dh_acc_range_t acc_range, lis3dh_a
         i2c_device_config_t dev_cfg = {
                 .dev_addr_length = I2C_ADDR_BIT_LEN_7,
                 .device_address = LIS3DH_ADDR,
-                .scl_speed_hz = 100000,
+                .scl_speed_hz = 200000,
         };
         ESP_ERROR_CHECK(i2c_master_bus_add_device(i2c_bus_handle, &dev_cfg, &dev_handle));
 

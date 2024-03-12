@@ -5,7 +5,6 @@
 #include <esp_log.h>
 #include <esp_ota_ops.h>
 #include "esp_mac.h"
-#include "esp_wifi.h"
 #include "esp_sleep.h"
 
 #include "common_utils.h"
@@ -14,10 +13,9 @@
 
 #include "info_page.h"
 #include "lcd/display.h"
-#include "wifi/wifi_ap.h"
 #include "lcd/epd_lcd_ssd1680.h"
 #include "page_manager.h"
-#include "rx8025t.h"
+#include "max31328.h"
 
 /*********************
  *      DEFINES
@@ -32,7 +30,7 @@ const esp_partition_t *running_partition;
 extern uint32_t boot_count;
 
 bool info_page_key_click(key_event_id_t key_event_type) {
-    if (key_event_type == KEY_1_SHORT_CLICK || key_event_type == KEY_2_SHORT_CLICK) {
+    if (key_event_type == KEY_FN_SHORT_CLICK || key_event_type == KEY_OK_SHORT_CLICK) {
         page_manager_close_page();
         page_manager_request_update(false);
         return true;
@@ -41,17 +39,6 @@ bool info_page_key_click(key_event_id_t key_event_type) {
 }
 
 void info_page_on_create(void *arg) {
-    //ESP_ERR_WIFI_NOT_INIT
-    wifi_mode_t wifi_mode;
-    esp_err_t err = esp_wifi_get_mode(&wifi_mode);
-    ESP_LOGI(TAG, "current wifi mdoe: %d, %d %s", wifi_mode, err, esp_err_to_name(err));
-    if (ESP_ERR_WIFI_NOT_INIT == err) {
-        wifi_on = false;
-    } else {
-        wifi_on = wifi_mode != WIFI_MODE_NULL;
-    }
-    ESP_LOGI(TAG, "current wifi status: %s", wifi_on ? "on" : "off");
-
     running_partition = esp_ota_get_running_partition();
     esp_ota_get_partition_description(running_partition, &running_app_info);
 }
@@ -63,28 +50,6 @@ void info_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     sprintf(info_page_draw_text_buf, "AniyaBox Beta");
     epd_paint_draw_string_at(epd_paint, 0, y, info_page_draw_text_buf, &Font20, 1);
     y += 22;
-
-    wifi_mode_t wifi_mode;
-    esp_err_t err = esp_wifi_get_mode(&wifi_mode);
-    if (ESP_ERR_WIFI_NOT_INIT == err) {
-        wifi_on = false;
-        wifi_mode = WIFI_MODE_NULL;
-        epd_paint_draw_string_at(epd_paint, 0, y, "wifi: off", &Font20, 1);
-        y += 20;
-    } else {
-        wifi_on = true;
-        epd_paint_draw_string_at(epd_paint, 0, y, "wifi: on", &Font20, 1);
-        y += 20;
-
-        // wifi mode
-        sprintf(info_page_draw_text_buf, "mode: %s", wifi_mode == WIFI_MODE_STA ? "sta" : (
-                wifi_mode == WIFI_MODE_AP ? "ap" : (
-                        wifi_mode == WIFI_MODE_APSTA ? "ap sta" : "max"
-                )
-        ));
-        epd_paint_draw_string_at(epd_paint, 16, y, info_page_draw_text_buf, &Font16, 1);
-        y += 16;
-    }
 
     // battery
     int battery_voltage = battery_get_voltage();
@@ -124,7 +89,7 @@ void info_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
 
     // current date time
     uint8_t year, month, day, week, hour, minute, second;
-    rx8025t_get_time(&year, &month, &day, &week, &hour, &minute, &second);
+    max31328_get_time(&year, &month, &day, &week, &hour, &minute, &second);
     sprintf(info_page_draw_text_buf, "20%d-%d-%d %d:%d:%d %d", year, month, day, hour, minute, second, week);
     epd_paint_draw_string_at(epd_paint, 0, y, info_page_draw_text_buf, &Font16, 1);
     y += 18;

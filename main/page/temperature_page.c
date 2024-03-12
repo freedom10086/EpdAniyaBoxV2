@@ -3,8 +3,6 @@
 
 #include <stdbool.h>
 #include <esp_log.h>
-#include "esp_wifi.h"
-#include <esp_wifi_types.h>
 
 #include "common_utils.h"
 #include "lcd/epdpaint.h"
@@ -12,7 +10,7 @@
 #include "view/battery_view.h"
 
 #include "temperature_page.h"
-#include "sht31.h"
+#include "sht40.h"
 #include "battery.h"
 #include "static/static.h"
 #include "page_manager.h"
@@ -43,10 +41,10 @@ static uint32_t lst_read_tick;
 extern esp_event_loop_handle_t event_loop_handle;
 
 static void temp_sensor_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
-    sht31_data_t *data = NULL;
+    sht_data_t *data = NULL;
     switch (event_id) {
-        case SHT31_SENSOR_UPDATE:
-            data = (sht31_data_t *) event_data;
+        case SHT_SENSOR_UPDATE:
+            data = (sht_data_t *) event_data;
             ESP_LOGI(TAG, "temp: %f, hum: %f", data->temp, data->hum);
             temperature = data->temp;
             humility = data->hum;
@@ -59,7 +57,7 @@ static void temp_sensor_event_handler(void *arg, esp_event_base_t event_base, in
             }
             sht31_data_valid = true;
             break;
-        case SHT31_SENSOR_READ_FAILED:
+        case SHT_SENSOR_READ_FAILED:
             ESP_LOGE(TAG, "read temp and hum failed!");
             break;
         default:
@@ -72,8 +70,8 @@ void temperature_page_on_create(void *args) {
     esp_event_handler_register_with(event_loop_handle,
                                     BIKE_TEMP_HUM_SENSOR_EVENT, ESP_EVENT_ANY_ID,
                                     temp_sensor_event_handler, NULL);
-    sht31_init();
-    sht31_data_valid = sht31_get_temp_hum(&temperature, &humility);
+    sht40_init();
+    sht31_data_valid = sht40_get_temp_hum(&temperature, &humility);
     lst_read_tick = xTaskGetTickCount();
 }
 
@@ -89,8 +87,8 @@ void temperature_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     epd_paint_clear(epd_paint, 0);
 
     if (pdTICKS_TO_MS(xTaskGetTickCount() - lst_read_tick) >= TEMP_DATA_TIMEOUT_MS) {
-        if (sht31_read_temp_hum()) {
-            sht31_data_valid = sht31_get_temp_hum(&temperature, &humility);
+        if (sht40_get_temp_hum(&temperature, &humility) == ESP_OK) {
+            sht31_data_valid = true;
             lst_read_tick = xTaskGetTickCount();
         }
     }
@@ -136,16 +134,6 @@ void temperature_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     battery_view_deinit(battery_view);
     icon_x += 30;
 
-    wifi_mode_t wifi_mode;
-    esp_err_t err = esp_wifi_get_mode(&wifi_mode);
-    //ESP_LOGI(TAG, "current wifi mdoe: %d, %d %s", wifi_mode, err, esp_err_to_name(err));
-    if (ESP_OK == err && wifi_mode != WIFI_MODE_NULL) {
-        // wifi icon
-        epd_paint_draw_bitmap(epd_paint, icon_x, 183, 22, 16,
-                              (uint8_t *) icon_wifi_bmp_start,
-                              icon_wifi_bmp_end - icon_wifi_bmp_start, 1);
-        icon_x += 26;
-    }
     if (esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED) {
         // ble icon
         epd_paint_draw_bitmap(epd_paint, icon_x, 183, 11, 16,
@@ -157,7 +145,7 @@ void temperature_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
 
 bool temperature_page_key_click_handle(key_event_id_t key_event_type) {
     switch (key_event_type) {
-        case KEY_CANCEL_LONG_CLICK: {
+        case KEY_FN_LONG_CLICK: {
             // show alert dialog
             ble_server_init();
 

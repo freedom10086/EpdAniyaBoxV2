@@ -1,17 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <esp_wifi_types.h>
-#include <esp_wifi.h>
 #include <esp_log.h>
-#include "wifi/wifi_ap.h"
 #include "string.h"
 
 #include <esp_log.h>
 #include "static/static.h"
 #include "upgrade_page.h"
 #include "common_utils.h"
-#include "wifi/my_wifi_ota.h"
 #include "page_manager.h"
 #include "battery.h"
 
@@ -28,57 +24,49 @@ enum upgrade_state_t state = INIT;
 
 extern esp_event_loop_handle_t event_loop_handle;
 
-static void ota_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id,
-                              void *event_data) {
-    switch (event_id) {
-        case OTA_START:
-            state = UPGRADING;
-            ota_progress = 0;
-            last_ota_update_progress = 0;
-            break;
-        case OTA_PROGRESS:
-            state = UPGRADING;
-            ota_progress = *(float *) event_data;
-            break;
-        case OTA_SUCCESS:
-            state = UPGRADE_SUCCESS;
-            ota_progress = 100.0f;
-            //wifi_deinit_softap();
-            break;
-        case OTA_FAILED:
-            state = UPGRADE_FAILED;
-            //wifi_deinit_softap();
-            break;
-        default:
-            break;
-    }
-
-    if (event_id == OTA_PROGRESS) {
-        if (ota_progress - last_ota_update_progress >= 0.003) {
-            last_ota_update_progress = ota_progress;
-            page_manager_request_update(false);
-        }
-    } else {
-        page_manager_request_update(false);
-    }
-}
+//static void ota_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id,
+//                              void *event_data) {
+//    switch (event_id) {
+//        case OTA_START:
+//            state = UPGRADING;
+//            ota_progress = 0;
+//            last_ota_update_progress = 0;
+//            break;
+//        case OTA_PROGRESS:
+//            state = UPGRADING;
+//            ota_progress = *(float *) event_data;
+//            break;
+//        case OTA_SUCCESS:
+//            state = UPGRADE_SUCCESS;
+//            ota_progress = 100.0f;
+//            //wifi_deinit_softap();
+//            break;
+//        case OTA_FAILED:
+//            state = UPGRADE_FAILED;
+//            //wifi_deinit_softap();
+//            break;
+//        default:
+//            break;
+//    }
+//
+//    if (event_id == OTA_PROGRESS) {
+//        if (ota_progress - last_ota_update_progress >= 0.003) {
+//            last_ota_update_progress = ota_progress;
+//            page_manager_request_update(false);
+//        }
+//    } else {
+//        page_manager_request_update(false);
+//    }
+//}
 
 void upgrade_page_on_create(void *args) {
     // reg ota event
-    esp_event_handler_register_with(event_loop_handle,
-                                    BIKE_OTA_EVENT, ESP_EVENT_ANY_ID,
-                                    ota_event_handler, NULL);
+//    esp_event_handler_register_with(event_loop_handle,
+//                                    BIKE_OTA_EVENT, ESP_EVENT_ANY_ID,
+//                                    ota_event_handler, NULL);
 
     //ESP_ERR_WIFI_NOT_INIT
-    wifi_mode_t wifi_mode;
-    esp_err_t err = esp_wifi_get_mode(&wifi_mode);
-    ESP_LOGI(TAG, "current wifi mdoe: %d, %d %s", wifi_mode, err, esp_err_to_name(err));
-    if (ESP_ERR_WIFI_NOT_INIT == err) {
-        wifi_on = false;
-    } else {
-        wifi_on = wifi_mode != WIFI_MODE_NULL;
-    }
-    ESP_LOGI(TAG, "current wifi status: %s", wifi_on ? "on" : "off");
+
 
     int8_t battery_level = battery_get_level();
     if (battery_level >= 0 && battery_level <= 15) {
@@ -86,7 +74,7 @@ void upgrade_page_on_create(void *args) {
         state = INIT_LOW_BATTERY;
     } else {
         if (!wifi_on) {
-            wifi_init_softap();
+            //wifi_init_softap();
             wifi_on = true;
         }
         state = INIT;
@@ -95,7 +83,7 @@ void upgrade_page_on_create(void *args) {
 
 void upgrade_page_on_destroy(void *args) {
     if (wifi_on) {
-        wifi_deinit_softap();
+        //wifi_deinit_softap();
         wifi_on = false;
     }
 }
@@ -136,25 +124,6 @@ void upgrade_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
         epd_paint_draw_string_at(epd_paint, 52, y, CONFIG_WIFI_PASSWORD, &Font_HZK16, 1);
         y += 20;
 
-        esp_netif_ip_info_t ip_info;
-        esp_err_t err = wifi_ap_get_ip(&ip_info);
-        if (ESP_OK == err) {
-            memcpy(draw_buff, HTTP_PREFIX, strlen(HTTP_PREFIX));
-            esp_ip4addr_ntoa((const esp_ip4_addr_t *) &ip_info.ip.addr,
-                             draw_buff + strlen(HTTP_PREFIX),
-                             sizeof(draw_buff) - strlen(HTTP_PREFIX));
-            epd_paint_draw_string_at(epd_paint, 4, y, draw_buff, &Font16, 1);
-            y += 20;
-
-            epd_paint_draw_string_at(epd_paint, 4, y, "/ota", &Font16, 1);
-            y += 20;
-        } else {
-            epd_paint_draw_string_at(epd_paint, 4, y,
-                                     (char[]) {0xBB, 0xF1, 0xC8, 0xA1, 0x49, 0x50,
-                                               0xB5, 0xD8, 0xD6, 0xB7, 0xD6, 0xD0, 0x2E,
-                                               0x00}, &Font_HZK16, 1);
-            y += 20;
-        }
 
         // 按任意键退出
         epd_paint_draw_string_at(epd_paint, 52, 174,
@@ -211,7 +180,7 @@ void upgrade_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
 
 bool upgrade_page_key_click_handle(key_event_id_t key_event_type) {
     if (state == INIT || state == INIT_LOW_BATTERY) {
-        if (key_event_type == KEY_1_SHORT_CLICK || key_event_type == KEY_2_SHORT_CLICK) {
+        if (key_event_type == KEY_OK_SHORT_CLICK || key_event_type == KEY_FN_SHORT_CLICK) {
             page_manager_close_page();
             page_manager_request_update(false);
             return true;

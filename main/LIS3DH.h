@@ -7,12 +7,10 @@
 
 #include "driver/i2c.h"
 #include "esp_event.h"
-#include "event_common.h"
 
 ESP_EVENT_DECLARE_BASE(BIKE_MOTION_EVENT);
 
 #define IMU_INT_1_GPIO 4
-#define IMU_INT_2_GPIO 5
 
 
 // 0011001 sa0 = 1 , default pull up

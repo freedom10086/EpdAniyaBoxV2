@@ -24,8 +24,8 @@ void manual_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
 
 bool manual_page_key_click(key_event_id_t key_event_type) {
     switch (key_event_type) {
-        case KEY_1_SHORT_CLICK:
-        case KEY_2_SHORT_CLICK:
+        case KEY_FN_SHORT_CLICK:
+        case KEY_OK_SHORT_CLICK:
             page_manager_close_page();
             page_manager_request_update(false);
             return true;

@@ -12,11 +12,11 @@
 #include "view/battery_view.h"
 
 #include "temperature_page.h"
-#include "sht31.h"
+#include "sht40.h"
 #include "battery.h"
 #include "static/static.h"
 #include "page_manager.h"
-#include "rx8025t.h"
+#include "max31328.h"
 #include "alert_dialog_page.h"
 #include "bles/ble_server.h"
 
@@ -62,10 +62,10 @@ static uint8_t check_week(uint8_t week) {
 }
 
 static void tem_hum_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
-    sht31_data_t *data = NULL;
+    sht_data_t *data = NULL;
     switch (event_id) {
-        case SHT31_SENSOR_UPDATE:
-            data = (sht31_data_t *) event_data;
+        case SHT_SENSOR_UPDATE:
+            data = (sht_data_t *) event_data;
             ESP_LOGI(TAG, "temp: %f, hum: %f", data->temp, data->hum);
             temperature = data->temp;
             humility = data->hum;
@@ -77,30 +77,8 @@ static void tem_hum_event_handler(void *arg, esp_event_base_t event_base, int32_
             temperature_valid = true;
             humility_valid = true;
             break;
-        case SHT31_SENSOR_READ_FAILED:
+        case SHT_SENSOR_READ_FAILED:
             ESP_LOGE(TAG, "read temp and hum failed!");
-            break;
-        default:
-            break;
-    }
-}
-
-static void date_time_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
-    rx8025t_data_t *data = NULL;
-    switch (event_id) {
-        case RX8025T_SENSOR_UPDATE:
-            data = (rx8025t_data_t *) event_data;
-            uint8_t old_minute = _minute;
-            esp_err_t err = rx8025t_get_time(&_year, &_month, &_day, &_week, &_hour, &_minute, &_second);
-            if (err == ESP_OK) {
-                ESP_LOGI(TAG, "read time: %d-%d-%d %d:%d:%d week:%d", _year, _month, _day, _hour, _minute, _second,
-                         _week);
-                if (old_minute != _minute) {
-                    page_manager_request_update(_minute % 5 == 0);
-                }
-            } else {
-                ESP_LOGW(TAG, "read time failed");
-            }
             break;
         default:
             break;
@@ -110,15 +88,11 @@ static void date_time_event_handler(void *arg, esp_event_base_t event_base, int3
 void date_time_page_on_create(void *arg) {
     ESP_LOGI(TAG, "=== on create ===");
 
-    sht31_init();
+    sht40_init();
 
     esp_event_handler_register_with(event_loop_handle,
                                     BIKE_TEMP_HUM_SENSOR_EVENT, ESP_EVENT_ANY_ID,
                                     tem_hum_event_handler, NULL);
-
-    esp_event_handler_register_with(event_loop_handle,
-                                    BIKE_DATE_TIME_SENSOR_EVENT, ESP_EVENT_ANY_ID,
-                                    date_time_event_handler, NULL);
     ESP_LOGI(TAG, "=== created ===");
 }
 
@@ -126,7 +100,7 @@ void date_time_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     ESP_LOGI(TAG, "=== on draw ===");
     epd_paint_clear(epd_paint, 0);
 
-    rx8025t_get_time(&_year, &_month, &_day, &_week, &_hour, &_minute, &_second);
+    max31328_get_time(&_year, &_month, &_day, &_week, &_hour, &_minute, &_second);
 
     if (_year >= 23 && _year < 30) {
         // draw date
@@ -155,7 +129,7 @@ void date_time_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     battery_view_draw(battery_view, epd_paint, battery_get_level(), loop_cnt);
     battery_view_deinit(battery_view);
 
-    if (sht31_get_temp_hum(&temperature, &humility)) {
+    if (sht40_get_temp_hum(&temperature, &humility)) {
         temperature_valid = true;
         humility_valid = true;
     }
@@ -207,7 +181,7 @@ void date_time_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
 
 bool date_time_page_key_click(key_event_id_t key_event_type) {
     switch (key_event_type) {
-        case KEY_CANCEL_LONG_CLICK: {
+        case KEY_FN_LONG_CLICK: {
             // show alert dialog
             ble_server_init();
 
@@ -230,10 +204,6 @@ void date_time_page_on_destroy(void *arg) {
     esp_event_handler_unregister_with(event_loop_handle,
                                       BIKE_TEMP_HUM_SENSOR_EVENT, ESP_EVENT_ANY_ID,
                                       tem_hum_event_handler);
-
-    esp_event_handler_unregister_with(event_loop_handle,
-                                      BIKE_DATE_TIME_SENSOR_EVENT, ESP_EVENT_ANY_ID,
-                                      date_time_event_handler);
 }
 
 int date_time_page_on_enter_sleep(void *arg) {

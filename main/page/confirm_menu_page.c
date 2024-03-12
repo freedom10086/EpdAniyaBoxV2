@@ -99,7 +99,7 @@ bool confirm_menu_page_key_click(key_event_id_t key_event_type) {
             page_manager_close_menu();
             page_manager_request_update(false);
             break;
-        case KEY_CANCEL_SHORT_CLICK:
+        case KEY_FN_SHORT_CLICK:
             page_manager_close_menu();
             page_manager_request_update(false);
             break;

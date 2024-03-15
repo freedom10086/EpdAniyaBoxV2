@@ -30,8 +30,6 @@
 
 #define USE_FIX_TIMER_INTR 0
 
-extern esp_event_loop_handle_t event_loop_handle;
-
 RTC_DATA_ATTR static uint8_t study_time_min = DEFAULT_STUDY_TIME;
 RTC_DATA_ATTR static uint8_t play_time_min = DEFAULT_PLAY_TIME;
 RTC_DATA_ATTR static uint8_t _loop_count = DEFAULT_LOOP_COUNT;
@@ -126,7 +124,6 @@ static void create_time_arrive_timer(bool check_current_ts) {
 }
 
 void tomato_page_on_create(void *arg) {
-
 
     create_time_arrive_timer(true);
 }

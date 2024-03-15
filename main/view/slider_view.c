@@ -33,7 +33,7 @@ slider_view_t *slider_view_create(int value, int min, int max) {
     return view;
 }
 
-void slider_view_set_change_cb(slider_view_t *view, on_value_change_cb cb) {
+void slider_view_set_change_cb(slider_view_t *view, view_on_value_change_cb cb) {
     view->cb = cb;
 }
 

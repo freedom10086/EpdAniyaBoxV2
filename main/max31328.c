@@ -57,8 +57,6 @@ static bool max31328_inited = false;
 
 static TaskHandle_t tsk_hdl;
 
-extern esp_event_loop_handle_t event_loop_handle;
-
 static uint8_t hex2bcd(uint8_t x) {
     uint8_t y;
     y = (x / 10) << 4;
@@ -151,9 +149,9 @@ static void max31328_task_entry(void *arg) {
         if ((af1 && en1) || (af2 && en2)) {
             ESP_LOGI(TAG, "== af isr happens ==");
             // read time check alarm is valid
-            esp_event_handler_register_with(event_loop_handle, BIKE_KEY_EVENT, ESP_EVENT_ANY_ID, stop_alarm_handler,
+            esp_event_handler_register(BIKE_KEY_EVENT, ESP_EVENT_ANY_ID, stop_alarm_handler,
                                             NULL);
-            esp_event_handler_register_with(event_loop_handle, BIKE_MOTION_EVENT, ESP_EVENT_ANY_ID,
+            esp_event_handler_register(BIKE_MOTION_EVENT, ESP_EVENT_ANY_ID,
                                             stop_alarm_handler, NULL);
 
             if (af1 && en1) {
@@ -170,9 +168,9 @@ static void max31328_task_entry(void *arg) {
             beep_deinit();
             ESP_LOGI(TAG, "play alarm music done!");
 
-            esp_event_handler_unregister_with(event_loop_handle, BIKE_KEY_EVENT, ESP_EVENT_ANY_ID,
+            esp_event_handler_unregister(BIKE_KEY_EVENT, ESP_EVENT_ANY_ID,
                                               stop_alarm_handler);
-            esp_event_handler_unregister_with(event_loop_handle, BIKE_MOTION_EVENT, ESP_EVENT_ANY_ID,
+            esp_event_handler_unregister(BIKE_MOTION_EVENT, ESP_EVENT_ANY_ID,
                                               stop_alarm_handler);
         }
 
@@ -228,6 +226,7 @@ esp_err_t max31328_deinit() {
     }
 
     vTaskDelete(tsk_hdl);
+
     gpio_isr_handler_remove(MAX31328_INT_GPIO_NUM);
 
     max31328_inited = false;

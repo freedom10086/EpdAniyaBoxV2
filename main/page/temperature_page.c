@@ -38,8 +38,6 @@ static float humility;
 static bool sht31_data_valid = false;
 static uint32_t lst_read_tick;
 
-extern esp_event_loop_handle_t event_loop_handle;
-
 static void temp_sensor_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
     sht_data_t *data = NULL;
     switch (event_id) {
@@ -67,9 +65,9 @@ static void temp_sensor_event_handler(void *arg, esp_event_base_t event_base, in
 
 void temperature_page_on_create(void *args) {
     ESP_LOGI(TAG, "=== on create ===");
-    esp_event_handler_register_with(event_loop_handle,
-                                    BIKE_TEMP_HUM_SENSOR_EVENT, ESP_EVENT_ANY_ID,
-                                    temp_sensor_event_handler, NULL);
+    esp_event_handler_register(
+            BIKE_TEMP_HUM_SENSOR_EVENT, ESP_EVENT_ANY_ID,
+            temp_sensor_event_handler, NULL);
     sht40_init();
     sht31_data_valid = sht40_get_temp_hum(&temperature, &humility);
     lst_read_tick = xTaskGetTickCount();
@@ -77,9 +75,8 @@ void temperature_page_on_create(void *args) {
 
 void temperature_page_on_destroy(void *args) {
     ESP_LOGI(TAG, "=== on destroy ===");
-    esp_event_handler_unregister_with(event_loop_handle,
-                                      BIKE_TEMP_HUM_SENSOR_EVENT, ESP_EVENT_ANY_ID,
-                                      temp_sensor_event_handler);
+    esp_event_handler_unregister(BIKE_TEMP_HUM_SENSOR_EVENT, ESP_EVENT_ANY_ID,
+                                 temp_sensor_event_handler);
 }
 
 void temperature_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
@@ -129,8 +126,8 @@ void temperature_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
 
     // battery
     uint8_t icon_x = 4;
-    battery_view_t *battery_view = battery_view_create(icon_x, 183, 26, 16);
-    battery_view_draw(battery_view, epd_paint, battery_get_level(), loop_cnt);
+    battery_view_t *battery_view = battery_view_create(battery_get_level(), 26, 16);
+    battery_view_draw(battery_view, epd_paint, icon_x, 183);
     battery_view_deinit(battery_view);
     icon_x += 30;
 
@@ -150,7 +147,7 @@ bool temperature_page_key_click_handle(key_event_id_t key_event_type) {
             ble_server_init();
 
             static alert_dialog_arg_t alert_dialog_arg = {
-                    .title_label = (char *)text_ble_on,
+                    .title_label = (char *) text_ble_on,
                     .auto_close_ms = 5000
             };
             page_manager_show_menu("alert-dialog", &alert_dialog_arg);

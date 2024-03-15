@@ -337,6 +337,19 @@ void epd_paint_draw_horizontal_line(epd_paint_t *epd_paint, int x, int y, int li
     }
 }
 
+void epd_paint_draw_horizontal_doted_line(epd_paint_t *epd_paint, int x, int y, int line_width, int colored) {
+    int i;
+    uint8_t solid = true;
+    for (i = x; i < x + line_width; i += 1) {
+        if (i % 3 == 0) {
+            solid = !solid;
+        }
+        if (solid) {
+            epd_paint_draw_pixel(epd_paint, i, y, colored);
+        }
+    }
+}
+
 /**
 *  @brief: draws a vertical line on the frame buffer
 */
@@ -344,6 +357,19 @@ void epd_paint_draw_vertical_line(epd_paint_t *epd_paint, int x, int y, int line
     int i;
     for (i = y; i < y + line_height; i++) {
         epd_paint_draw_pixel(epd_paint, x, i, colored);
+    }
+}
+
+void epd_paint_draw_vertical_doted_line(epd_paint_t *epd_paint, int x, int y, int line_height, int colored) {
+    int i;
+    uint8_t solid = true;
+    for (i = y; i < y + line_height; i++) {
+        if (i % 3 == 0) {
+            solid = !solid;
+        }
+        if (solid) {
+            epd_paint_draw_pixel(epd_paint, x, i, colored);
+        }
     }
 }
 
@@ -359,6 +385,19 @@ void epd_paint_draw_rectangle(epd_paint_t *epd_paint, int x0, int y0, int x1, in
     epd_paint_draw_horizontal_line(epd_paint, min_x, max_y, max_x - min_x + 1, colored);
     epd_paint_draw_vertical_line(epd_paint, min_x, min_y, max_y - min_y + 1, colored);
     epd_paint_draw_vertical_line(epd_paint, max_x, min_y, max_y - min_y + 1, colored);
+}
+
+void epd_paint_draw_doted_rectangle(epd_paint_t *epd_paint, int x0, int y0, int x1, int y1, int colored) {
+    int min_x, min_y, max_x, max_y;
+    min_x = x1 > x0 ? x0 : x1;
+    max_x = x1 > x0 ? x1 : x0;
+    min_y = y1 > y0 ? y0 : y1;
+    max_y = y1 > y0 ? y1 : y0;
+
+    epd_paint_draw_horizontal_doted_line(epd_paint, min_x, min_y, max_x - min_x + 1, colored);
+    epd_paint_draw_horizontal_doted_line(epd_paint, min_x, max_y, max_x - min_x + 1, colored);
+    epd_paint_draw_vertical_doted_line(epd_paint, min_x, min_y, max_y - min_y + 1, colored);
+    epd_paint_draw_vertical_doted_line(epd_paint, max_x, min_y, max_y - min_y + 1, colored);
 }
 
 /**

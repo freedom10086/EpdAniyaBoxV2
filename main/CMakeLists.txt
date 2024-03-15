@@ -1,19 +1,23 @@
-set(srcs "lcd/font8.c" "lcd/font12.c" "lcd/font16.c" "lcd/font20.c" "lcd/font24.c" "lcd/font_hzk16.c" "lcd/epdpaint.c"
-        "lcd/bmp.c" "lcd/jpg.c"
-        "tools/kalman_filter.c" "tools/encode.c"
+file(GLOB VIEW_SOURCE_FILES
+        "lcd/*.c"
+        "view/*.c"
+        "page/*.c"
+)
+
+file(GLOB BLE_SOURCE_FILES
+        "ble/*.c"
+        "bles/*.c"
+)
+
+set(srcs "tools/kalman_filter.c" "tools/encode.c"
         "battery.c" "key.c" "setting.c"
         "file/my_file_common.c"
         "common_utils.c"
-        "ble/ble_device.c" "ble/ble_peer.c" "ble/ble_svc_battery_level.c" "ble/ble_svc_device_information.c"
-        "bles/ble_server.c" "bles/gatt_svr.c"
         "sht40.c" "LIS3DH.c" "max31328.c" "sgp30.c" "spl06.c" "opt3001.c"
-        "beep/beep.c" "beep/musical_score_encoder.c"
-        "view/list_view.c" "view/digi_view.c" "view/battery_view.c" "view/switch_view.c" "view/checkbox_view.c" "view/slider_view.c"
-        "lcd/epd_lcd_ssd1680.c" "page/menu_page.c" "page/confirm_menu_page.c" "page/alert_dialog_page.c" "page/test_page.c" "page/info_page.c"
-        "lcd/display.c" "page/image_page.c" "page/temperature_page.c" "page/upgrade_page.c" "page/tomato_clock.c"
-        "page/manual_page.c" "page/ble_device_page.c" "page/setting_list_page.c" "page/data_time_page.c" "page/battery_page.c" "page/music_page.c"
-        "page_manager.c"
+        "beep/beep.c" "beep/musical_score_encoder.c" "page_manager.c"
         "main.c")
+
+list(APPEND srcs ${VIEW_SOURCE_FILES} ${BLE_SOURCE_FILES})
 
 idf_component_register(SRCS ${srcs}
         EMBED_FILES "lcd/HZK16.bin"

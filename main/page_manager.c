@@ -20,6 +20,7 @@
 #include "page/battery_page.h"
 #include "page/music_page.h"
 #include "page/tomato_clock.h"
+#include "page/alarm_clock_page.h"
 #include "battery.h"
 #include "max31328.h"
 
@@ -29,7 +30,6 @@
 
 static int8_t pre_page_index = -1;
 static int8_t menu_index = -1;
-extern esp_event_loop_handle_t event_loop_handle;
 static QueueHandle_t event_queue;
 
 RTC_DATA_ATTR static int8_t current_page_index = -1;
@@ -133,6 +133,14 @@ static page_inst_t pages[] = {
                 .enter_sleep_handler = music_page_on_enter_sleep,
                 .on_destroy_page = music_page_on_destroy,
         },
+        {
+                .page_name = "alarm-clock",
+                .on_draw_page = alarm_clock_page_draw,
+                .on_create_page = alarm_clock_page_on_create,
+                .key_click_handler = alarm_clock_page_key_click,
+                .enter_sleep_handler = alarm_clock_page_on_enter_sleep,
+                .on_destroy_page = alarm_clock_page_on_destroy,
+        },
 };
 
 static page_inst_t menus[] = {
@@ -184,8 +192,7 @@ void page_manager_init(int8_t page_index) {
         ESP_LOGE(TAG, "create page manager task failed");
     }
 
-    esp_event_handler_register_with(event_loop_handle,
-                                    BIKE_KEY_EVENT, ESP_EVENT_ANY_ID,
+    esp_event_handler_register(BIKE_KEY_EVENT, ESP_EVENT_ANY_ID,
                                     key_event_handler, NULL);
 
     // reset to -1 when awake from deep sleep

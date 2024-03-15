@@ -10,20 +10,18 @@
 #include <stdbool.h>
 
 #include "lcd/epdpaint.h"
-
-typedef void (*on_value_change_cb)(int value);
+#include "view_common.h"
 
 typedef struct {
     int value;
     int min;
     int max;
-    int gap;
-    on_value_change_cb cb;
+    view_on_value_change_cb cb;
 } slider_view_t;
 
 slider_view_t *slider_view_create(int value, int min, int max);
 
-void slider_view_set_change_cb(slider_view_t *view, on_value_change_cb cb);
+void slider_view_set_change_cb(slider_view_t *view, view_on_value_change_cb cb);
 
 // return endx
 uint8_t slider_view_draw(slider_view_t *view, epd_paint_t *epd_paint, uint8_t x, uint8_t y);

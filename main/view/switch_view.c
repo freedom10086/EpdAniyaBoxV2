@@ -25,10 +25,6 @@ switch_view_t *switch_view_create(uint8_t onoff) {
     return view;
 }
 
-void switch_view_set_change_cb(switch_view_t *view, on_switch_change_cb cb) {
-    view->cb = cb;
-}
-
 // return endx
 uint8_t switch_view_draw(switch_view_t *view, epd_paint_t *epd_paint, uint8_t x, uint8_t y) {
     epd_paint_draw_rectangle(epd_paint, x, y, x + SWITCH_VIEW_WIDTH, y + SWITCH_VIEW_HEIGHT, 1);

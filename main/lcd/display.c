@@ -46,8 +46,6 @@ static bool rotation_change = false;
 static uint8_t curr_disp_rotation;
 static bool request_update = false;
 
-extern esp_event_loop_handle_t event_loop_handle;
-
 static void register_event_callbacks();
 
 uint8_t calc_disp_rotation(uint8_t default_rotate) {
@@ -311,23 +309,19 @@ static void update_lst_event_tick_handler(void *event_handler_arg, esp_event_bas
 
 static void register_event_callbacks() {
     // key click event
-    esp_event_handler_register_with(event_loop_handle,
-                                    BIKE_KEY_EVENT, ESP_EVENT_ANY_ID,
+    esp_event_handler_register(BIKE_KEY_EVENT, ESP_EVENT_ANY_ID,
                                     update_lst_event_tick_handler, NULL);
 
     // update display event
-    esp_event_handler_register_with(event_loop_handle,
-                                    BIKE_REQUEST_UPDATE_DISPLAY_EVENT, ESP_EVENT_ANY_ID,
+    esp_event_handler_register(BIKE_REQUEST_UPDATE_DISPLAY_EVENT, ESP_EVENT_ANY_ID,
                                     request_display_update_handler, NULL);
 
     // lis3dsh event
-    esp_event_handler_register_with(event_loop_handle,
-                                    BIKE_MOTION_EVENT, ESP_EVENT_ANY_ID,
+    esp_event_handler_register(BIKE_MOTION_EVENT, ESP_EVENT_ANY_ID,
                                     acc_motion_event_handler, NULL);
 
     // ble server event
-    esp_event_handler_register_with(event_loop_handle,
-                                    BIKE_BLE_SERVER_EVENT, ESP_EVENT_ANY_ID,
+    esp_event_handler_register(BIKE_BLE_SERVER_EVENT, ESP_EVENT_ANY_ID,
                                     update_lst_event_tick_handler, NULL);
 }
 

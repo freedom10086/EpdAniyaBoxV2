@@ -65,7 +65,13 @@ void epd_paint_draw_horizontal_line(epd_paint_t *epd_paint, int x, int y, int wi
 
 void epd_paint_draw_vertical_line(epd_paint_t *epd_paint, int x, int y, int height, int colored);
 
+void epd_paint_draw_horizontal_doted_line(epd_paint_t *epd_paint, int x, int y, int width, int colored);
+
+void epd_paint_draw_vertical_doted_line(epd_paint_t *epd_paint, int x, int y, int height, int colored);
+
 void epd_paint_draw_rectangle(epd_paint_t *epd_paint, int x0, int y0, int x1, int y1, int colored);
+
+void epd_paint_draw_doted_rectangle(epd_paint_t *epd_paint, int x0, int y0, int x1, int y1, int colored);
 
 void epd_paint_draw_filled_rectangle(epd_paint_t *epd_paint, int x0, int y0, int x1, int y1, int colored);
 

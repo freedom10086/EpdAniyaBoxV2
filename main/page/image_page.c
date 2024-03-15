@@ -157,26 +157,27 @@ void image_page_on_create(void *arg) {
     }
 }
 
-static bool check_is_valid_image_file(struct dirent * entry, char * entrypath, size_t dirpath_len, struct stat *entry_stat) {
+static bool
+check_is_valid_image_file(struct dirent *entry, char *entrypath, size_t dirpath_len, struct stat *entry_stat) {
     if (entry->d_type != DT_REG) {
-        return  false;
+        return false;
     }
 
     strlcpy(entrypath + dirpath_len, entry->d_name, sizeof(entrypath) - dirpath_len);
     if (stat(entrypath, entry_stat) == -1) {
         ESP_LOGE(TAG, "Failed to stat %s", entry->d_name);
-        return  false;;
+        return false;;
     }
     static char entrysize[16];
     sprintf(entrysize, "%ld", (*entry_stat).st_size);
     ESP_LOGI(TAG, "Found %s (%s bytes)", entry->d_name, entrysize);
 
     if ((*entry_stat).st_size > MAX_FILE_SIZE) {
-        return  false;;
+        return false;;
     }
 
     if (!IS_FILE_EXT(entry->d_name, ".bmp") && !IS_FILE_EXT(entry->d_name, ".jpg")) {
-        return  false;;
+        return false;;
     }
     return true;
 }
@@ -242,8 +243,8 @@ void image_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     // draw battery icon if battery low
     int8_t battery_level = battery_get_level();
     if (battery_level >= 0 && battery_level < 20) {
-        battery_view_t *battery_view = battery_view_create(4, 183, 26, 16);
-        battery_view_draw(battery_view, epd_paint, battery_get_level(), loop_cnt);
+        battery_view_t *battery_view = battery_view_create(battery_get_level(), 26, 16);
+        battery_view_draw(battery_view, epd_paint, 4, 183);
         battery_view_deinit(battery_view);
     }
 }
@@ -326,7 +327,7 @@ bool image_page_key_click_handle(key_event_id_t key_event_type) {
             ble_server_init();
 
             static alert_dialog_arg_t alert_dialog_arg = {
-                    .title_label = (char *)text_ble_on,
+                    .title_label = (char *) text_ble_on,
                     .auto_close_ms = 5000
             };
             page_manager_show_menu("alert-dialog", &alert_dialog_arg);

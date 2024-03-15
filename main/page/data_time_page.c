@@ -19,21 +19,11 @@
 #include "rx8025t.h"
 #include "alert_dialog_page.h"
 #include "bles/ble_server.h"
+#include "static/static.h"
 
 #define TAG "date-time-page"
 
 static char date_time_page_draw_text_buf[32] = {0};
-
-static uint16_t week_label[] = {0xC7D0, 0xDAC6, 0x00};
-static uint16_t week_num[][2] = {
-        {0xD5C8, 0x00}, // 日
-        {0xBBD2, 0x00}, // 一
-        {0xFEB6, 0x00}, // 二
-        {0xFDC8, 0x00}, // 三
-        {0xC4CB, 0x00}, // 四
-        {0xE5CE, 0x00}, // 五
-        {0xF9C1, 0x00}, // 六
-};
 
 // 温度
 static uint16_t temp[] = {0xC2CE, 0xC8B6, 0x00};
@@ -45,7 +35,6 @@ static uint16_t hum[] = {0xAACA, 0xC8B6, 0x00};
 // %
 static uint16_t hum_f[] = {0x25, 0x00};
 
-extern esp_event_loop_handle_t event_loop_handle;
 static float temperature;
 static bool temperature_valid = false;
 
@@ -112,12 +101,10 @@ void date_time_page_on_create(void *arg) {
 
     sht31_init();
 
-    esp_event_handler_register_with(event_loop_handle,
-                                    BIKE_TEMP_HUM_SENSOR_EVENT, ESP_EVENT_ANY_ID,
+    esp_event_handler_register(BIKE_TEMP_HUM_SENSOR_EVENT, ESP_EVENT_ANY_ID,
                                     tem_hum_event_handler, NULL);
 
-    esp_event_handler_register_with(event_loop_handle,
-                                    BIKE_DATE_TIME_SENSOR_EVENT, ESP_EVENT_ANY_ID,
+    esp_event_handler_register(BIKE_DATE_TIME_SENSOR_EVENT, ESP_EVENT_ANY_ID,
                                     date_time_event_handler, NULL);
     ESP_LOGI(TAG, "=== created ===");
 }
@@ -132,9 +119,9 @@ void date_time_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
         // draw date
         sprintf(date_time_page_draw_text_buf, "20%d.%d.%d", _year, _month, _day);
         epd_paint_draw_string_at(epd_paint, 0, 0, date_time_page_draw_text_buf, &Font16, 1);
-        epd_paint_draw_string_at(epd_paint, 120, 0, (char *) week_label, &Font_HZK16, 1);
+        epd_paint_draw_string_at(epd_paint, 120, 0, (char *) text_week_label, &Font_HZK16, 1);
         uint8_t ok_week = check_week(_week);
-        epd_paint_draw_string_at(epd_paint, 152, 0, (char *) week_num[ok_week], &Font_HZK16, 1);
+        epd_paint_draw_string_at(epd_paint, 152, 0, (char *) text_week_num[ok_week], &Font_HZK16, 1);
 
         // draw time
         digi_view_t *time_label = digi_view_create(32, 6, 2);
@@ -151,8 +138,8 @@ void date_time_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     }
 
     // battery
-    battery_view_t *battery_view = battery_view_create(174, 0, 26, 16);
-    battery_view_draw(battery_view, epd_paint, battery_get_level(), loop_cnt);
+    battery_view_t *battery_view = battery_view_create(battery_get_level(), 26, 16);
+    battery_view_draw(battery_view, epd_paint, 174, 0);
     battery_view_deinit(battery_view);
 
     if (sht31_get_temp_hum(&temperature, &humility)) {
@@ -227,12 +214,10 @@ bool date_time_page_key_click(key_event_id_t key_event_type) {
 
 void date_time_page_on_destroy(void *arg) {
     ESP_LOGI(TAG, "=== on destroy ===");
-    esp_event_handler_unregister_with(event_loop_handle,
-                                      BIKE_TEMP_HUM_SENSOR_EVENT, ESP_EVENT_ANY_ID,
+    esp_event_handler_unregister(BIKE_TEMP_HUM_SENSOR_EVENT, ESP_EVENT_ANY_ID,
                                       tem_hum_event_handler);
 
-    esp_event_handler_unregister_with(event_loop_handle,
-                                      BIKE_DATE_TIME_SENSOR_EVENT, ESP_EVENT_ANY_ID,
+    esp_event_handler_unregister(BIKE_DATE_TIME_SENSOR_EVENT, ESP_EVENT_ANY_ID,
                                       date_time_event_handler);
 }
 

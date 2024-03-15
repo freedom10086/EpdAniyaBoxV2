@@ -26,8 +26,6 @@ float ota_progress = 0;
 
 enum upgrade_state_t state = INIT;
 
-extern esp_event_loop_handle_t event_loop_handle;
-
 static void ota_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id,
                               void *event_data) {
     switch (event_id) {
@@ -65,8 +63,7 @@ static void ota_event_handler(void *event_handler_arg, esp_event_base_t event_ba
 
 void upgrade_page_on_create(void *args) {
     // reg ota event
-    esp_event_handler_register_with(event_loop_handle,
-                                    BIKE_OTA_EVENT, ESP_EVENT_ANY_ID,
+    esp_event_handler_register(BIKE_OTA_EVENT, ESP_EVENT_ANY_ID,
                                     ota_event_handler, NULL);
 
     //ESP_ERR_WIFI_NOT_INIT

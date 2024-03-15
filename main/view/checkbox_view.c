@@ -25,7 +25,7 @@ checkbox_view_t *checkbox_view_create(bool checked) {
     return view;
 }
 
-void checkbox_view_set_change_cb(checkbox_view_t *view, on_checked_change_cb cb) {
+void checkbox_view_set_change_cb(checkbox_view_t *view, view_on_value_change_cb cb) {
     view->cb = cb;
 }
 

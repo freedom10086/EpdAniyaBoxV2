@@ -32,24 +32,12 @@ static const char *TAG = "BIKE_MAIN";
 #define I2C_SCL_IO 11
 #define I2C_SDA_IO 8
 
-esp_event_loop_handle_t event_loop_handle;
 i2c_master_bus_handle_t i2c_bus_handle;
 
 RTC_DATA_ATTR uint32_t boot_count = 0;
 
 static esp_err_t i2c_master_init(void);
 
-static void application_task(void *args) {
-    while (1) {
-        esp_err_t err = esp_event_loop_run(event_loop_handle, portMAX_DELAY);
-        if (err != ESP_OK) {
-            break;
-        }
-    }
-
-    ESP_LOGE(TAG, "suspended task for loop %p", event_loop_handle);
-    vTaskSuspend(NULL);
-}
 
 /**********************
  *   APPLICATION MAIN
@@ -66,23 +54,11 @@ void app_main() {
     boot_count++;
     box_get_wakeup_ionum();
 
-    // create event loop
-    esp_event_loop_args_t loop_args = {
-            .queue_size = 16,
-            .task_name = NULL // no task will be created
-    };
-
-    // Create the event loops
-    ESP_ERROR_CHECK(esp_event_loop_create(&loop_args, &event_loop_handle));
-
-    //esp_event_loop_delete(esp_gps->event_loop_hdl);
+    // use system event loop
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
 
     //install gpio isr service
     gpio_install_isr_service(0);
-
-    ESP_LOGI(TAG, "starting application task");
-    // Create the application task with the same priority as the current task
-    xTaskCreate(application_task, "application_task", 4096, NULL, 2, NULL);
 
     /**
      * init iic

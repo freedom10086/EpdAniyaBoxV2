@@ -47,8 +47,8 @@
 
 typedef struct {
   const uint8_t *table;
-  uint16_t Width;
-  uint16_t Height;
+  uint8_t Width;
+  uint8_t Height;
   uint8_t start;
   uint8_t is_chinese;
 } sFONT;

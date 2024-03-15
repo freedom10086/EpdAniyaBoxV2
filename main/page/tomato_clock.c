@@ -31,8 +31,6 @@
 
 #define USE_FIX_TIMER_INTR 0
 
-extern esp_event_loop_handle_t event_loop_handle;
-
 RTC_DATA_ATTR static uint8_t study_time_min = DEFAULT_STUDY_TIME;
 RTC_DATA_ATTR static uint8_t play_time_min = DEFAULT_PLAY_TIME;
 RTC_DATA_ATTR static uint8_t _loop_count = DEFAULT_LOOP_COUNT;
@@ -139,8 +137,7 @@ static void create_time_arrive_timer(bool check_current_ts) {
 }
 
 void tomato_page_on_create(void *arg) {
-    esp_event_handler_register_with(event_loop_handle,
-                                    BIKE_DATE_TIME_SENSOR_EVENT, RX8025T_SENSOR_FIX_TIME_INTR,
+    esp_event_handler_register(BIKE_DATE_TIME_SENSOR_EVENT, RX8025T_SENSOR_FIX_TIME_INTR,
                                     rx8025_timer_callback, NULL);
 
     create_time_arrive_timer(true);
@@ -467,8 +464,7 @@ void tomato_page_on_destroy(void *arg) {
         rx8025t_set_fixed_time_intr(0, 0, 60);
     }
 
-    esp_event_handler_unregister_with(event_loop_handle,
-                                      BIKE_DATE_TIME_SENSOR_EVENT,
+    esp_event_handler_unregister(BIKE_DATE_TIME_SENSOR_EVENT,
                                       RX8025T_SENSOR_FIX_TIME_INTR,
                                       rx8025_timer_callback);
 }

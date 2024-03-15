@@ -58,8 +58,6 @@ static bool rx8025t_inited = false;
 
 static TaskHandle_t tsk_hdl;
 
-extern esp_event_loop_handle_t event_loop_handle;
-
 static uint8_t hex2bcd(uint8_t x) {
     uint8_t y;
     y = (x / 10) << 4;
@@ -175,9 +173,9 @@ static void rx8025t_task_entry(void *arg) {
         if (af && aie) {
             ESP_LOGI(TAG, "== af isr happens ==");
             // read time check alarm is valid
-            esp_event_handler_register_with(event_loop_handle, BIKE_KEY_EVENT, ESP_EVENT_ANY_ID, stop_alarm_handler,
+            esp_event_handler_register(BIKE_KEY_EVENT, ESP_EVENT_ANY_ID, stop_alarm_handler,
                                             NULL);
-            esp_event_handler_register_with(event_loop_handle, BIKE_MOTION_EVENT, ESP_EVENT_ANY_ID,
+            esp_event_handler_register(BIKE_MOTION_EVENT, ESP_EVENT_ANY_ID,
                                             stop_alarm_handler, NULL);
 
             common_post_event(BIKE_DATE_TIME_SENSOR_EVENT, RX8025T_SENSOR_ALARM_INTR);
@@ -196,9 +194,9 @@ static void rx8025t_task_entry(void *arg) {
             beep_deinit();
             ESP_LOGI(TAG, "play alarm music done!");
 
-            esp_event_handler_unregister_with(event_loop_handle, BIKE_KEY_EVENT, ESP_EVENT_ANY_ID,
+            esp_event_handler_unregister(BIKE_KEY_EVENT, ESP_EVENT_ANY_ID,
                                               stop_alarm_handler);
-            esp_event_handler_unregister_with(event_loop_handle, BIKE_MOTION_EVENT, ESP_EVENT_ANY_ID,
+            esp_event_handler_unregister(BIKE_MOTION_EVENT, ESP_EVENT_ANY_ID,
                                               stop_alarm_handler);
         }
 

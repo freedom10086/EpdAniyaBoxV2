@@ -26,8 +26,6 @@ static uint8_t total_item_count = 1;
 static bool scanning = false;
 static char buff[BUFF_LEN];
 
-extern esp_event_loop_handle_t event_loop_handle;
-
 static void ble_event_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id,
                               void *event_data) {
     ESP_LOGI(TAG, "rev bt event %ld", event_id);
@@ -51,8 +49,7 @@ static void ble_event_handler(void *event_handler_arg, esp_event_base_t event_ba
 void ble_device_page_on_create(void *arg) {
     ESP_LOGI(TAG, "on_create");
 
-    esp_event_handler_register_with(event_loop_handle,
-                                    BLE_DEVICE_EVENT, ESP_EVENT_ANY_ID,
+    esp_event_handler_register(BLE_DEVICE_EVENT, ESP_EVENT_ANY_ID,
                                     ble_event_handler, NULL);
 
     //ble_device_config_t config;

@@ -16,12 +16,25 @@ extern "C" {
 #define LCD_H_RES 200
 #define LCD_V_RES 200
 
+#define DISP_CS_GPIO_NUM (-1)
+#define DISP_DC_GPIO_NUM 20
+#define DISP_RST_GPIO_NUM 21
+#define DISP_BUSY_GPIO_NUM 19
+
+typedef enum {
+    EPD_REFRESH_MODE_UNSET = 0,
+    EPD_REFRESH_MODE_FULL,
+    EPD_REFRESH_MODE_PARTIAL
+} epd_refresh_mode_t;
+
 typedef struct {
     spi_device_handle_t spi_dev;
-    int busy_gpio_num;
+    int busy_gpio_num; /*! LOW: idle, HIGH: busy */
     int reset_gpio_num; /*!< GPIO used to reset the LCD panel, set to -1 if it's not used */
+    int dc_gpio_num;
     bool reset_level;
-    bool _using_partial_mode;
+
+    epd_refresh_mode_t refresh_mode;
 
     int _current_mem_area_start_x;
     int _current_mem_area_end_x;
@@ -42,28 +55,26 @@ typedef struct {
  *          - ESP_ERR_NO_MEM        if out of memory
  *          - ESP_OK                on success
  */
-esp_err_t new_panel_ssd1680(lcd_ssd1680_panel_t *panel,
-                            spi_host_device_t bus,
-                            const esp_lcd_panel_io_spi_config_t *io_config);
+esp_err_t epd_panel_init(spi_host_device_t bus);
 
-esp_err_t panel_ssd1680_init_full(lcd_ssd1680_panel_t *panel);
+esp_err_t epd_panel_init_full();
 
-esp_err_t panel_ssd1680_init_partial(lcd_ssd1680_panel_t *panel);
+esp_err_t epd_panel_init_partial();
 
-esp_err_t panel_ssd1680_reset(lcd_ssd1680_panel_t *panel);
+esp_err_t epd_panel_reset();
 
-esp_err_t panel_ssd1680_clear_display(lcd_ssd1680_panel_t *panel, uint8_t color);
+esp_err_t epd_panel_clear_display(uint8_t color);
 
-esp_err_t panel_ssd1680_draw_bitmap(lcd_ssd1680_panel_t *panel, int16_t x_start, int16_t y_start, int16_t x_end, int16_t y_end,
+esp_err_t epd_panel_draw_bitmap(int16_t x_start, int16_t y_start, int16_t x_end, int16_t y_end,
                                            const void *color_data) ;
 
-esp_err_t panel_ssd1680_refresh(lcd_ssd1680_panel_t *panel, bool partial_update_mode);
+esp_err_t epd_panel_refresh(bool full_refresh, bool waitdone);
 
-esp_err_t panel_ssd1680_refresh_area(lcd_ssd1680_panel_t *panel, int16_t x, int16_t y, int16_t end_x, int16_t end_y);
+esp_err_t epd_panel_refresh_area(int16_t x, int16_t y, int16_t end_x, int16_t end_y, bool waitdone);
 
-esp_err_t panel_ssd1680_sleep(lcd_ssd1680_panel_t *panel);
+esp_err_t epd_panel_sleep();
 
-esp_err_t panel_ssd1680_del(lcd_ssd1680_panel_t *panel);
+esp_err_t epd_panel_del();
 
 
 #ifdef __cplusplus

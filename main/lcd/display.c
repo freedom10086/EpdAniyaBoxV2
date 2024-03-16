@@ -3,7 +3,6 @@
 
 #include <stdbool.h>
 #include <esp_log.h>
-#include <esp_lcd_panel_io.h>
 #include <esp_timer.h>
 
 #include "freertos/FreeRTOS.h"
@@ -134,28 +133,16 @@ static void guiTask(void *pvParameter) {
                     DISP_MISO_GPIO_NUM, DISP_MOSI_GPIO_NUM, DISP_CLK_GPIO_NUM,
                     DISP_BUFF_SIZE, SPI_DMA_CH_AUTO);
 
-    ESP_LOGI(TAG, "Install panel IO");
-    esp_lcd_panel_io_spi_config_t io_config = {
-            .dc_gpio_num = DISP_DC_GPIO_NUM,
-            .cs_gpio_num = DISP_CS_GPIO_NUM,
-            .pclk_hz = 10 * 1000 * 1000, // 10M
-            .lcd_cmd_bits = 8,
-            .lcd_param_bits = 8,
-            .spi_mode = 0,
-            //.on_color_trans_done = ,
-    };
-
-    lcd_ssd1680_panel_t panel = {
-            .busy_gpio_num = DISP_BUSY_GPIO_NUM,
-            .reset_gpio_num = DISP_RST_GPIO_NUM,
-            .reset_level = 0,
-    };
-
     // Attach the LCD to the SPI bus
-    ESP_ERROR_CHECK(new_panel_ssd1680(&panel, DISP_SPI_HOST, &io_config));
+    esp_err_t err = epd_panel_init(DISP_SPI_HOST);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "create epd panel failed");
+        vTaskDelete(NULL);
+        return;
+    }
 
     ESP_LOGI(TAG, "Reset SSD1680 panel driver");
-    panel_ssd1680_reset(&panel);
+    epd_panel_reset();
 
     // for test
     epd_paint_t *epd_paint = malloc(sizeof(epd_paint_t));
@@ -172,7 +159,7 @@ static void guiTask(void *pvParameter) {
     epd_paint_init(epd_paint, image, LCD_H_RES, LCD_V_RES, rotation);
     epd_paint_clear(epd_paint, 0);
 
-    panel_ssd1680_init_full(&panel);
+    epd_panel_init_full();
 
     static uint32_t loop_cnt = 1;
     uint32_t last_full_refresh_loop_cnt = loop_cnt;
@@ -212,14 +199,10 @@ static void guiTask(void *pvParameter) {
             bool use_full_update_mode = loop_cnt == 1
                                         || loop_cnt - last_full_refresh_loop_cnt >= 60
                                         || will_enter_deep_sleep;
-            bool use_partial_update_mode = !use_full_update_mode;
-
-            if (panel._using_partial_mode != use_partial_update_mode) {
-                if (use_partial_update_mode) {
-                    panel_ssd1680_init_partial(&panel);
-                } else {
-                    panel_ssd1680_init_full(&panel);
-                }
+            if (use_full_update_mode) {
+                epd_panel_init_full();
+            } else {
+                epd_panel_init_partial();
             }
 
             if (rotation_change) {
@@ -237,8 +220,8 @@ static void guiTask(void *pvParameter) {
             request_update = false;
             draw_page(epd_paint, loop_cnt);
 
-            panel_ssd1680_draw_bitmap(&panel, 0, 0, LCD_H_RES, LCD_V_RES, epd_paint->image);
-            panel_ssd1680_refresh(&panel, use_partial_update_mode);
+            epd_panel_draw_bitmap(0, 0, LCD_H_RES, LCD_V_RES, epd_paint->image);
+            epd_panel_refresh(use_full_update_mode, false);
             updating = false;
             after_draw_page(loop_cnt);
 
@@ -255,16 +238,15 @@ static void guiTask(void *pvParameter) {
             int sleepTs = page_manager_enter_sleep(loop_cnt);
             if (sleepTs >= 0) {
                 ESP_LOGI(TAG, "%dms timeout enter sleep. sleep ts %d", DEEP_SLEEP_TIMEOUT_MS, sleepTs);
-                panel_ssd1680_sleep(&panel);
+                epd_panel_sleep();
                 box_enter_deep_sleep(sleepTs);
             } else {
                 // never sleep
-
             }
         }
     }
 
-    panel_ssd1680_sleep(&panel);
+    epd_panel_sleep();
     epd_paint_deinit(epd_paint);
     free(image);
     free(epd_paint);

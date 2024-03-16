@@ -32,9 +32,20 @@ typedef struct {
     uint8_t second;
 } max31328_time_t;
 
+typedef struct {
+    uint8_t en;
+    uint8_t mode; /* 1 day mode 0 week mode */
+    uint8_t af;
+    uint8_t second;
+    uint8_t minute;
+    uint8_t hour;
+    uint8_t day_week;
+} max31328_alarm_t;
+
 typedef enum {
     MAX31328_SENSOR_INIT_FAILED = 0,
     MAX31328_SENSOR_READ_FAILED,
+    MAX31328_ALARM_CONFIG_UPDATE,
     MAX31328_SENSOR_ALARM_INTR1,
     MAX31328_SENSOR_ALARM_INTR2
 } max31328_event_id_t;
@@ -61,9 +72,9 @@ esp_err_t max31328_get_time(uint8_t *year, uint8_t *month, uint8_t *day, uint8_t
 esp_err_t max31328_get_time_ts(time_t *ts);
 
 // af = alarm status
-esp_err_t max31328_load_alarm1(uint8_t *en, uint8_t *week_mode, uint8_t *af, uint8_t *second, uint8_t *minute, uint8_t *hour, uint8_t *day_week);
+esp_err_t max31328_load_alarm1(max31328_alarm_t *alarm);
 
-esp_err_t max31328_set_alarm1(uint8_t en, uint8_t week_mode, uint8_t second, uint8_t minute, uint8_t hour, uint8_t day_week);
+esp_err_t max31328_set_alarm1(max31328_alarm_t *alarm);
 
 esp_err_t max31328_load_alarm2(uint8_t *en, uint8_t *week_mode, uint8_t *af, uint8_t *minute, uint8_t *hour, uint8_t *day_week);
 

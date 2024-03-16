@@ -14,10 +14,11 @@
 
 slider_view_t *slider_view_create(int value, int min, int max) {
     slider_view_t *view = malloc(sizeof(slider_view_t));
-    if (!view) {
-        ESP_LOGE(TAG, "no memory for init switch_view");
-        return NULL;
-    }
+    view->interface = (view_interface_t *) malloc(sizeof(view_interface_t));
+    view->interface->state = VIEW_STATE_NORMAL;
+
+    view->interface->draw = slider_view_draw;
+    view->interface->delete = slider_view_delete;
 
     view->min = min;
     view->max = max;
@@ -38,7 +39,8 @@ void slider_view_set_change_cb(slider_view_t *view, view_on_value_change_cb cb) 
 }
 
 // return endx
-uint8_t slider_view_draw(slider_view_t *view, epd_paint_t *epd_paint, uint8_t x, uint8_t y) {
+uint8_t slider_view_draw(void *v, epd_paint_t *epd_paint, uint8_t x, uint8_t y) {
+    slider_view_t *view = v;
     epd_paint_draw_rectangle(epd_paint, x, y, x + SLIDER_VIEW_WIDTH, y + SLIDER_VIEW_HEIGHT, 1);
 
     // calc progress
@@ -92,7 +94,12 @@ int slider_view_set_value(slider_view_t *view, int value) {
     return backup_value;
 }
 
-void slider_view_delete(slider_view_t *view) {
-    free(view);
-    view = NULL;
+void slider_view_delete(void *view) {
+    if (view != NULL) {
+        free(((slider_view_t *) view)->interface);
+        free(view);
+        view = NULL;
+    }
+
+
 }

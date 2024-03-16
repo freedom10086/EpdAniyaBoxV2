@@ -58,17 +58,14 @@ esp_err_t box_setting_load(uint8_t cmd, uint8_t *out, uint16_t *out_len) {
     len += 7;
 
     // load alarm
-    uint8_t alarm_en, alarm_mode, alarm_af, alarm_second, alarm_minute, alarm_hour, alarm_day_week;
-    err = max31328_load_alarm1(&alarm_en, &alarm_mode, &alarm_af, &alarm_second, &alarm_minute, &alarm_hour, &alarm_day_week);
-    ESP_LOGI(TAG, "load alarm %d %d %d %d %d %d, res:%d", alarm_en, alarm_mode, alarm_af, alarm_minute, alarm_hour, alarm_day_week, err);
-    if (err != ESP_OK) {
-        return err;
-    }
+    max31328_alarm_t alarm;
+    err = max31328_load_alarm1(&alarm);
+    ESP_LOGI(TAG, "load alarm %d %d %d %d %d %d, res:%d", alarm.en, alarm.mode, alarm.af, alarm.minute, alarm.hour, alarm.day_week, err);
 
-    out[7] = alarm_en | (alarm_mode << 1) | (alarm_af << 2);
-    out[8] = alarm_minute;
-    out[9] = alarm_hour;
-    out[10] = alarm_day_week;
+    out[7] = alarm.en | (alarm.mode << 1) | (alarm.af << 2);
+    out[8] = alarm.minute;
+    out[9] = alarm.hour;
+    out[10] = alarm.day_week;
     len += 4;
 
     *out_len = len;
@@ -96,11 +93,19 @@ esp_err_t box_setting_apply(uint8_t cmd, uint8_t *data, uint16_t data_len) {
                 return ESP_ERR_INVALID_ARG;
             }
             // TODO alarm second
-            err = max31328_set_alarm1(data[0] & 0x01, (data[0] >> 1) & 0x01, 0, data[1], data[2], data[3]);
+            max31328_alarm_t alarm;
+            alarm.en = data[0] & 0x01;
+            alarm.mode = (data[0] >> 1) & 0x01;
+            alarm.minute = data[1];
+            alarm.hour = data[2];
+            alarm.day_week = data[3];
+
+            err = max31328_set_alarm1(&alarm);
             ESP_LOGI(TAG, "BOX_SETTING_CMD_SET_ALARM %d %d %d %d res:%d", data[0], data[1], data[2], data[3], err);
             if (err != ESP_OK) {
                 return err;
             }
+            common_post_event(BIKE_DATE_TIME_SENSOR_EVENT, MAX31328_ALARM_CONFIG_UPDATE);
             return ESP_OK;
         case BOX_SETTING_CMD_UPLOAD_BMP_START: {
             uint8_t file_id = data[0];

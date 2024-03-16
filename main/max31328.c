@@ -294,7 +294,7 @@ esp_err_t max31328_get_time_ts(time_t *ts) {
 }
 
 esp_err_t
-max31328_load_alarm1(uint8_t *en, uint8_t *week_mode, uint8_t *af, uint8_t *second, uint8_t *minute, uint8_t *hour, uint8_t *day_week) {
+max31328_load_alarm1(max31328_alarm_t *alarm) {
     max31328_init();
 
     uint8_t read_buf[4];
@@ -306,29 +306,29 @@ max31328_load_alarm1(uint8_t *en, uint8_t *week_mode, uint8_t *af, uint8_t *seco
     //ESP_LOGI(TAG, "read alarm raw: %x %x %x", read_buf[0], read_buf[1], read_buf[2]);
 
     clrbit(read_buf[0], 7);
-    *second = bcd2hex(read_buf[0]);
+    alarm->second = bcd2hex(read_buf[0]);
 
     clrbit(read_buf[1], 7);
-    *minute = bcd2hex(read_buf[1]);
+    alarm->minute = bcd2hex(read_buf[1]);
 
     clrbit(read_buf[2], 7);
-    *hour = bcd2hex(read_buf[2]);
+    alarm->hour = bcd2hex(read_buf[2]);
 
     uint8_t saved_day_week = read_buf[3];
-    *week_mode = (saved_day_week >> 6) & 0x01;
-    if (*week_mode) {
+    alarm->mode = (saved_day_week >> 6) & 0x01;
+    if (alarm->mode) {
         // week mode
-        *day_week = saved_day_week & 0x0f;
+        alarm->day_week = saved_day_week & 0x0f;
     } else {
         bool day_ae = ((saved_day_week & 0b10000000) > 0);
         // day mode
-        *day_week = bcd2hex(saved_day_week & 0x00111111);
+        alarm->day_week = bcd2hex(saved_day_week & 0x00111111);
         if (day_ae) {
-            *day_week = *day_week | 0x01 << 7;
+            alarm->day_week = alarm->day_week | 0x01 << 7;
         }
     }
 
-    err = max31328_read_alarm_status(en, af, NULL, NULL);
+    err = max31328_read_alarm_status(&alarm->en, &alarm->af, NULL, NULL);
     if (err != ESP_OK) {
         return err;
     }
@@ -336,15 +336,16 @@ max31328_load_alarm1(uint8_t *en, uint8_t *week_mode, uint8_t *af, uint8_t *seco
     return err;
 }
 
-esp_err_t max31328_set_alarm1(uint8_t en, uint8_t week_mode, uint8_t second, uint8_t minute, uint8_t hour, uint8_t day_week) {
+esp_err_t max31328_set_alarm1(max31328_alarm_t *alarm) {
     max31328_init();
 
+    uint8_t day_week = alarm->day_week;
     uint8_t write_day_week = hex2bcd(day_week);
-    if (week_mode) {
+    if (alarm->mode) {
         setbit(write_day_week, 6);
     }
 
-    uint8_t write_buf[] = {ADDR_SEC_ALARM, hex2bcd(second),hex2bcd(minute), hex2bcd(hour), write_day_week};
+    uint8_t write_buf[] = {ADDR_SEC_ALARM, hex2bcd(alarm->second),hex2bcd(alarm->minute), hex2bcd(alarm->hour), write_day_week};
     esp_err_t err = i2c_write(write_buf, sizeof(write_buf));
     if (err != ESP_OK) {
         return err;
@@ -359,7 +360,7 @@ esp_err_t max31328_set_alarm1(uint8_t en, uint8_t week_mode, uint8_t second, uin
     // clear current alarm flag
     clrbit(read_buf[1], 0);
 
-    if (en) {
+    if (alarm->en) {
         setbit(read_buf[0], 0);
         setbit(read_buf[0], 2);
     } else {

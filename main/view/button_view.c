@@ -38,8 +38,8 @@ uint8_t button_view_draw(void *v, epd_paint_t *epd_paint, uint8_t x, uint8_t y) 
         case VIEW_STATE_SELECTED:
         case VIEW_STATE_FOCUS:
             epd_paint_reverse_range(epd_paint, x + 2, y + 2,
-                                    btn_label_width + BUTTON_VIEW_GAP * 2 - 4,
-                                    view->font->Height + BUTTON_VIEW_GAP * -4);
+                                    btn_label_width + BUTTON_VIEW_GAP * 2 - 3,
+                                    view->font->Height + BUTTON_VIEW_GAP * 2 - 3);
             break;
         default:
             break;
@@ -49,13 +49,15 @@ uint8_t button_view_draw(void *v, epd_paint_t *epd_paint, uint8_t x, uint8_t y) 
 }
 
 void button_view_delete(void *view) {
-    free(((button_view_t *) view)->interface);
-    free(view);
-    view = NULL;
+    if (view != NULL) {
+        free(((button_view_t *) view)->interface);
+        free(view);
+        view = NULL;
+    }
 }
 
 void button_view_set_click_cb(button_view_t *view, view_on_click_cb cb) {
-    view->click_cb = cb;
+    view->interface->click = cb;
 }
 
 bool button_view_set_state(void *view, view_state_t state) {

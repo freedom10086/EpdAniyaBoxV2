@@ -13,6 +13,7 @@
 #include "view_common.h"
 
 typedef struct {
+    view_interface_t *interface;
     int value;
     int min;
     int max;
@@ -24,11 +25,11 @@ slider_view_t *slider_view_create(int value, int min, int max);
 void slider_view_set_change_cb(slider_view_t *view, view_on_value_change_cb cb);
 
 // return endx
-uint8_t slider_view_draw(slider_view_t *view, epd_paint_t *epd_paint, uint8_t x, uint8_t y);
+uint8_t slider_view_draw(void *v, epd_paint_t *epd_paint, uint8_t x, uint8_t y);
 
 // return old value
 int slider_view_set_value(slider_view_t *view, int value);
 
-void slider_view_delete(slider_view_t *view);
+void slider_view_delete(void *view);
 
 #endif //ANIYA_BOX_V2_SLIDER_VIEW_H

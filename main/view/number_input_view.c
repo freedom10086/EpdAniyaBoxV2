@@ -9,14 +9,11 @@
 
 number_input_view_t *number_input_view_create(int value, int min, int max, int gap, sFONT *font) {
     number_input_view_t *view = malloc(sizeof(number_input_view_t));
-    if (!view) {
-        ESP_LOGE(TAG, "no memory for init number_input_view");
-        return NULL;
-    }
 
     view->interface = (view_interface_t *) malloc(sizeof(view_interface_t));
     view->interface->state = VIEW_STATE_NORMAL;
     view->interface->draw = number_input_view_draw;
+    view->interface->delete = number_input_view_delete;
 
     view->gap = gap;
     view->min = min;
@@ -83,8 +80,11 @@ bool number_input_view_set_state(void *view, view_state_t state) {
     return true;
 }
 
-void number_input_view_delete(number_input_view_t *view) {
-    free(view->interface);
-    free(view);
-    view = NULL;
+void number_input_view_delete(void *view) {
+    if (view != NULL) {
+        number_input_view_t *v = view;
+        free(v->interface);
+        free(v);
+        view = NULL;
+    }
 }

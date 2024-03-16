@@ -19,6 +19,7 @@ typedef enum {
 
 typedef struct {
     view_state_t state;
+    void (*click)(void* view);
     uint8_t (*draw)(void* view, epd_paint_t *epd_paint, uint8_t x, uint8_t y);
     void (*delete)(void* view);
 } view_interface_t;

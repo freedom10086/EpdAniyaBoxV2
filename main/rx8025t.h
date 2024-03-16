@@ -33,9 +33,19 @@ typedef struct {
     uint8_t second;
 } rx8025_time_t;
 
+typedef struct {
+    uint8_t en;
+    uint8_t mode; /* 1 day mode 0 week mode */
+    uint8_t af;
+    uint8_t minute;
+    uint8_t hour;
+    uint8_t day_week;
+} rx8025t_alarm_t;
+
 typedef enum {
     RX8025T_SENSOR_INIT_FAILED = 0,
     RX8025T_SENSOR_UPDATE,
+    RX8025T_ALARM_CONFIG_UPDATE,
     RX8025T_SENSOR_READ_FAILED,
     RX8025T_SENSOR_ALARM_INTR,
     RX8025T_SENSOR_FIX_TIME_INTR,
@@ -78,9 +88,9 @@ esp_err_t rx8025t_clear_fixed_time_intr_flag();
 
 // mode = 0 week mode, mode == 1 day mode
 // af = alarm status
-esp_err_t rx8025_load_alarm(uint8_t *en, uint8_t *mode, uint8_t *af, uint8_t *minute, uint8_t *hour, uint8_t *day_week);
+esp_err_t rx8025_load_alarm(rx8025t_alarm_t *alarm);
 
-esp_err_t rx8025_set_alarm(uint8_t en, uint8_t mode, uint8_t minute, uint8_t hour, uint8_t day_week);
+esp_err_t rx8025_set_alarm(rx8025t_alarm_t *alarm);
 
 esp_err_t rx8025_set_alarm_en(uint8_t en);
 

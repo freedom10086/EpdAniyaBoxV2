@@ -15,7 +15,6 @@
 
 typedef struct {
     view_interface_t *interface;
-    view_on_click_cb click_cb;
     char *label;
     sFONT *font;
 } button_view_t;

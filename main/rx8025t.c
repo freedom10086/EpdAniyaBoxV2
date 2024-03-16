@@ -474,7 +474,7 @@ esp_err_t rx8025t_clear_fixed_time_intr_flag() {
 }
 
 esp_err_t
-rx8025_load_alarm(uint8_t *en, uint8_t *mode, uint8_t *af, uint8_t *minute, uint8_t *hour, uint8_t *day_week) {
+rx8025_load_alarm(rx8025t_alarm_t *alarm) {
     rx8025t_init();
 
     uint8_t read_buf[3];
@@ -487,11 +487,11 @@ rx8025_load_alarm(uint8_t *en, uint8_t *mode, uint8_t *af, uint8_t *minute, uint
 
     // not support every minute mode
     clrbit(read_buf[0], 7);
-    *minute = bcd2hex(read_buf[0]);
+    alarm->minute = bcd2hex(read_buf[0]);
 
     clrbit(read_buf[1], 7);
     clrbit(read_buf[1], 6);
-    *hour = bcd2hex(read_buf[1]);
+    alarm->hour = bcd2hex(read_buf[1]);
 
     uint8_t saved_day_week = read_buf[2];
 
@@ -501,32 +501,35 @@ rx8025_load_alarm(uint8_t *en, uint8_t *mode, uint8_t *af, uint8_t *minute, uint
     }
 
     // 0 week, 1 day
-    *mode = (read_buf[0] >> 6) & 0x01;
-    *af = (read_buf[1] >> 3) & 0x01;
-    *en = (read_buf[2] >> 3) & 0x01; // ADDR_CONTROL
+    alarm->mode = (read_buf[0] >> 6) & 0x01;
+    alarm->af = (read_buf[1] >> 3) & 0x01;
+    alarm->en = (read_buf[2] >> 3) & 0x01; // ADDR_CONTROL
 
-    if (*mode) {
+    if (alarm->mode) {
         bool day_ae = ((saved_day_week & 0b10000000) > 0);
         // day mode
-        *day_week = bcd2hex(saved_day_week & 0x00111111);
+        alarm->day_week = bcd2hex(saved_day_week & 0x00111111);
         if (day_ae) {
-            *day_week = *day_week | 0x01 << 7;
+            alarm->day_week = alarm->day_week | 0x01 << 7;
         }
     } else {
         // week mode
-        *day_week = saved_day_week;
+        alarm->day_week = saved_day_week;
     }
 
     return err;
 }
 
-esp_err_t rx8025_set_alarm(uint8_t en, uint8_t mode, uint8_t minute, uint8_t hour, uint8_t day_week) {
+esp_err_t rx8025_set_alarm(rx8025t_alarm_t *alarm) {
     rx8025t_init();
-    if (mode) {
+
+    uint8_t day_week = alarm->day_week;
+    if (alarm->mode) {
+        // day mode
         day_week = hex2bcd(day_week & 0x00111111) | (day_week & 0b10000000);
     }
 
-    uint8_t write_buf[] = {ADDR_MIN_ALARM, hex2bcd(minute), hex2bcd(hour), day_week};
+    uint8_t write_buf[] = {ADDR_MIN_ALARM, hex2bcd(alarm->minute), hex2bcd(alarm->hour), day_week};
     esp_err_t err = i2c_write(write_buf, sizeof(write_buf));
     if (err != ESP_OK) {
         return err;
@@ -538,7 +541,7 @@ esp_err_t rx8025_set_alarm(uint8_t en, uint8_t mode, uint8_t minute, uint8_t hou
         return err;
     }
 
-    if (mode) {
+    if (alarm->mode) {
         setbit(read_buf[0], 6);
     } else {
         clrbit(read_buf[0], 6);
@@ -547,7 +550,7 @@ esp_err_t rx8025_set_alarm(uint8_t en, uint8_t mode, uint8_t minute, uint8_t hou
     // clear current alarm flag
     clrbit(read_buf[1], 3);
 
-    if (en) {
+    if (alarm->en) {
         setbit(read_buf[2], 3);
     } else {
         clrbit(read_buf[2], 3);

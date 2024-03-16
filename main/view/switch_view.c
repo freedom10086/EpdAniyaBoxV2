@@ -14,10 +14,11 @@
 
 switch_view_t *switch_view_create(uint8_t onoff) {
     switch_view_t *view = malloc(sizeof(switch_view_t));
-    if (!view) {
-        ESP_LOGE(TAG, "no memory for init switch_view");
-        return NULL;
-    }
+    view->interface = (view_interface_t *) malloc(sizeof(view_interface_t));
+    view->interface->state = VIEW_STATE_NORMAL;
+
+    view->interface->draw = switch_view_draw;
+    view->interface->delete = switch_view_delete;
 
     view->on = onoff;
 
@@ -26,7 +27,8 @@ switch_view_t *switch_view_create(uint8_t onoff) {
 }
 
 // return endx
-uint8_t switch_view_draw(switch_view_t *view, epd_paint_t *epd_paint, uint8_t x, uint8_t y) {
+uint8_t switch_view_draw(void *v, epd_paint_t *epd_paint, uint8_t x, uint8_t y) {
+    switch_view_t *view = v;
     epd_paint_draw_rectangle(epd_paint, x, y, x + SWITCH_VIEW_WIDTH, y + SWITCH_VIEW_HEIGHT, 1);
 
     if (view->on) {
@@ -47,6 +49,25 @@ uint8_t switch_view_draw(switch_view_t *view, epd_paint_t *epd_paint, uint8_t x,
                                           "OFF",&Font12, ALIGN_CENTER, ALIGN_CENTER, 1);
     }
 
+    uint8_t endx = x + SWITCH_VIEW_WIDTH;
+    uint8_t endy = y + SWITCH_VIEW_HEIGHT;
+
+    switch (view->interface->state) {
+        case VIEW_STATE_FOCUS:
+            // draw doted outline
+            epd_paint_draw_doted_rectangle(epd_paint, x - VIEW_OUTLINE_GAP, y - VIEW_OUTLINE_GAP,
+                                           endx + VIEW_OUTLINE_GAP,
+                                           endy + VIEW_OUTLINE_GAP, 1);
+            break;
+        case VIEW_STATE_SELECTED:
+            // draw solid outline
+            epd_paint_draw_rectangle(epd_paint, x - VIEW_OUTLINE_GAP, y - VIEW_OUTLINE_GAP,
+                                     endx + VIEW_OUTLINE_GAP,
+                                     endy + VIEW_OUTLINE_GAP, 1);
+            break;
+        default:
+            break;
+    }
 
     return x + SWITCH_VIEW_WIDTH;
 }
@@ -67,8 +88,9 @@ uint8_t switch_view_set_onoff(switch_view_t *view, uint8_t onoff) {
     return before;
 }
 
-void switch_view_delete(switch_view_t *view) {
+void switch_view_delete(void* view) {
     if (view != NULL) {
+        free(((switch_view_t *) view)->interface);
         free(view);
         view = NULL;
     }

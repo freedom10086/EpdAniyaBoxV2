@@ -30,7 +30,7 @@ uint8_t number_input_view_draw(void *view, epd_paint_t *epd_paint, uint8_t x, ui
 // return old value
 int number_input_view_set_value(number_input_view_t *view, int value);
 
-void number_input_view_delete(number_input_view_t *view);
+void number_input_view_delete(void *view);
 
 bool number_input_view_set_state(void *view, view_state_t state);
 

@@ -12,35 +12,30 @@
 #define SLIDER_VIEW_HEIGHT 18
 #define SLIDER_VIEW_GAP 2
 
-slider_view_t *slider_view_create(int value, int min, int max) {
-    slider_view_t *view = malloc(sizeof(slider_view_t));
-    view->interface = (view_interface_t *) malloc(sizeof(view_interface_t));
-    view->interface->state = VIEW_STATE_NORMAL;
+view_t *slider_view_create(int value, int min, int max) {
+    view_t *view = malloc(sizeof(slider_view_t));
 
-    view->interface->draw = slider_view_draw;
-    view->interface->delete = slider_view_delete;
+    view->state = VIEW_STATE_NORMAL;
+    view->draw = slider_view_draw;
+    view->delete = slider_view_delete;
 
-    view->min = min;
-    view->max = max;
-    view->value = value;
+    slider_view_t *slider_view = (slider_view_t *)view;
 
-    if (view->value < min) {
-        view->value = min;
-    } else if (view->value > max) {
-        view->value = max;
+    slider_view->min = min;
+    slider_view->max = max;
+    slider_view->value = value;
+
+    if (slider_view->value < min) {
+        slider_view->value = min;
+    } else if (slider_view->value > max) {
+        slider_view->value = max;
     }
-
-    ESP_LOGI(TAG, "list view created");
     return view;
 }
 
-void slider_view_set_change_cb(slider_view_t *view, view_on_value_change_cb cb) {
-    view->cb = cb;
-}
-
 // return endx
-uint8_t slider_view_draw(void *v, epd_paint_t *epd_paint, uint8_t x, uint8_t y) {
-    slider_view_t *view = v;
+uint8_t slider_view_draw(view_t *v, epd_paint_t *epd_paint, uint8_t x, uint8_t y) {
+    slider_view_t *view = (slider_view_t *)v;
     epd_paint_draw_rectangle(epd_paint, x, y, x + SLIDER_VIEW_WIDTH, y + SLIDER_VIEW_HEIGHT, 1);
 
     // calc progress
@@ -83,7 +78,8 @@ uint8_t slider_view_draw(void *v, epd_paint_t *epd_paint, uint8_t x, uint8_t y) 
 }
 
 // return old value
-int slider_view_set_value(slider_view_t *view, int value) {
+int slider_view_set_value(view_t *v, int value) {
+    slider_view_t *view = (slider_view_t *)v;
     int backup_value = view->value;
     view->value = value;
     if (view->value < view->min) {
@@ -94,12 +90,9 @@ int slider_view_set_value(slider_view_t *view, int value) {
     return backup_value;
 }
 
-void slider_view_delete(void *view) {
+void slider_view_delete(view_t *view) {
     if (view != NULL) {
-        free(((slider_view_t *) view)->interface);
         free(view);
         view = NULL;
     }
-
-
 }

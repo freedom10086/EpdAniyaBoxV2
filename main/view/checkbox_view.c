@@ -12,26 +12,31 @@
 #define CHECK_BOX_VIEW_HEIGHT 18
 #define CHECK_BOX_VIEW_WIDTH 18
 
-checkbox_view_t *checkbox_view_create(bool checked) {
-    checkbox_view_t *view = malloc(sizeof(checkbox_view_t));
-    view->interface = (view_interface_t *) malloc(sizeof(view_interface_t));
-    view->interface->state = VIEW_STATE_NORMAL;
-    view->interface->draw = checkbox_view_draw;
-    view->interface->delete = checkbox_view_delete;
+static bool key_event(view_t *v, key_event_id_t event) {
+    if (event == KEY_OK_SHORT_CLICK) {
+        checkbox_view_toggle(v);
+        return true;
+    }
+    return false;
+}
 
-    view->checked = checked;
+view_t *checkbox_view_create(bool checked) {
+    view_t *view = malloc(sizeof(checkbox_view_t));
+    view->state = VIEW_STATE_NORMAL;
+
+    view->draw = checkbox_view_draw;
+    view->delete = checkbox_view_delete;
+    view->key_event = key_event;
+
+    ((checkbox_view_t *) view)->checked = checked;
 
     ESP_LOGI(TAG, "checkbox view created");
     return view;
 }
 
-void checkbox_view_set_change_cb(checkbox_view_t *view, view_on_value_change_cb cb) {
-    view->cb = cb;
-}
-
 // return endx
-uint8_t checkbox_view_draw(void *v, epd_paint_t *epd_paint, uint8_t x, uint8_t y) {
-    checkbox_view_t *view = v;
+uint8_t checkbox_view_draw(view_t *v, epd_paint_t *epd_paint, uint8_t x, uint8_t y) {
+    checkbox_view_t *view = (checkbox_view_t *) v;
 
     epd_paint_draw_rectangle(epd_paint, x, y, x + CHECK_BOX_VIEW_WIDTH, y + CHECK_BOX_VIEW_HEIGHT, 1);
     epd_paint_draw_rectangle(epd_paint, x + 1, y + 1, x + CHECK_BOX_VIEW_WIDTH - 1, y + CHECK_BOX_VIEW_HEIGHT - 1, 1);
@@ -45,7 +50,7 @@ uint8_t checkbox_view_draw(void *v, epd_paint_t *epd_paint, uint8_t x, uint8_t y
     uint8_t endx = x + CHECK_BOX_VIEW_WIDTH;
     uint8_t endy = y + CHECK_BOX_VIEW_HEIGHT;
 
-    switch (view->interface->state) {
+    switch (v->state) {
         case VIEW_STATE_FOCUS:
             // draw doted outline
             epd_paint_draw_doted_rectangle(epd_paint, x - VIEW_OUTLINE_GAP, y - VIEW_OUTLINE_GAP,
@@ -66,7 +71,8 @@ uint8_t checkbox_view_draw(void *v, epd_paint_t *epd_paint, uint8_t x, uint8_t y
 }
 
 // return new state
-bool checkbox_view_toggle(checkbox_view_t *view) {
+bool checkbox_view_toggle(view_t *v) {
+    checkbox_view_t *view = (checkbox_view_t *) v;
     if (view->checked) {
         view->checked = 0;
     } else {
@@ -75,18 +81,21 @@ bool checkbox_view_toggle(checkbox_view_t *view) {
     return view->checked;
 }
 
-bool checkbox_view_set_checked(checkbox_view_t *view, bool checked) {
+bool checkbox_view_get_checked(view_t *v) {
+    checkbox_view_t *view = (checkbox_view_t *) v;
+    return view->checked;
+}
+
+bool checkbox_view_set_checked(view_t *v, bool checked) {
+    checkbox_view_t *view = (checkbox_view_t *) v;
     bool before = view->checked;
     view->checked = checked;
     return before;
 }
 
-void checkbox_view_delete(void *v) {
+void checkbox_view_delete(view_t *v) {
     if (v != NULL) {
-        checkbox_view_t *view = v;
-        if (view != NULL) {
-            free(view);
-            view = NULL;
-        }
+        free(v);
+        v = NULL;
     }
 }

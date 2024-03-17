@@ -10,12 +10,11 @@
 #define TAG "menu_page"
 
 #define MENU_ITEM_COUNT 4
-#define MENU_START_Y 144
 #define MENU_ITEM_HEIGHT 56
 #define MENU_ITEM_WIDTH 50
 #define MENU_AUTO_CLOSE_TIMEOUT_TS 20
 
-static uint8_t current_index = 0;
+RTC_DATA_ATTR static uint8_t current_index = 0;
 RTC_DATA_ATTR static esp_timer_handle_t auto_close_timer_hdl = NULL;
 
 static void auto_close_timer_callback(void *arg) {
@@ -40,50 +39,48 @@ void menu_page_on_create(void *arg) {
 
 void menu_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     ESP_LOGI(TAG, "=== on draw ===");
+    uint8_t starty = epd_paint->height - MENU_ITEM_HEIGHT;
 
     //ESP_LOGI(TAG, "menu_page_draw");
-    epd_paint_clear_range(epd_paint, 0, MENU_START_Y, LCD_H_RES, LCD_V_RES, 0);
+    epd_paint_clear_range(epd_paint, 0, starty, LCD_H_RES, LCD_V_RES, 0);
 
     // draw line
-    epd_paint_draw_horizontal_line(epd_paint, 0, MENU_START_Y, LCD_H_RES, 1);
-    epd_paint_draw_horizontal_line(epd_paint, 0, MENU_START_Y + MENU_ITEM_HEIGHT, LCD_H_RES, 1);
+    epd_paint_draw_horizontal_line(epd_paint, 0, starty, LCD_H_RES, 1);
+    epd_paint_draw_horizontal_line(epd_paint, 0, starty + MENU_ITEM_HEIGHT, LCD_H_RES, 1);
 
-    epd_paint_draw_vertical_line(epd_paint, MENU_ITEM_WIDTH, MENU_START_Y, MENU_ITEM_HEIGHT * 2, 1);
-    epd_paint_draw_vertical_line(epd_paint, MENU_ITEM_WIDTH * 2, MENU_START_Y, MENU_ITEM_HEIGHT * 2, 1);
-    epd_paint_draw_vertical_line(epd_paint, MENU_ITEM_WIDTH * 3, MENU_START_Y, MENU_ITEM_HEIGHT * 2, 1);
+    epd_paint_draw_vertical_line(epd_paint, MENU_ITEM_WIDTH, starty, MENU_ITEM_HEIGHT * 2, 1);
+    epd_paint_draw_vertical_line(epd_paint, MENU_ITEM_WIDTH * 2, starty, MENU_ITEM_HEIGHT * 2, 1);
+    epd_paint_draw_vertical_line(epd_paint, MENU_ITEM_WIDTH * 3, starty, MENU_ITEM_HEIGHT * 2, 1);
 
     // draw icon
     // 0. home
-    epd_paint_draw_bitmap(epd_paint, 8, MENU_START_Y + 4, 35, 32,
+    epd_paint_draw_bitmap(epd_paint, 8, starty + 4, 35, 32,
                           (uint8_t *) ic_home_bmp_start,
                           ic_home_bmp_end - ic_home_bmp_start, 1);
-    uint16_t home[] = {0xD7CA, 0xB3D2, 0x00};
-    epd_paint_draw_string_at(epd_paint, 9, MENU_START_Y + 38, (char *) home, &Font_HZK16, 1);
+    epd_paint_draw_string_at(epd_paint, 9, starty + 38, (char *) text_home, &Font_HZK16, 1);
 
     // 1. image
-    epd_paint_draw_bitmap(epd_paint, MENU_ITEM_WIDTH + 7, MENU_START_Y + 4, 36, 32,
+    epd_paint_draw_bitmap(epd_paint, MENU_ITEM_WIDTH + 7, starty + 4, 36, 32,
                           (uint8_t *) ic_image_bmp_start,
                           ic_image_bmp_end - ic_image_bmp_start, 1);
-    uint16_t image[] = {0xBCCD, 0xACC6, 0x00};
-    epd_paint_draw_string_at(epd_paint, MENU_ITEM_WIDTH + 9, MENU_START_Y + 38, (char *) image, &Font_HZK16, 1);
+    epd_paint_draw_string_at(epd_paint, MENU_ITEM_WIDTH + 9, starty + 38, (char *) text_image, &Font_HZK16, 1);
 
     // 2. setting
-    epd_paint_draw_bitmap(epd_paint, MENU_ITEM_WIDTH * 2 + 8, MENU_START_Y + 4, 33, 32,
+    epd_paint_draw_bitmap(epd_paint, MENU_ITEM_WIDTH * 2 + 8, starty + 4, 33, 32,
                           (uint8_t *) ic_setting_bmp_start,
                           ic_setting_bmp_end - ic_setting_bmp_start, 1);
-    uint16_t setting[] = {0xE8C9, 0xC3D6, 0x00};
-    epd_paint_draw_string_at(epd_paint, MENU_ITEM_WIDTH * 2 + 9, MENU_START_Y + 38, (char *) setting, &Font_HZK16, 1);
+    epd_paint_draw_string_at(epd_paint, MENU_ITEM_WIDTH * 2 + 9, starty + 38, (char *) text_setting, &Font_HZK16, 1);
 
     // 3. close
-    epd_paint_draw_bitmap(epd_paint, MENU_ITEM_WIDTH * 3 + 8, MENU_START_Y + 4, 32, 32,
+    epd_paint_draw_bitmap(epd_paint, MENU_ITEM_WIDTH * 3 + 8, starty + 4, 32, 32,
                           (uint8_t *) ic_close_bmp_start,
                           ic_close_bmp_end - ic_close_bmp_start, 1);
-    uint16_t close[] = {0xD8B9, 0xD5B1, 0x00};
-    epd_paint_draw_string_at(epd_paint, MENU_ITEM_WIDTH * 3 + 9, MENU_START_Y + 38, (char *) close, &Font_HZK16, 1);
+
+    epd_paint_draw_string_at(epd_paint, MENU_ITEM_WIDTH * 3 + 9, starty + 38, (char *) text_close, &Font_HZK16, 1);
 
     // select item
     uint8_t startX = (current_index % 4) * MENU_ITEM_WIDTH + 1;
-    epd_paint_reverse_range(epd_paint, startX + 1, MENU_START_Y + 2, MENU_ITEM_WIDTH - 3, MENU_ITEM_HEIGHT - 2);
+    epd_paint_reverse_range(epd_paint, startX + 1, starty + 2, MENU_ITEM_WIDTH - 3, MENU_ITEM_HEIGHT - 2);
 }
 
 void menu_page_after_draw(uint32_t loop_cnt) {

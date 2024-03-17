@@ -17,10 +17,10 @@
 
 #define TAG "alarm-clock-page"
 
-static switch_view_t *enable_switch_view;
-static checkbox_view_t *week_checkbox_views[7];
-static number_input_view_t *hour_number_input_view, *minute_number_input_view;
-static button_view_t *save_button;
+static view_t *enable_switch_view;
+static view_t *week_checkbox_views[7];
+static view_t *hour_number_input_view, *minute_number_input_view;
+static view_t *save_button;
 
 static max31328_alarm_t alarm;
 static bool load_alarm_failed;
@@ -52,6 +52,27 @@ static void date_time_event_handler(void *arg, esp_event_base_t event_base, int3
     }
 }
 
+static void on_save_btn_click(view_t *v) {
+    alarm.en = switch_view_get_onoff(enable_switch_view);
+    alarm.mode = 0;
+    alarm.second = 0;
+    alarm.minute = number_input_view_get_value(minute_number_input_view);
+    alarm.hour = number_input_view_get_value(hour_number_input_view);;
+    alarm.day_week = 0;
+
+    for (int i = 0; i < 7; ++i) {
+        if (checkbox_view_get_checked(week_checkbox_views[i])) {
+            alarm.day_week |= (0x01 << i);
+        }
+    }
+
+    esp_err_t err = max31328_set_alarm1(&alarm);
+    if (err == ESP_OK) {
+        page_manager_close_page();
+        page_manager_request_update(false);
+    }
+}
+
 void alarm_clock_page_on_create(void *arg) {
     esp_err_t err = max31328_load_alarm1(&alarm);
     if (err != ESP_OK) {
@@ -72,19 +93,20 @@ void alarm_clock_page_on_create(void *arg) {
     }
 
     save_button = button_view_create((char *) text_save, &Font_HZK16);
+    view_set_click_cb(save_button, on_save_btn_click);
 
     // add to view group
     view_group = view_group_create();
-    view_group_add_view(view_group, enable_switch_view->interface);
+    view_group_add_view(view_group, enable_switch_view);
 
-    view_group_add_view(view_group, hour_number_input_view->interface);
-    view_group_add_view(view_group, minute_number_input_view->interface);
+    view_group_add_view(view_group, hour_number_input_view);
+    view_group_add_view(view_group, minute_number_input_view);
 
     for (int i = 0; i < 7; ++i) {
-        view_group_add_view(view_group, week_checkbox_views[i]->interface);
+        view_group_add_view(view_group, week_checkbox_views[i]);
     }
 
-    view_group_add_view(view_group, save_button->interface);
+    view_group_add_view(view_group, save_button);
 
     esp_event_handler_register(BIKE_DATE_TIME_SENSOR_EVENT, MAX31328_ALARM_CONFIG_UPDATE,
                                date_time_event_handler, NULL);
@@ -101,11 +123,11 @@ void alarm_clock_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     switch_view_draw(enable_switch_view, epd_paint, endx + 5, 8);
     uint8_t endy = 8 + Font_HZK16.Height;
 
-    if (enable_switch_view->on) {
+    if (switch_view_get_onoff(enable_switch_view)) {
         endy += 12;
         // hour
-        uint8_t startx = epd_paint->width / 2 - (hour_number_input_view->value >= 10 ? Font24.Width * 2 : Font24.Width)
-                         - 8;
+        uint8_t startx = epd_paint->width / 2 - (number_input_view_get_value(hour_number_input_view) >= 10
+                                                 ? Font24.Width * 2 : Font24.Width) - 8;
         number_input_view_draw(hour_number_input_view, epd_paint, startx, endy);
 
         //:
@@ -143,47 +165,19 @@ void alarm_clock_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
 }
 
 bool alarm_clock_page_key_click(key_event_id_t key_event_type) {
+    if (!load_alarm_failed) {
+        bool view_group_handled = view_group_handle_key_event(view_group, key_event_type);
+        if (view_group_handled) {
+            return true;
+        }
+    }
+
     switch (key_event_type) {
         case KEY_OK_SHORT_CLICK:
             if (load_alarm_failed) {
                 page_manager_close_page();
                 page_manager_request_update(false);
                 return true;
-            }
-
-            struct view_element_t *curr_focus = view_group_get_current_focus(view_group);
-            if (curr_focus != NULL) {
-                if (curr_focus->v->state == VIEW_STATE_FOCUS) {
-                    // select view
-                    curr_focus->v->state = VIEW_STATE_SELECTED;
-                    page_manager_request_update(false);
-
-                    // should pass click event ?
-                    if (curr_focus->v->click != NULL) {
-                        // interface save parent view
-                        // curr_focus->v->click(curr_focus->v);
-                    }
-
-                    return true;
-                }
-            }
-
-            break;
-        case KEY_FN_SHORT_CLICK:
-            if (load_alarm_failed) {
-                page_manager_close_page();
-                page_manager_request_update(false);
-                return true;
-            }
-
-            curr_focus = view_group_get_current_focus(view_group);
-            if (curr_focus != NULL) {
-                if (curr_focus->v->state == VIEW_STATE_SELECTED) {
-                    // unselect view
-                    curr_focus->v->state = VIEW_STATE_FOCUS;
-                    page_manager_request_update(false);
-                    return true;
-                }
             }
             break;
         case KEY_FN_LONG_CLICK: {
@@ -198,18 +192,6 @@ bool alarm_clock_page_key_click(key_event_id_t key_event_type) {
             page_manager_request_update(false);
             return true;
         }
-        case KEY_UP_SHORT_CLICK:
-            if (view_group_focus_pre(view_group)) {
-                page_manager_request_update(false);
-                return true;
-            }
-            break;
-        case KEY_DOWN_SHORT_CLICK:
-            if (view_group_focus_next(view_group)) {
-                page_manager_request_update(false);
-                return true;
-            }
-            break;
         default:
             break;
     }

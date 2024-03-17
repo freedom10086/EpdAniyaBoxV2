@@ -12,23 +12,32 @@
 #define SWITCH_VIEW_HEIGHT 18
 #define SWITCH_VIEW_WIDTH 42
 
-switch_view_t *switch_view_create(uint8_t onoff) {
-    switch_view_t *view = malloc(sizeof(switch_view_t));
-    view->interface = (view_interface_t *) malloc(sizeof(view_interface_t));
-    view->interface->state = VIEW_STATE_NORMAL;
+static bool key_event(view_t *v, key_event_id_t event) {
+    if (event == (key_event_id_t)KEY_OK_SHORT_CLICK) {
+        switch_view_toggle(v);
+        return true;
+    }
+    return false;
+}
 
-    view->interface->draw = switch_view_draw;
-    view->interface->delete = switch_view_delete;
+view_t *switch_view_create(uint8_t onoff) {
+    view_t *view = malloc(sizeof(switch_view_t));
 
-    view->on = onoff;
+    view->state = VIEW_STATE_NORMAL;
+    view->draw = switch_view_draw;
+    view->delete = switch_view_delete;
+    view->key_event = key_event;
+
+    switch_view_t *v = (switch_view_t *)view;
+    v->on = onoff;
 
     ESP_LOGI(TAG, "list view created");
     return view;
 }
 
 // return endx
-uint8_t switch_view_draw(void *v, epd_paint_t *epd_paint, uint8_t x, uint8_t y) {
-    switch_view_t *view = v;
+uint8_t switch_view_draw(view_t *v, epd_paint_t *epd_paint, uint8_t x, uint8_t y) {
+    switch_view_t *view = (switch_view_t *)v;
     epd_paint_draw_rectangle(epd_paint, x, y, x + SWITCH_VIEW_WIDTH, y + SWITCH_VIEW_HEIGHT, 1);
 
     if (view->on) {
@@ -52,7 +61,7 @@ uint8_t switch_view_draw(void *v, epd_paint_t *epd_paint, uint8_t x, uint8_t y) 
     uint8_t endx = x + SWITCH_VIEW_WIDTH;
     uint8_t endy = y + SWITCH_VIEW_HEIGHT;
 
-    switch (view->interface->state) {
+    switch (v->state) {
         case VIEW_STATE_FOCUS:
             // draw doted outline
             epd_paint_draw_doted_rectangle(epd_paint, x - VIEW_OUTLINE_GAP, y - VIEW_OUTLINE_GAP,
@@ -73,7 +82,8 @@ uint8_t switch_view_draw(void *v, epd_paint_t *epd_paint, uint8_t x, uint8_t y) 
 }
 
 // return new state
-uint8_t switch_view_toggle(switch_view_t *view) {
+bool switch_view_toggle(view_t *v) {
+    switch_view_t *view = (switch_view_t *)v;
     if (view->on) {
         view->on = 0;
     } else {
@@ -82,15 +92,20 @@ uint8_t switch_view_toggle(switch_view_t *view) {
     return view->on;
 }
 
-uint8_t switch_view_set_onoff(switch_view_t *view, uint8_t onoff) {
+bool switch_view_set_onoff(view_t *v, uint8_t onoff) {
+    switch_view_t *view = (switch_view_t *)v;
     uint8_t before = view->on;
     view->on = onoff;
     return before;
 }
 
-void switch_view_delete(void* view) {
+bool switch_view_get_onoff(view_t *v) {
+    switch_view_t *view = (switch_view_t *)v;
+    return view->on;
+}
+
+void switch_view_delete(view_t* view) {
     if (view != NULL) {
-        free(((switch_view_t *) view)->interface);
         free(view);
         view = NULL;
     }

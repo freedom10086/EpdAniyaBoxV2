@@ -3,6 +3,7 @@
 //
 
 #include "view_group.h"
+#include "page_manager.h"
 
 view_group_view_t *view_group_create() {
     view_group_view_t *group = malloc(sizeof(view_group_view_t));
@@ -12,7 +13,7 @@ view_group_view_t *view_group_create() {
     return group;
 }
 
-void view_group_add_view(view_group_view_t *group, view_interface_t *v) {
+void view_group_add_view(view_group_view_t *group, view_t *v) {
     struct view_element_t *head = group->head;
     while (head != NULL && head->next != NULL) {
         head = head->next;
@@ -32,7 +33,7 @@ void view_group_add_view(view_group_view_t *group, view_interface_t *v) {
     group->element_count += 1;
 }
 
-void view_group_remove_view(view_group_view_t *group, view_interface_t *v) {
+void view_group_remove_view(view_group_view_t *group, view_t *v) {
     struct view_element_t *pre = NULL;
     struct view_element_t *item = group->head;
     while (item != NULL) {
@@ -61,7 +62,7 @@ uint8_t view_group_view_count(view_group_view_t *group) {
     return group->element_count;
 }
 
-view_interface_t *view_group_get_view(view_group_view_t *group, uint8_t index) {
+view_t *view_group_get_view(view_group_view_t *group, uint8_t index) {
     assert(index < group->element_count);
     struct view_element_t *item = group->head;
     for (; index > 0; index--) {
@@ -204,4 +205,75 @@ void view_group_delete(view_group_view_t *v) {
     }
 
     free(v);
+}
+
+bool view_group_handle_key_event(view_group_view_t *group, key_event_id_t event) {
+    struct view_element_t *curr_focus = view_group_get_current_focus(group);
+    switch (event) {
+        case KEY_OK_SHORT_CLICK:
+            if (curr_focus != NULL) {
+                if (curr_focus->v->state == VIEW_STATE_FOCUS
+                    || curr_focus->v->state == VIEW_STATE_SELECTED) {
+
+                    if (curr_focus->v->state == VIEW_STATE_FOCUS) {
+                        // select view
+                        curr_focus->v->state = VIEW_STATE_SELECTED;
+                    }
+
+                    if (curr_focus->v->key_event != NULL) {
+                        // interface save parent view
+                        curr_focus->v->key_event(curr_focus->v, event);
+                    }
+
+                    page_manager_request_update(false);
+                    return true;
+                }
+            }
+            break;
+        case KEY_CANCEL_SHORT_CLICK:
+            if (curr_focus != NULL) {
+                if (curr_focus->v->state == VIEW_STATE_SELECTED) {
+                    // unselect view
+                    curr_focus->v->state = VIEW_STATE_FOCUS;
+                    page_manager_request_update(false);
+                    return true;
+                }
+            }
+            break;
+        case KEY_UP_SHORT_CLICK:
+            if (view_group_focus_pre(group)) {
+                page_manager_request_update(false);
+                return true;
+            }
+
+            if (curr_focus != NULL && curr_focus->v->state == VIEW_STATE_SELECTED) {
+                if (curr_focus->v->key_event != NULL) {
+                    bool handle = curr_focus->v->key_event(curr_focus->v, event);
+                    if (handle) {
+                        page_manager_request_update(false);
+                    }
+                    return handle;
+                }
+            }
+            break;
+        case KEY_DOWN_SHORT_CLICK:
+            if (view_group_focus_next(group)) {
+                page_manager_request_update(false);
+                return true;
+            }
+
+            if (curr_focus != NULL && curr_focus->v->state == VIEW_STATE_SELECTED) {
+                if (curr_focus->v->key_event != NULL) {
+                    bool handle = curr_focus->v->key_event(curr_focus->v, event);
+                    if (handle) {
+                        page_manager_request_update(false);
+                    }
+                    return handle;
+                }
+            }
+            break;
+        default:
+            break;
+    }
+    return false;
 }

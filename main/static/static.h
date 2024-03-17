@@ -67,6 +67,9 @@ extern const uint8_t ic_playing_bmp_end[] asm("_binary_ic_playing_32_bmp_end");
 extern const uint8_t ic_summary_bmp_start[] asm("_binary_ic_summary_32_bmp_start");
 extern const uint8_t ic_summary_bmp_end[] asm("_binary_ic_summary_32_bmp_end");
 
+extern const uint8_t ic_alarm_bmp_start[] asm("_binary_ic_alarm_32_bmp_start");
+extern const uint8_t ic_alarm_bmp_end[] asm("_binary_ic_alarm_32_bmp_end");
+
 // https://www.qqxiuzi.cn/bianma/zifuji.php
 // 蓝牙已打开
 static const uint8_t text_ble_on[] = {0xC0, 0xB6, 0xD1, 0xC0, 0xD2, 0xD1, 0xB4, 0xF2, 0xBF, 0xAA, 0x00};
@@ -121,4 +124,15 @@ static const uint16_t text_week_num[][2] = {
 // 保存
 static const uint8_t text_save[] = {0xB1, 0xA3, 0xB4, 0xE6, 0x00};
 
+// 首页
+static const uint16_t text_home[] = {0xD7CA, 0xB3D2, 0x00};
+
+// 图片
+static const  uint16_t text_image[] = {0xBCCD, 0xACC6, 0x00};
+
+// 设置
+static const uint16_t text_setting[] = {0xE8C9, 0xC3D6, 0x00};
+
+// 关闭
+static const uint16_t text_close[] = {0xD8B9, 0xD5B1, 0x00};
 #endif

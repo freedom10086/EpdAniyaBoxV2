@@ -14,7 +14,7 @@
 #include "view_common.h"
 
 struct view_element_t {
-    view_interface_t *v;
+    view_t *v;
     struct view_element_t *next;
 } ;
 
@@ -26,13 +26,13 @@ typedef struct {
 
 view_group_view_t *view_group_create();
 
-void view_group_add_view(view_group_view_t *group, view_interface_t *v);
+void view_group_add_view(view_group_view_t *group, view_t *v);
 
-void view_group_remove_view(view_group_view_t *group, view_interface_t *v);
+void view_group_remove_view(view_group_view_t *group, view_t *v);
 
 uint8_t view_group_view_count(view_group_view_t *group);
 
-view_interface_t *view_group_get_view(view_group_view_t *group, uint8_t index);
+view_t *view_group_get_view(view_group_view_t *group, uint8_t index);
 
 void view_group_delete(view_group_view_t * v);
 
@@ -43,5 +43,7 @@ bool view_group_focus_pre(view_group_view_t * v);
 bool view_group_focus_next(view_group_view_t * v);
 
 void view_group_select_current();
+
+bool view_group_handle_key_event(view_group_view_t *group, key_event_id_t event);
 
 #endif //ANIYA_BOX_V2_VIEW_GROUP_H

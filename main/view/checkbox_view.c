@@ -22,8 +22,9 @@ static bool key_event(view_t *v, key_event_id_t event) {
 
 view_t *checkbox_view_create(bool checked) {
     view_t *view = malloc(sizeof(checkbox_view_t));
-    view->state = VIEW_STATE_NORMAL;
 
+    view->state = VIEW_STATE_NORMAL;
+    view->selectable = false;
     view->draw = checkbox_view_draw;
     view->delete = checkbox_view_delete;
     view->key_event = key_event;
@@ -56,12 +57,6 @@ uint8_t checkbox_view_draw(view_t *v, epd_paint_t *epd_paint, uint8_t x, uint8_t
             epd_paint_draw_doted_rectangle(epd_paint, x - VIEW_OUTLINE_GAP, y - VIEW_OUTLINE_GAP,
                                            endx + VIEW_OUTLINE_GAP,
                                            endy + VIEW_OUTLINE_GAP, 1);
-            break;
-        case VIEW_STATE_SELECTED:
-            // draw solid outline
-            epd_paint_draw_rectangle(epd_paint, x - VIEW_OUTLINE_GAP, y - VIEW_OUTLINE_GAP,
-                                     endx + VIEW_OUTLINE_GAP,
-                                     endy + VIEW_OUTLINE_GAP, 1);
             break;
         default:
             break;

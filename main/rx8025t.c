@@ -560,6 +560,9 @@ esp_err_t rx8025_set_alarm(rx8025t_alarm_t *alarm) {
     write_buf[1] = read_buf[0];
     write_buf[2] = read_buf[1];
     write_buf[3] = read_buf[2];
+
+    ESP_LOGI(TAG, "set alarm en:%d mode:%d minute:%d, hour:%d dayweek:%d",
+             alarm->en, alarm->mode, alarm->minute, alarm->hour, alarm->day_week);
     return i2c_write(write_buf, sizeof(write_buf));
 }
 

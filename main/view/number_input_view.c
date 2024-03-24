@@ -29,6 +29,7 @@ view_t *number_input_view_create(int value, int min, int max, int gap, sFONT *fo
     view_t *view = malloc(sizeof(number_input_view_t));
 
     view->state = VIEW_STATE_NORMAL;
+    view->selectable = true;
     view->draw = number_input_view_draw;
     view->delete = number_input_view_delete;
     view->key_event = key_event;

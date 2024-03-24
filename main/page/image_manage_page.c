@@ -10,29 +10,19 @@
 #include "view/list_view.h"
 
 #include "lcd/display.h"
-#include "common_utils.h"
 #include "page_manager.h"
 #include "battery.h"
+#include "qrcode.h"
 
 #define TAG "setting-page"
 #define HTTP_PREFIX "http://"
 
-list_view_t *list_view = NULL;
+
 static bool wifi_on = false;
 
-static char draw_buff[24] = {};
-
-void init_list_view(int y) {
-    list_view = list_vew_create(20, y, 120, 80, &Font16);
-    list_view_add_element(list_view, wifi_on ? "clsoe wifi" : "open wifi");
-    list_view_add_element(list_view, "bbbbb");
-    list_view_add_element(list_view, "ccccc");
-    list_view_add_element(list_view, "ddddd");
-}
+static char draw_buff[64] = {};
 
 void image_manage_page_on_create(void *arg) {
-    init_list_view(20);
-
     //ESP_ERR_WIFI_NOT_INIT
     wifi_mode_t wifi_mode;
     esp_err_t err = esp_wifi_get_mode(&wifi_mode);
@@ -76,6 +66,13 @@ void image_manage_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
                          draw_buff + strlen(HTTP_PREFIX),
                          sizeof(draw_buff) - strlen(HTTP_PREFIX));
         epd_paint_draw_string_at(epd_paint, 4, y, draw_buff, &Font16, 1);
+
+        y += 20;
+
+        esp_qrcode_config_t cfg = ESP_QRCODE_CONFIG_DEFAULT();
+
+        sprintf(draw_buff, "WIFI:T:WPA;S:%s;P:%s;", CONFIG_WIFI_SSID, CONFIG_WIFI_PASSWORD);
+        esp_qrcode_generate(&cfg, (const char *) draw_buff);
     } else {
         epd_paint_draw_string_at(epd_paint, 4, y,
                                  (char[]) {0xBB, 0xF1, 0xC8, 0xA1, 0x49, 0x50,
@@ -84,10 +81,6 @@ void image_manage_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     }
     y += 20;
 
-    //
-    //http://192.168.4.1/
-
-    //list_vew_draw(list_view, epd_paint, loop_cnt);
     epd_paint_draw_string_at(epd_paint, 52, 174,
                              (char[]) {0xB0, 0xB4, 0xC8, 0xCE, 0xD2, 0xE2, 0xBC,
                                        0xFC, 0xCD, 0xCB, 0xB3, 0xF6, 0x00},
@@ -109,8 +102,6 @@ void image_manage_page_on_destroy(void *arg) {
         wifi_deinit_softap();
         wifi_on = false;
     }
-
-    list_view_deinit(list_view);
 }
 
 int image_manage_page_on_enter_sleep(void *args) {

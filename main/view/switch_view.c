@@ -23,6 +23,7 @@ static bool key_event(view_t *v, key_event_id_t event) {
 view_t *switch_view_create(uint8_t onoff) {
     view_t *view = malloc(sizeof(switch_view_t));
 
+    view->selectable = false;
     view->state = VIEW_STATE_NORMAL;
     view->draw = switch_view_draw;
     view->delete = switch_view_delete;
@@ -67,12 +68,6 @@ uint8_t switch_view_draw(view_t *v, epd_paint_t *epd_paint, uint8_t x, uint8_t y
             epd_paint_draw_doted_rectangle(epd_paint, x - VIEW_OUTLINE_GAP, y - VIEW_OUTLINE_GAP,
                                            endx + VIEW_OUTLINE_GAP,
                                            endy + VIEW_OUTLINE_GAP, 1);
-            break;
-        case VIEW_STATE_SELECTED:
-            // draw solid outline
-            epd_paint_draw_rectangle(epd_paint, x - VIEW_OUTLINE_GAP, y - VIEW_OUTLINE_GAP,
-                                     endx + VIEW_OUTLINE_GAP,
-                                     endy + VIEW_OUTLINE_GAP, 1);
             break;
         default:
             break;

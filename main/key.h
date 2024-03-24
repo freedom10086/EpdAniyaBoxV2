@@ -10,10 +10,10 @@ ESP_EVENT_DECLARE_BASE(BIKE_KEY_EVENT);
 
 #define KEY_COUNT 2
 
-#define KEY_FN_NUM 2
-#define KEY_ENCODER_PUSH_NUM 0
-#define KEY_ENCODER_A_NUM 1
-#define KEY_ENCODER_B_NUM 9
+#define KEY_FN_NUM 9
+#define KEY_ENCODER_PUSH_NUM 14
+#define KEY_ENCODER_A_NUM 8
+#define KEY_ENCODER_B_NUM 11
 
 /**
  * key click event

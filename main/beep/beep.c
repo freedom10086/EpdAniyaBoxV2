@@ -10,7 +10,6 @@
 #include "esp_system.h"
 #include "nvs_flash.h"
 #include "nvs.h"
-#include "driver/gpio.h"
 #include "common_utils.h"
 
 #include "musical_score_encoder.h"
@@ -35,12 +34,17 @@ static beep_mode_t beep_mode = BEEP_MODE_NONE;
  * 0-255 -> duty 10% -> 50%
  * 50%占空比音量最大
  */
-uint8_t _beep_volume = 0;
+static uint8_t _beep_volume = 0;
 
-rmt_channel_handle_t buzzer_chan = NULL;
-rmt_encoder_handle_t score_encoder = NULL;
+static rmt_channel_handle_t buzzer_chan = NULL;
+static rmt_encoder_handle_t score_encoder = NULL;
 
-esp_err_t beep_init_pwm_mode() {
+static buzzer_musical_score_t *curr_song;
+static uint16_t curr_song_len;
+
+
+static TaskHandle_t play_task_hdl = NULL;
+static esp_err_t beep_init_pwm_mode() {
     // Prepare and then apply the LEDC PWM timer configuration
     ledc_timer_config_t ledc_timer = {
             .speed_mode       = LEDC_MODE,
@@ -66,7 +70,7 @@ esp_err_t beep_init_pwm_mode() {
     return err;
 }
 
-esp_err_t beep_init_rmt_mode() {
+static esp_err_t beep_init_rmt_mode() {
     ESP_LOGI(TAG, "Create RMT TX channel");
     rmt_tx_channel_config_t tx_chan_config = {
             .clk_src = RMT_CLK_SRC_DEFAULT, // select source clock
@@ -132,9 +136,24 @@ esp_err_t beep_start_play(const buzzer_musical_score_t *song, uint16_t song_len)
     esp_err_t err = ESP_OK;
 
     if (beep_mode == BEEP_MODE_PWM) {
+        bool duty_zero = true;
         for (size_t i = 0; i < song_len; i++) {
-            ESP_LOGI(TAG, "start play song index %d", i);
-            ledc_set_freq(LEDC_MODE, LEDC_TIMER, song[i].freq_hz);
+            ESP_LOGI(TAG, "[pwm]start play song index %d", i);
+            if (song[i].freq_hz == 0) {
+                if (!duty_zero) {
+                    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, 0);
+                    ESP_ERROR_CHECK(ledc_update_duty(LEDC_MODE, LEDC_CHANNEL));
+                }
+                duty_zero = true;
+            } else {
+                if (duty_zero) {
+                    ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, LEDC_DUTY);
+                    ESP_ERROR_CHECK(ledc_update_duty(LEDC_MODE, LEDC_CHANNEL));
+                    esp_err_t err = ledc_timer_resume(LEDC_MODE, LEDC_TIMER);
+                }
+                ledc_set_freq(LEDC_MODE, LEDC_TIMER, song[i].freq_hz);
+                duty_zero = false;
+            }
             vTaskDelay(pdMS_TO_TICKS(song[i].duration_ms));
         }
     } else {
@@ -143,7 +162,7 @@ esp_err_t beep_start_play(const buzzer_musical_score_t *song, uint16_t song_len)
             rmt_transmit_config_t tx_config = {
                     .loop_count = song[i].duration_ms * song[i].freq_hz / 1000,
             };
-            ESP_LOGI(TAG, "start play song index %d", i);
+            ESP_LOGI(TAG, "[rmt]start play song index %d", i);
             if (song[i].freq_hz < 10) {
                 vTaskDelay(pdMS_TO_TICKS(song[i].duration_ms));
             } else {
@@ -157,6 +176,35 @@ esp_err_t beep_start_play(const buzzer_musical_score_t *song, uint16_t song_len)
         }
     }
     return ESP_OK;
+}
+
+static void beep_play_task_entry(void *arg) {
+    beep_start_play(curr_song, curr_song_len);
+
+    play_task_hdl = NULL;
+    vTaskDelete(NULL);
+}
+
+
+esp_err_t beep_start_play_async(const buzzer_musical_score_t *song, uint16_t song_len) {
+    if (play_task_hdl != NULL) {
+        vTaskDelete(play_task_hdl);
+    }
+
+    curr_song = song;
+    curr_song_len = song_len;
+
+    /* Create task */
+    BaseType_t err = xTaskCreate(
+            beep_play_task_entry,
+            "play_tsk",
+            2048,
+            NULL,
+            3, // less pri, small less
+            &play_task_hdl);
+
+    ESP_LOGI(TAG, "create play task success");
+    return err;
 }
 
 esp_err_t stop_beep() {

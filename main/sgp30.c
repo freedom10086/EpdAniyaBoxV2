@@ -56,17 +56,6 @@ static bool sgp30_inited = false;
 static uint16_t TVOC, CO2;
 static uint16_t rawH2, rawEthanol;
 
-static esp_err_t i2c_read(uint16_t reg_addr, uint8_t *data, size_t len) {
-    uint8_t u8_reg_addr[] = {reg_addr >> 8, reg_addr & 0xff};
-    esp_err_t err = i2c_master_transmit_receive(dev_handle,
-                                                u8_reg_addr, 2, data, len,
-                                                I2C_MASTER_TIMEOUT_MS);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "read i2c failed, for dev:%x addr:%x,  %s", SGP30_ADDR, reg_addr, esp_err_to_name(err));
-    }
-    return err;
-}
-
 static esp_err_t i2c_write_cmd(uint16_t reg_addr) {
 
     int ret;
@@ -107,24 +96,45 @@ static uint8_t crc8(const uint8_t *data, uint8_t len) {
     return crc;
 }
 
-static esp_err_t sgp_i2c_read(uint16_t reg_addr, uint16_t *readdata, uint8_t read_len) {
-    const uint8_t SGP30_WORD_LEN = 2;
-    uint8_t replylen = read_len * (SGP30_WORD_LEN + 1);
+static esp_err_t sgp_i2c_read(uint16_t *readdata, uint8_t read_len) {
+    const uint8_t SHT40_WORD_LEN = 2;
+    uint8_t replylen = read_len * (SHT40_WORD_LEN + 1);
     uint8_t replybuffer[replylen];
-    esp_err_t err = i2c_read(reg_addr, replybuffer, replylen);
+
+    esp_err_t err = i2c_master_receive(dev_handle,
+                                       replybuffer, replylen, I2C_MASTER_TIMEOUT_MS);
+
+    print_bytes(replybuffer, replylen);
+
     if (err != ESP_OK) {
-        return err;
+        ESP_LOGE(TAG, "read i2c failed, for dev:%x %s", SGP30_ADDR, esp_err_to_name(err));
     }
+
     for (uint8_t i = 0; i < read_len; i++) {
         uint8_t crc = crc8(replybuffer + i * 3, 2);
 
-        if (crc != replybuffer[i * 3 + 2])
-            return ESP_ERR_INVALID_CRC;
+        if (crc != replybuffer[i * 3 + 2]) {
+            // return ESP_ERR_INVALID_CRC;
+        }
+
         // success! store it
-        readdata[i] = replybuffer[i * 3];
-        readdata[i] <<= 8;
-        readdata[i] |= replybuffer[i * 3 + 1];
+        readdata[i] = (replybuffer[i * 3] << 8) | replybuffer[i * 3 + 1];
     }
+
+    ESP_LOGI(TAG, "read i2c  %d %s", err, esp_err_to_name(err));
+    return err;
+}
+
+esp_err_t sgp30_read_serial_id() {
+    i2c_write_cmd(SGP30_GET_SERIAL_ID);
+
+    uint16_t reply[3];
+    esp_err_t err = sgp_i2c_read(reply, 3);
+    if (err != ESP_OK) {
+        ESP_LOGI(TAG, "read serial fail %d %s", err, esp_err_to_name(err));
+        return err;
+    }
+    ESP_LOGI(TAG, "serial number %x %x %x", reply[0], reply[1], reply[2]);
     return ESP_OK;
 }
 
@@ -136,11 +146,13 @@ void sgp30_init() {
     i2c_device_config_t dev_cfg = {
             .dev_addr_length = I2C_ADDR_BIT_LEN_7,
             .device_address = SGP30_ADDR,
-            .scl_speed_hz = 200000,
+            .scl_speed_hz = 100000,
     };
     ESP_ERROR_CHECK(i2c_master_bus_add_device(i2c_bus_handle, &dev_cfg, &dev_handle));
 
-    ESP_LOGI(TAG, "SGP30 inited...");
+    sgp30_read_serial_id();
+
+    ESP_LOGI(TAG, "inited...");
     sgp30_inited = true;
 }
 
@@ -151,45 +163,46 @@ void spg30_deinit() {
     }
 }
 
-esp_err_t sgp30_read_serial_id() {
-    uint16_t reply[3];
-    esp_err_t err = sgp_i2c_read(SGP30_GET_SERIAL_ID, reply, 3);
-    if (err != ESP_OK) {
-        return err;
-    }
-    return ESP_OK;
-}
-
-
 esp_err_t sgp30_iaq_init() {
     return i2c_write_cmd(SGP30_IAQ_INIT);
 }
 
 esp_err_t sgp30_iaq_measure() {
+    i2c_write_cmd(SGP30_MEASURE_IAQ);
+    vTaskDelay(pdMS_TO_TICKS(30));
+
     uint16_t reply[2];
-    esp_err_t err = sgp_i2c_read(SGP30_MEASURE_IAQ, reply, 2);
+    esp_err_t err = sgp_i2c_read(reply, 2);
     if (err != ESP_OK) {
         return err;
     }
     TVOC = reply[1];
     CO2 = reply[0];
+    ESP_LOGI(TAG, "get measure tvoc:%d co2:%d", TVOC, CO2);
     return ESP_OK;
 }
 
 esp_err_t sgp30_iaq_measure_raw() {
+    i2c_write_cmd(SGP30_MEASURE_RAW);
+    vTaskDelay(pdMS_TO_TICKS(25));
+
     uint16_t reply[2];
-    esp_err_t err = sgp_i2c_read(SGP30_MEASURE_RAW, reply, 2);
+    esp_err_t err = sgp_i2c_read(reply, 2);
     if (err != ESP_OK) {
         return err;
     }
     rawEthanol = reply[1];
     rawH2 = reply[0];
+    ESP_LOGI(TAG, "get measure raw rawEthanol:%d rawH2:%d", rawEthanol, rawH2);
     return ESP_OK;
 }
 
 esp_err_t sgp30_get_iaq_baseline(uint16_t *co2_base, uint16_t *tvoc_base) {
+    i2c_write_cmd(SGP30_GET_SERIAL_ID);
+    vTaskDelay(pdMS_TO_TICKS(10));
+
     uint16_t reply[2];
-    esp_err_t err = sgp_i2c_read(SGP30_GET_IAQ_BASELINE, reply, 2);
+    esp_err_t err = sgp_i2c_read(reply, 2);
     if (err != ESP_OK) {
         return err;
     }

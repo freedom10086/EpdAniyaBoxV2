@@ -25,11 +25,16 @@
 #include "max31328.h"
 #include "sht40.h"
 #include "beep/beep.h"
+#include "opt3001.h"
+#include "spl06.h"
+#include "sgp30.h"
 
 static const char *TAG = "BIKE_MAIN";
 #define I2C_MASTER_NUM              0
-#define I2C_SCL_IO 11
-#define I2C_SDA_IO 8
+#define I2C_SCL_IO 0
+#define I2C_SDA_IO 1
+
+#define SENSOR_PWR_IO 2
 
 i2c_master_bus_handle_t i2c_bus_handle;
 
@@ -37,16 +42,31 @@ RTC_DATA_ATTR uint32_t boot_count = 0;
 
 static esp_err_t i2c_master_init(void);
 
+static void test_sensors();
+
+void sensor_power_onoff(bool on) {
+    gpio_config_t io_conf = {
+            .intr_type = GPIO_INTR_DISABLE,
+            .mode = GPIO_MODE_OUTPUT,
+            .pin_bit_mask = (1ULL << SENSOR_PWR_IO),
+            .pull_down_en = 0,
+            .pull_up_en = 0,
+
+    };
+    gpio_config(&io_conf);
+    gpio_set_level(SENSOR_PWR_IO, on ? 1 : 0);
+    ESP_LOGI(TAG, "sensor power %s", on ? "on" : "off");
+}
 
 /**********************
  *   APPLICATION MAIN
  **********************/
 void app_main() {
     //esp_log_level_set("*", ESP_LOG_WARN);
-    esp_log_level_set("battery", ESP_LOG_WARN);
+    // esp_log_level_set("battery", ESP_LOG_WARN);
     // esp_log_level_set("keyboard", ESP_LOG_WARN);
-    esp_log_level_set("LIS3DH", ESP_LOG_WARN);
-    esp_log_level_set("page-manager", ESP_LOG_WARN);
+    // esp_log_level_set("LIS3DH", ESP_LOG_WARN);
+    // esp_log_level_set("page-manager", ESP_LOG_WARN);
 
     boot_count++;
     box_get_wakeup_ionum();
@@ -56,6 +76,8 @@ void app_main() {
 
     //install gpio isr service
     gpio_install_isr_service(0);
+
+    sensor_power_onoff(true);
 
     /**
      * init iic
@@ -75,14 +97,16 @@ void app_main() {
     /**
      * lcd
      */
-    display_init(boot_count);
+    //display_init(boot_count);
 
     // max31328
     max31328_init();
 
-    vTaskDelay(pdMS_TO_TICKS(1000));
-    lis3dh_init(LIS3DH_LOW_POWER_MODE, LIS3DH_ACC_RANGE_2,LIS3DH_ACC_SAMPLE_RATE_25);
-    lis3dh_config_motion_detect();
+    //vTaskDelay(pdMS_TO_TICKS(1000));
+    //lis3dh_init(LIS3DH_LOW_POWER_MODE, LIS3DH_ACC_RANGE_2, LIS3DH_ACC_SAMPLE_RATE_25);
+    //lis3dh_config_motion_detect();
+
+    test_sensors();
 }
 
 /**
@@ -110,7 +134,7 @@ static esp_err_t i2c_master_init(void) {
 
 void box_enter_deep_sleep(int sleep_ts) {
     if (sleep_ts > 0) {
-        esp_sleep_enable_timer_wakeup((uint64_t)sleep_ts * 1000000);
+        esp_sleep_enable_timer_wakeup((uint64_t) sleep_ts * 1000000);
     } else if (sleep_ts == 0) {
         esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER);
     }
@@ -152,10 +176,10 @@ gpio_num_t box_get_wakeup_ionum() {
             break;
         }
 #if SOC_GPIO_SUPPORT_DEEPSLEEP_WAKEUP
-        case ESP_SLEEP_WAKEUP_GPIO: {
-            wakeup_pin_mask = esp_sleep_get_gpio_wakeup_status();
-            break;
-        }
+            case ESP_SLEEP_WAKEUP_GPIO: {
+                wakeup_pin_mask = esp_sleep_get_gpio_wakeup_status();
+                break;
+            }
 #endif
         case ESP_SLEEP_WAKEUP_UNDEFINED:
         default:
@@ -168,4 +192,66 @@ gpio_num_t box_get_wakeup_ionum() {
         return pin;
     }
     return GPIO_NUM_NC;
+}
+
+static void test_sensors() {
+    sht40_init();
+    sht40_reset();
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    float temp, hum;
+    if (sht40_get_temp_hum(&temp, &hum) == ESP_OK) {
+        ESP_LOGI(TAG, "read temp %f hum %f", temp, hum);
+    } else {
+        ESP_LOGE(TAG, "read temp and hum fail");
+    }
+
+    uint8_t year, month, day, week, hour, minute, second;
+    for (int i = 0; i < 2; ++i) {
+        if (max31328_get_time(&year, &month, &day, &week, &hour, &minute, &second) == ESP_OK) {
+            ESP_LOGI(TAG, "read time 20%d-%d-%d week:%d %d:%d:%d", year, month, day, week, hour, minute, second);
+            vTaskDelay(pdMS_TO_TICKS(1000));
+        } else {
+            ESP_LOGE(TAG, "read time fail");
+        }
+
+    }
+
+    opt3001_init();
+    float lux;
+    opt3001_start_once(0);
+    vTaskDelay(pdMS_TO_TICKS(200));
+
+    if (opt3001_read_lux(&lux) == ESP_OK) {
+        ESP_LOGI(TAG, "read lux %f", lux);
+    } else {
+        ESP_LOGE(TAG, "read lux fail");
+    }
+
+    spl06_init();
+    spl06_start(false);
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    ESP_LOGI(TAG, "read pressure %f", spl06_get_pressure());
+    ESP_LOGI(TAG, "read pressure temp %f", spl06_get_temperature());
+    spl06_stop();
+
+    //beep_init(BEEP_MODE_RMT);
+    //beep_start_play_async(music_score_hszy, sizeof(music_score_hszy) / sizeof(music_score_hszy[0]));
+
+    sgp30_init();
+
+    sgp30_reset();
+    vTaskDelay(pdMS_TO_TICKS(1000));
+
+    sgp30_iaq_init();
+    vTaskDelay(pdMS_TO_TICKS(50));
+    vTaskDelay(pdMS_TO_TICKS(5000));
+
+    for (int i = 0; i < 100; ++i) {
+        sgp30_iaq_init();
+        vTaskDelay(pdMS_TO_TICKS(5000));
+        sgp30_iaq_measure();
+        vTaskDelay(pdMS_TO_TICKS(5000));
+        sgp30_iaq_measure_raw();
+    }
 }

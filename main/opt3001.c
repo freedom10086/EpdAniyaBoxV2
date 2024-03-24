@@ -8,6 +8,7 @@
 #include "math.h"
 #include "esp_log.h"
 #include "string.h"
+#include "common_utils.h"
 
 ESP_EVENT_DEFINE_BASE(BIKE_LIGHT_SENSOR_EVENT);
 
@@ -64,9 +65,15 @@ static esp_err_t opt_i2c_write(uint8_t reg_addr, uint16_t *write_data, size_t le
     uint8_t write_buff[1 + len * 2];
 
     write_buff[0] = reg_addr;
-    memcpy(write_buff + 1, write_data, len * 2);
+    for (int i = 0; i < len; ++i) {
+        write_buff[1 + i * 2] = write_data[i] >> 8;
+        write_buff[2 + i * 2] = write_data[i] & 0xff;
+    }
 
-    ret = i2c_master_transmit(dev_handle, write_buff, 2 + len, I2C_MASTER_TIMEOUT_MS);
+    printf("write reg: %d \n", reg_addr);
+    print_bytes(write_buff, 1 + len * 2);
+
+    ret = i2c_master_transmit(dev_handle, write_buff, 1 + len * 2, I2C_MASTER_TIMEOUT_MS);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "write i2c data failed, for dev:%x addr:%x,  %s", OPT_3001_ADDR, reg_addr, esp_err_to_name(ret));
     }
@@ -85,6 +92,9 @@ static esp_err_t opt_i2c_read(uint8_t reg_addr, uint16_t *readdata, uint8_t read
         ESP_LOGE(TAG, "read i2c failed, for dev:%x addr:%x,  %s", OPT_3001_ADDR, reg_addr, esp_err_to_name(err));
         return err;
     }
+
+    printf("read reg: %d \n", reg_addr);
+    print_bytes(replybuffer, replylen);
 
     for (uint8_t i = 0; i < read_len; i++) {
         readdata[i] = (replybuffer[i * 2] << 8) | replybuffer[i * 2 + 1];
@@ -121,6 +131,7 @@ esp_err_t opt3001_init() {
     }
 
     opt3001_inited = true;
+    ESP_LOGI(TAG, "inited");
     return ESP_OK;
 }
 
@@ -133,11 +144,24 @@ void opt3001_deinit() {
     opt3001_inited = false;
 }
 
+esp_err_t opt3001_read_config() {
+    esp_err_t err = opt_i2c_read(OPT_3001_REG_CONFIG, &opt3001_config.raw_data, 1);
+    if (err == ESP_OK) {
+
+        ESP_LOGI(TAG, "read config mode: %x", opt3001_config.range_number);
+
+        opt3001_config_read = true;
+    }
+    return err;
+}
+
 esp_err_t opt3001_read_lux(float *lux) {
     esp_err_t err = opt3001_init();
     if (err != ESP_OK) {
         return err;
     }
+
+    opt3001_read_config();
 
     opt3001_r_t read_out;
     err = opt_i2c_read(OPT_3001_REG_RESULT, &read_out.raw_data, 1);
@@ -185,14 +209,6 @@ esp_err_t opt3001_read_high_limit(float *lux) {
     uint16_t r = read_out.r;
     *lux = 0.01f * pow(2, e) * r;
     return ESP_OK;
-}
-
-esp_err_t opt3001_read_config() {
-    esp_err_t err = opt_i2c_read(OPT_3001_REG_CONFIG, &opt3001_config.raw_data, 1);
-    if (err == ESP_OK) {
-        opt3001_config_read = true;
-    }
-    return err;
 }
 
 esp_err_t opt3001_read_mode(opt3001_mode_t *mode) {

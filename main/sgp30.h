@@ -45,6 +45,7 @@ void sgp30_deinit();
 
 esp_err_t sgp30_iaq_init();
 esp_err_t sgp30_iaq_measure();
+esp_err_t sgp30_iaq_measure_raw();
 esp_err_t sgp30_set_humidity(float temp, float hum);
 //tvoc: 0 ppb to 60000 ppb, co2:400 ppm to 60000 ppm
 esp_err_t sgp30_get_result(uint16_t *tvoc, uint16_t *co2);

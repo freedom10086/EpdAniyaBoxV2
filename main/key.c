@@ -364,7 +364,6 @@ void key_init() {
 
     ESP_LOGI(TAG, "keyboard task init OK");
 
-    // bit_mask = (1ull << KEY_1_NUM) | (1ull << KEY_2_NUM) | (1ull << KEY_3_NUM) | (1ull << KEY_4_NUM),
     uint64_t bit_mask = 0;
     for (uint8_t i = 0; i < KEY_COUNT; ++i) {
         bit_mask |= (1ull << key_state_list[i].key_num);
@@ -379,12 +378,13 @@ void key_init() {
     };
     ESP_ERROR_CHECK(gpio_config(&io_config));
 
-    //ESP_LOGI(TAG, "io %d, level %d", KEY_1_NUM, gpio_get_level(KEY_1_NUM));
-    //ESP_LOGI(TAG, "io %d, level %d", KEY_2_NUM, gpio_get_level(KEY_2_NUM));
+    for (uint8_t i = 0; i < KEY_COUNT; ++i) {
+        ESP_LOGI(TAG, "io %d, level %d", key_state_list[i].key_num, gpio_get_level(key_state_list[i].key_num));
+    }
 
     gpio_pin_glitch_filter_config_t gpio_filter_config;
     for (uint8_t i = 0; i < KEY_COUNT; ++i) {
-        gpio_filter_config.clk_src = SOC_MOD_CLK_PLL_F96M;
+        gpio_filter_config.clk_src = GLITCH_FILTER_CLK_SRC_DEFAULT;
         gpio_filter_config.gpio_num = key_state_list[i].key_num;
         gpio_glitch_filter_handle_t gpio_filter_handle;
         gpio_new_pin_glitch_filter(&gpio_filter_config, &gpio_filter_handle);

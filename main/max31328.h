@@ -15,7 +15,7 @@
 ESP_EVENT_DECLARE_BASE(BIKE_DATE_TIME_SENSOR_EVENT);
 
 // default high level when intr happens cone to low
-#define MAX31328_INT_GPIO_NUM 3
+#define MAX31328_INT_GPIO_NUM 13
 
 //将X的第Y位置1
 #define setbit(x, y) x|=(1<<y)

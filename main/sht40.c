@@ -12,7 +12,7 @@
 #include "sht40.h"
 
 #define I2C_MASTER_TIMEOUT_MS       100
-#define SHT_USE_LST_RESULT_TIMEOUT_MS 2000
+#define SHT_USE_LST_RESULT_TIMEOUT_MS 1000
 
 #define SHT40_ADDR                 0x44
 
@@ -89,6 +89,9 @@ static esp_err_t sht_i2c_read(uint16_t *readdata, uint8_t read_len) {
 
     esp_err_t err = i2c_master_receive(dev_handle,
                                        replybuffer, replylen, I2C_MASTER_TIMEOUT_MS);
+
+    print_bytes(replybuffer, replylen);
+
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "read i2c failed, for dev:%x %s", SHT40_ADDR, esp_err_to_name(err));
     }
@@ -96,44 +99,17 @@ static esp_err_t sht_i2c_read(uint16_t *readdata, uint8_t read_len) {
     for (uint8_t i = 0; i < read_len; i++) {
         uint8_t crc = crc8(replybuffer + i * 3, 2);
 
-        if (crc != replybuffer[i * 3 + 2])
-            return ESP_ERR_INVALID_CRC;
+        if (crc != replybuffer[i * 3 + 2]) {
+            // return ESP_ERR_INVALID_CRC;
+        }
+
         // success! store it
-        readdata[i] = replybuffer[i * 3];
-        readdata[i] <<= 8;
-        readdata[i] |= replybuffer[i * 3 + 1];
+        readdata[i] = (replybuffer[i * 3] << 8) | replybuffer[i * 3 + 1];
     }
 
+    ESP_LOGI(TAG, "read i2c  %d %s", err, esp_err_to_name(err));
     return err;
 }
-
-static esp_err_t sht_i2c_write_read(uint8_t reg_addr, uint16_t *readdata, uint8_t read_len) {
-    const uint8_t SHT40_WORD_LEN = 2;
-    uint8_t replylen = read_len * (SHT40_WORD_LEN + 1);
-    uint8_t replybuffer[replylen];
-
-    uint8_t u8_reg_addr[] = {reg_addr};
-    esp_err_t err = i2c_master_transmit_receive(dev_handle,
-                                                u8_reg_addr, 1, replybuffer, replylen,
-                                                I2C_MASTER_TIMEOUT_MS);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "read i2c failed, for dev:%x addr:%x,  %s", SHT40_ADDR, reg_addr, esp_err_to_name(err));
-        return err;
-    }
-
-    for (uint8_t i = 0; i < read_len; i++) {
-        uint8_t crc = crc8(replybuffer + i * 3, 2);
-
-        if (crc != replybuffer[i * 3 + 2])
-            return ESP_ERR_INVALID_CRC;
-        // success! store it
-        readdata[i] = replybuffer[i * 3];
-        readdata[i] <<= 8;
-        readdata[i] |= replybuffer[i * 3 + 1];
-    }
-    return ESP_OK;
-}
-
 
 void sht40_reset() {
     ESP_LOGI(TAG, "Reset Sht40...");
@@ -153,15 +129,19 @@ void sht40_init() {
     };
     ESP_ERROR_CHECK(i2c_master_bus_add_device(i2c_bus_handle, &dev_cfg, &dev_handle));
 
-    if (_sht40_device_id_checked) {
+    if (!_sht40_device_id_checked) {
         uint8_t failed_cnt = 0;
-        uint16_t serial_number[3];
+        uint16_t serial_number[2];
         esp_err_t err;
 
         sht40_start:
-        err = sht_i2c_write_read(SHT40_SERIAL_NUMBER, serial_number, 2);
+        err = sht_i2c_write_cmd(SHT40_SERIAL_NUMBER);
+        if (err == ESP_OK) {
+            err = sht_i2c_read(serial_number, 2);
+        }
+        //err = sht_i2c_write_read(SHT40_SERIAL_NUMBER, serial_number, 2);
         if (err != ESP_OK) {
-            ESP_LOGW(TAG, "read status crc check failed!");
+            ESP_LOGW(TAG, "read status crc check failed! err:%s", esp_err_to_name(err));
             failed_cnt++;
             if (failed_cnt >= 3) {
                 ESP_LOGE(TAG, "read sht40 status failed for 3 times...");
@@ -176,6 +156,7 @@ void sht40_init() {
         _sht40_device_id_checked = true;
     }
     sht40_inited = true;
+    ESP_LOGI(TAG, "inited");
 }
 
 void sht40_deinit() {
@@ -191,7 +172,9 @@ void sht40_deinit() {
 }
 
 esp_err_t sht40_start_measure(sht_accuracy_t accuracy) {
-    esp_err_t err;
+    sht40_init();
+
+    esp_err_t err = ESP_ERR_INVALID_ARG;
     switch (accuracy) {
         case SHT_SENSOR_ACCURACY_LOW:
             err = sht_i2c_write_cmd(SHT40_MEAS_LOWREP);
@@ -205,6 +188,7 @@ esp_err_t sht40_start_measure(sht_accuracy_t accuracy) {
     }
 
     if (err == ESP_OK) {
+        ESP_LOGI(TAG, "start measure for accuracy: %d", accuracy);
         _lst_start_measure_tick = xTaskGetTickCount();
         _lst_start_measure_accuracy = accuracy;
     }
@@ -214,7 +198,7 @@ esp_err_t sht40_start_measure(sht_accuracy_t accuracy) {
 
 esp_err_t sht40_get_temp_hum(float *temp, float *hum) {
     uint32_t curr_tick = xTaskGetTickCount();
-    if (_lst_read_tick > 0 && pdMS_TO_TICKS(curr_tick - _lst_read_tick) < SHT_USE_LST_RESULT_TIMEOUT_MS) {
+    if (_lst_read_tick > 0 && pdTICKS_TO_MS(curr_tick - _lst_read_tick) < SHT_USE_LST_RESULT_TIMEOUT_MS) {
         *temp = _lst_temp;
         *hum = _lst_hum;
         return ESP_OK;
@@ -223,11 +207,20 @@ esp_err_t sht40_get_temp_hum(float *temp, float *hum) {
     if (_lst_start_measure_tick == 0) {
         // not start before
         sht40_start_measure(_lst_start_measure_accuracy);
+        curr_tick = xTaskGetTickCount();
+    }
+
+    int32_t delay_ms = _lst_start_measure_accuracy - pdTICKS_TO_MS(curr_tick - _lst_start_measure_tick);
+    if (delay_ms > 0) {
+        ESP_LOGE(TAG, "sleep ms %ld", delay_ms);
+        vTaskDelay(max(1, delay_ms));
     }
 
     uint16_t read[2];
     esp_err_t err = sht_i2c_read(read, 2);
     if (err != ESP_OK) {
+        ESP_LOGE(TAG, "======================= %d %s", err, esp_err_to_name(err));
+        _lst_start_measure_tick = 0;
         return err;
     }
 

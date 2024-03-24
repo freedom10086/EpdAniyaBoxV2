@@ -13,7 +13,7 @@ ESP_EVENT_DEFINE_BASE(BIKE_PRESSURE_SENSOR_EVENT);
 
 // or 0x76 if SDO is low
 // 0x77 if SDO is high
-#define SPL06_ADDR 0x76
+#define SPL06_ADDR 0x77
 
 #define PSR_B2 0x00
 #define PSR_B1 0x01
@@ -316,7 +316,7 @@ esp_err_t spl06_init() {
     spl06.oversampling_p = 64;
     spl06.raw_temp_valid = 0;
 
-    ESP_LOGI(TAG, "spl06 inited successful...");
+    ESP_LOGI(TAG, "inited successful...");
     spl06_inited = true;
     return ESP_OK;
 }
@@ -358,7 +358,7 @@ esp_err_t spl06_start(bool en_fifo) {
     i2c_write_data(MEAS_CFG, 0b0111); // background continuous temp and pressure measurement
 
     // clear fifo
-    i2c_write_data(RESET, 0x80);
+    // i2c_write_data(RESET, 0x80);
 
     /* Create task */
     BaseType_t err = xTaskCreate(
@@ -419,7 +419,7 @@ void spl06_meassure_state() {
     spl06.pressure_ready = (state >> 4) & 0x01;
     spl06.meas_ctrl = state & 0x07;
 
-    // ESP_LOGI(TAG, "measure state %x", state);
+    ESP_LOGI(TAG, "measure state %x pressure_ready:%d temp_ready:%d", state, spl06.pressure_ready, spl06.temp_ready);
 }
 
 /**
@@ -579,8 +579,8 @@ static void read_coef_data() {
 }
 
 static void spl06_task_entry(void *arg) {
-    spl06_reset();
-    vTaskDelay(pdMS_TO_TICKS(30));
+    // spl06_reset();
+    // vTaskDelay(pdMS_TO_TICKS(30));
 
     read_coef_data();
 
@@ -622,8 +622,8 @@ static void spl06_task_entry(void *arg) {
             if (spl06.pressure_ready && spl06.raw_temp_valid) {
                 spl06_read_raw_pressure();
                 float pressure = spl06_get_pressure();
-//                ESP_LOGI(TAG, "spl06 raw_pressure %d,  pressure: %f altitude:%f altitudeV2:%f",
-//                         spl06->raw_pressure, pressure, calc_altitude(pressure), calc_altitude_v2(pressure));
+                ESP_LOGI(TAG, "spl06 raw_pressure %ld,  pressure: %f altitude:%f altitudeV2:%f",
+                         spl06.raw_pressure, pressure, calc_altitude(pressure), calc_altitude_v2(pressure));
 
                 event_data.pressure = pressure;
                 event_data.altitude = calc_altitude(pressure);
@@ -634,7 +634,7 @@ static void spl06_task_entry(void *arg) {
             if (spl06.temp_ready) {
                 spl06_read_raw_temp();
                 float temp = spl06_get_temperature();
-//                ESP_LOGI(TAG, "spl06 raw_temp %d,  temp: %f", spl06->raw_temp, temp);
+                ESP_LOGI(TAG, "spl06 raw_temp %ld,  temp: %f", spl06.raw_temp, temp);
 
                 event_data.temp = temp;
                 data_updated = true;
@@ -645,5 +645,7 @@ static void spl06_task_entry(void *arg) {
                                        sizeof(spl06_event_data_t));
             }
         }
+
+        vTaskDelay(pdMS_TO_TICKS(3000));
     }
 }

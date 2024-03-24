@@ -74,9 +74,13 @@ static uint8_t bcd2hex(uint8_t bcd) {
 }
 
 static esp_err_t i2c_read_reg(uint8_t reg_addr, uint8_t *data, size_t len) {
-    return i2c_master_transmit_receive(dev_handle, &reg_addr,
-                                       1, data, len,
-                                       I2C_MASTER_TIMEOUT_MS);
+    esp_err_t err = i2c_master_transmit_receive(dev_handle, &reg_addr,
+                                                1, data, len,
+                                                I2C_MASTER_TIMEOUT_MS);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "read reg failed %d %s", err, esp_err_to_name(err));
+    }
+    return err;
 }
 
 static esp_err_t i2c_write_byte(uint8_t reg_addr, uint8_t data) {
@@ -113,11 +117,12 @@ static void config_intr_gpio() {
     //gpio_install_isr_service(0);
 
     //hook isr handler for specific gpio pin
-    gpio_isr_handler_add(MAX31328_ADDR, max31328_gpio_isr_handler, (void *) MAX31328_INT_GPIO_NUM);
-    ESP_LOGI(TAG, "rx8025t gpio isr add OK");
+    gpio_isr_handler_add(MAX31328_INT_GPIO_NUM, max31328_gpio_isr_handler, (void *) MAX31328_INT_GPIO_NUM);
+    ESP_LOGI(TAG, "gpio isr add OK");
 }
 
-static void stop_alarm_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
+static void
+stop_alarm_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
     stop_beep();
 }
 
@@ -150,9 +155,9 @@ static void max31328_task_entry(void *arg) {
             ESP_LOGI(TAG, "== af isr happens ==");
             // read time check alarm is valid
             esp_event_handler_register(BIKE_KEY_EVENT, ESP_EVENT_ANY_ID, stop_alarm_handler,
-                                            NULL);
+                                       NULL);
             esp_event_handler_register(BIKE_MOTION_EVENT, ESP_EVENT_ANY_ID,
-                                            stop_alarm_handler, NULL);
+                                       stop_alarm_handler, NULL);
 
             if (af1 && en1) {
                 common_post_event(BIKE_DATE_TIME_SENSOR_EVENT, MAX31328_SENSOR_ALARM_INTR1);
@@ -169,9 +174,9 @@ static void max31328_task_entry(void *arg) {
             ESP_LOGI(TAG, "play alarm music done!");
 
             esp_event_handler_unregister(BIKE_KEY_EVENT, ESP_EVENT_ANY_ID,
-                                              stop_alarm_handler);
+                                         stop_alarm_handler);
             esp_event_handler_unregister(BIKE_MOTION_EVENT, ESP_EVENT_ANY_ID,
-                                              stop_alarm_handler);
+                                         stop_alarm_handler);
         }
 
         // clear all holding notification
@@ -235,7 +240,8 @@ esp_err_t max31328_deinit() {
 }
 
 esp_err_t
-max31328_set_time(uint8_t year, uint8_t month, uint8_t day, uint8_t week, uint8_t hour, uint8_t minute, uint8_t second) {
+max31328_set_time(uint8_t year, uint8_t month, uint8_t day, uint8_t week, uint8_t hour, uint8_t minute,
+                  uint8_t second) {
     max31328_init();
 
     year = year % 2000;
@@ -254,7 +260,7 @@ max31328_set_time(uint8_t year, uint8_t month, uint8_t day, uint8_t week, uint8_
 }
 
 esp_err_t max31328_get_time(uint8_t *year, uint8_t *month, uint8_t *day, uint8_t *week, uint8_t *hour, uint8_t *minute,
-                           uint8_t *second) {
+                            uint8_t *second) {
     max31328_init();
 
     uint8_t read_buf[7];
@@ -268,7 +274,6 @@ esp_err_t max31328_get_time(uint8_t *year, uint8_t *month, uint8_t *day, uint8_t
         *minute = bcd2hex(read_buf[1]);
         *second = bcd2hex(read_buf[0]);
     }
-
     return err;
 }
 
@@ -345,7 +350,8 @@ esp_err_t max31328_set_alarm1(max31328_alarm_t *alarm) {
         setbit(write_day_week, 6);
     }
 
-    uint8_t write_buf[] = {ADDR_SEC_ALARM, hex2bcd(alarm->second),hex2bcd(alarm->minute), hex2bcd(alarm->hour), write_day_week};
+    uint8_t write_buf[] = {ADDR_SEC_ALARM, hex2bcd(alarm->second), hex2bcd(alarm->minute), hex2bcd(alarm->hour),
+                           write_day_week};
     esp_err_t err = i2c_write(write_buf, sizeof(write_buf));
     if (err != ESP_OK) {
         return err;

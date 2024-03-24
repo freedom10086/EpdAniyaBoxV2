@@ -48,6 +48,8 @@ void print_bytes(const uint8_t *bytes, int len) {
     for (i = 0; i < len; i++) {
         printf("%s0x%02x", i != 0 ? ":" : "", bytes[i]);
     }
+
+    printf("\n");
 }
 
 void print_mbuf(const struct os_mbuf *om) {

@@ -21,7 +21,7 @@
 #define STORAGE_NAMESPACE "battery"
 
 //ADC1 Channels io6
-#define ADC1_CHAN     ADC_CHANNEL_6
+#define ADC1_CHAN     ADC_CHANNEL_2
 
 ESP_EVENT_DEFINE_BASE(BIKE_BATTERY_EVENT);
 
@@ -47,29 +47,6 @@ static uint32_t default_battery_curve_data[] = {
 };
 
 esp_err_t clear_battery_curve();
-
-void init_power_gpio() {
-    uint64_t bit_mask = 1ull << BATTERY_ADC_PWR_GPIO_NUM;
-    gpio_config_t io_config = {
-            .pin_bit_mask = bit_mask,
-            .mode = GPIO_MODE_OUTPUT_OD, // open_drain mode
-            .intr_type = GPIO_INTR_DISABLE,
-            .pull_up_en = 0,
-            .pull_down_en = 0,
-    };
-    ESP_ERROR_CHECK(gpio_config(&io_config));
-}
-
-// onoff = 1 power on
-void adc_power_on_off(uint8_t onoff) {
-    if (onoff) {
-        ESP_LOGI(TAG, "adc power on");
-        gpio_set_level(BATTERY_ADC_PWR_GPIO_NUM, 0);
-    } else {
-        ESP_LOGI(TAG, "adc power off");
-        gpio_set_level(BATTERY_ADC_PWR_GPIO_NUM, 1);
-    }
-}
 
 static bool adc_calibration_init(adc_unit_t unit, adc_atten_t atten, adc_cali_handle_t *out_handle);
 
@@ -279,11 +256,6 @@ static void battery_task_entry(void *arg) {
 
     int8_t before_level, current_level;
     while (1) {
-        adc_power_on_off(1);
-        vTaskDelay(pdMS_TO_TICKS(3));
-        ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, ADC1_CHAN, &_adc_raw));
-        adc_power_on_off(0);
-
         if (do_calibration1) {
             int voltage;
             ESP_ERROR_CHECK(adc_cali_raw_to_voltage(adc1_cali_handle, _adc_raw, &voltage));
@@ -325,9 +297,6 @@ static void battery_task_entry(void *arg) {
 }
 
 void battery_init(void) {
-    init_power_gpio();
-    adc_power_on_off(0);
-
     /* Create battery task */
     BaseType_t err = xTaskCreate(
             battery_task_entry,
@@ -425,7 +394,6 @@ int8_t battery_get_level() {
 void battery_deinit() {
     if (battery_tsk_hdl) {
         vTaskDelete(battery_tsk_hdl);
+        battery_tsk_hdl = NULL;
     }
-
-    adc_power_on_off(0);
 }

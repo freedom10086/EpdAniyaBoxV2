@@ -11,7 +11,7 @@
 /**
  * level 1 beep
  */
-#define BEEP_GPIO_NUM 15
+#define BEEP_GPIO_NUM 12
 
 typedef enum {
     BEEP_MODE_NONE = 0,
@@ -248,11 +248,11 @@ static const buzzer_musical_score_t music_score_hszy[] = {
         {NOTE_NONE,       NOTE_TS_NORMAL},
         {NOTE_NONE,       NOTE_TS_NORMAL},
         {NOTE_NONE,       NOTE_TS_NORMAL},
-
+        /*
         {NOTE5_HIGH,      NOTE_TS_NORMAL},
         {NOTE_NONE,       NOTE_TS_NORMAL},
         {NOTE_NONE,       NOTE_TS_NORMAL},
-        {NOTE_NONE,       NOTE_TS_NORMAL},
+        {NOTE_NONE,       NOTE_TS_NORMAL}, */
 
         {NOTE6_BASS,      NOTE_TS_NORMAL / 2},
         {NOTE3,           NOTE_TS_NORMAL / 2},
@@ -468,6 +468,8 @@ esp_err_t beep_init(beep_mode_t mode);
 esp_err_t beep_start_beep(uint32_t duration);
 
 esp_err_t beep_start_play(const buzzer_musical_score_t *song, uint16_t song_len);
+
+esp_err_t beep_start_play_async(const buzzer_musical_score_t *song, uint16_t song_len);
 
 esp_err_t stop_beep();
 

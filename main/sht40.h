@@ -37,5 +37,6 @@ esp_err_t sht40_start_measure(sht_accuracy_t accuracy);
 esp_err_t sht40_get_temp_hum(float *temp, float *hum);
 
 esp_err_t sht40_start_continues_measure(sht_accuracy_t accuracy);
+
 void sht40_stop_continues_measure();
 #endif

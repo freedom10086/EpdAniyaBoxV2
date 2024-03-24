@@ -1,8 +1,6 @@
 #ifndef BATTERY_H
 #define BATTERY_H
 
-#define BATTERY_ADC_PWR_GPIO_NUM 18
-
 #include "esp_event.h"
 
 ESP_EVENT_DECLARE_BASE(BIKE_BATTERY_EVENT);

@@ -5,6 +5,10 @@
 #include "view_group.h"
 #include "page_manager.h"
 
+#include "esp_log.h"
+
+static const char* TAG = "view_group";
+
 view_group_view_t *view_group_create() {
     view_group_view_t *group = malloc(sizeof(view_group_view_t));
     group->element_count = 0;
@@ -215,13 +219,13 @@ bool view_group_handle_key_event(view_group_view_t *group, key_event_id_t event)
                 if (curr_focus->v->state == VIEW_STATE_FOCUS
                     || curr_focus->v->state == VIEW_STATE_SELECTED) {
 
-                    if (curr_focus->v->state == VIEW_STATE_FOCUS) {
+                    if (curr_focus->v->state == VIEW_STATE_FOCUS && curr_focus->v->selectable) {
                         // select view
                         curr_focus->v->state = VIEW_STATE_SELECTED;
                     }
 
                     if (curr_focus->v->key_event != NULL) {
-                        // interface save parent view
+                        // pass click event
                         curr_focus->v->key_event(curr_focus->v, event);
                     }
 

@@ -15,6 +15,7 @@
 view_t *slider_view_create(int value, int min, int max) {
     view_t *view = malloc(sizeof(slider_view_t));
 
+    view->selectable = true;
     view->state = VIEW_STATE_NORMAL;
     view->draw = slider_view_draw;
     view->delete = slider_view_delete;

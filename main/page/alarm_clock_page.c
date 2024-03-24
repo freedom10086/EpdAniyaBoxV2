@@ -68,8 +68,8 @@ static void on_save_btn_click(view_t *v) {
 
     esp_err_t err = max31328_set_alarm1(&alarm);
     if (err == ESP_OK) {
-        page_manager_close_page();
-        page_manager_request_update(false);
+        //page_manager_close_page();
+        //page_manager_request_update(false);
     }
 }
 

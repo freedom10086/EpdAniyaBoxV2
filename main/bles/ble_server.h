@@ -8,7 +8,7 @@
 #include "esp_types.h"
 #include "esp_event.h"
 
-#define PREFERRED_MTU_VALUE       512
+#define PREFERRED_MTU_VALUE       CONFIG_BT_NIMBLE_ATT_PREFERRED_MTU
 
 ESP_EVENT_DECLARE_BASE(BIKE_BLE_SERVER_EVENT);
 

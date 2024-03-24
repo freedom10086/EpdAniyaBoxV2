@@ -165,6 +165,12 @@ esp_err_t box_setting_apply(uint8_t cmd, uint8_t *data, uint16_t data_len) {
 }
 
 static esp_err_t open_file(uint8_t file_id, uint16_t file_size) {
+    /* File cannot be larger than a limit */
+    if (file_size > MAX_BMP_FILE_SIZE) {
+        ESP_LOGE(TAG, "bmp File too large : %d bytes must < %d bytes", file_size, MAX_BMP_FILE_SIZE);
+        return ESP_FAIL;
+    }
+
     uint16_t rndId = esp_random() % 50000 + 10000;
     box_setting_time_t t;
     esp_err_t load_time_err = max31328_get_time(&t.year, &t.month, &t.day, &t.week, &t.hour, &t.minute, &t.second);
@@ -180,12 +186,6 @@ static esp_err_t open_file(uint8_t file_id, uint16_t file_size) {
         rndId += 1;
         ESP_LOGI(TAG, "bmp file path %s for file id %d", bmp_filepath, file_id);
     } while (stat(bmp_filepath, &file_stat) == 0); // == 0  file exist
-
-    /* File cannot be larger than a limit */
-    if (file_size > MAX_BMP_FILE_SIZE) {
-        ESP_LOGE(TAG, "bmp File too large : %d bytes must < %d bytes", file_size, MAX_BMP_FILE_SIZE);
-        return ESP_FAIL;
-    }
 
     current_fd = fopen(bmp_filepath, "w");
     if (current_fd == NULL) {

@@ -19,6 +19,8 @@ typedef enum {
 
 typedef struct view_t {
     view_state_t state;
+    bool selectable;
+
     // inner
     bool (*key_event)(struct view_t* view, key_event_id_t event);
     uint8_t (*draw)(struct view_t* view, epd_paint_t *epd_paint, uint8_t x, uint8_t y);

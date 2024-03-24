@@ -9,11 +9,24 @@
 
 #define BUTTON_VIEW_GAP 4
 
+static bool key_event(view_t *v, key_event_id_t event) {
+    button_view_t *view = (button_view_t *)v;
+    if (event == (key_event_id_t)KEY_OK_SHORT_CLICK) {
+        if (view->v.view_on_click_cb != NULL) {
+            view->v.view_on_click_cb(v);
+        }
+    }
+    return false;
+}
+
 view_t *button_view_create(char *label, sFONT *font) {
     view_t *view = malloc(sizeof(button_view_t));
+
+    view->selectable = false;
     view->state = VIEW_STATE_NORMAL;
     view->draw = button_view_draw;
     view->delete = button_view_delete;
+    view->key_event = key_event;
 
     button_view_t *button_view = (button_view_t *) view;
     button_view->label = label;
@@ -34,7 +47,6 @@ uint8_t button_view_draw(view_t *v, epd_paint_t *epd_paint, uint8_t x, uint8_t y
                              y + view->font->Height + BUTTON_VIEW_GAP * 2, 1);
 
     switch (v->state) {
-        case VIEW_STATE_SELECTED:
         case VIEW_STATE_FOCUS:
             epd_paint_reverse_range(epd_paint, x + 2, y + 2,
                                     btn_label_width + BUTTON_VIEW_GAP * 2 - 3,

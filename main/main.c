@@ -27,7 +27,6 @@
 #include "beep/beep.h"
 #include "opt3001.h"
 #include "spl06.h"
-#include "sgp30.h"
 
 static const char *TAG = "BIKE_MAIN";
 #define I2C_MASTER_NUM              0
@@ -102,9 +101,11 @@ void app_main() {
     // max31328
     max31328_init();
 
-    //vTaskDelay(pdMS_TO_TICKS(1000));
-    //lis3dh_init(LIS3DH_LOW_POWER_MODE, LIS3DH_ACC_RANGE_2, LIS3DH_ACC_SAMPLE_RATE_25);
-    //lis3dh_config_motion_detect();
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    lis3dh_init(LIS3DH_LOW_POWER_MODE, LIS3DH_ACC_RANGE_2, LIS3DH_ACC_SAMPLE_RATE_25);
+    lis3dh_config_motion_detect();
+
+    vTaskDelay(pdMS_TO_TICKS(3000));
 
     test_sensors();
 }
@@ -195,15 +196,18 @@ gpio_num_t box_get_wakeup_ionum() {
 }
 
 static void test_sensors() {
-    sht40_init();
-    sht40_reset();
-    vTaskDelay(pdMS_TO_TICKS(100));
+    ESP_LOGI(TAG, "start test sensors");
 
+    sht40_init();
+    //sht40_reset();
     float temp, hum;
-    if (sht40_get_temp_hum(&temp, &hum) == ESP_OK) {
-        ESP_LOGI(TAG, "read temp %f hum %f", temp, hum);
-    } else {
-        ESP_LOGE(TAG, "read temp and hum fail");
+
+    for (int i = 0; i < 3; ++i) {
+        if (sht40_get_temp_hum(&temp, &hum) == ESP_OK) {
+            ESP_LOGI(TAG, "read temp %f hum %f", temp, hum);
+        } else {
+            ESP_LOGE(TAG, "read temp and hum fail");
+        }
     }
 
     uint8_t year, month, day, week, hour, minute, second;
@@ -233,25 +237,12 @@ static void test_sensors() {
     vTaskDelay(pdMS_TO_TICKS(1000));
     ESP_LOGI(TAG, "read pressure %f", spl06_get_pressure());
     ESP_LOGI(TAG, "read pressure temp %f", spl06_get_temperature());
-    spl06_stop();
+    //spl06_stop();
 
     //beep_init(BEEP_MODE_RMT);
     //beep_start_play_async(music_score_hszy, sizeof(music_score_hszy) / sizeof(music_score_hszy[0]));
 
-    sgp30_init();
-
-    sgp30_reset();
-    vTaskDelay(pdMS_TO_TICKS(1000));
-
-    sgp30_iaq_init();
-    vTaskDelay(pdMS_TO_TICKS(50));
     vTaskDelay(pdMS_TO_TICKS(5000));
-
-    for (int i = 0; i < 100; ++i) {
-        sgp30_iaq_init();
-        vTaskDelay(pdMS_TO_TICKS(5000));
-        sgp30_iaq_measure();
-        vTaskDelay(pdMS_TO_TICKS(5000));
-        sgp30_iaq_measure_raw();
-    }
+    spl06_stop();
+    //sensor_power_onoff(false);
 }

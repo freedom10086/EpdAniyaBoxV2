@@ -51,7 +51,7 @@ static sht_data_t sht_data;
 static float _lst_temp, _lst_hum;
 static uint32_t _lst_read_tick = 0;
 
-static sht_accuracy_t _lst_start_measure_accuracy = SHT_SENSOR_ACCURACY_MEDIUM;
+static sht_accuracy_t _lst_start_measure_accuracy = SHT_SENSOR_ACCURACY_HIGH;
 static uint32_t _lst_start_measure_tick = 0;
 
 RTC_DATA_ATTR bool _sht40_device_id_checked = false;
@@ -125,7 +125,7 @@ void sht40_init() {
     i2c_device_config_t dev_cfg = {
             .dev_addr_length = I2C_ADDR_BIT_LEN_7,
             .device_address = SHT40_ADDR,
-            .scl_speed_hz = 200000,
+            .scl_speed_hz = 100000,
     };
     ESP_ERROR_CHECK(i2c_master_bus_add_device(i2c_bus_handle, &dev_cfg, &dev_handle));
 

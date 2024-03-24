@@ -13,7 +13,7 @@ set(srcs "tools/kalman_filter.c" "tools/encode.c"
         "battery.c" "key.c" "setting.c"
         "file/my_file_common.c"
         "common_utils.c"
-        "sht40.c" "LIS3DH.c" "max31328.c" "sgp30.c" "spl06.c" "opt3001.c"
+        "sht40.c" "LIS3DH.c" "max31328.c" "spl06.c" "opt3001.c"
         "beep/beep.c" "beep/musical_score_encoder.c" "page_manager.c"
         "main.c")
 

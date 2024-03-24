@@ -31,6 +31,8 @@
     _a < 0 ? -a : a;       \
 })
 
+#define CHECK(x) do { esp_err_t __; if ((__ = x) != ESP_OK) return __; } while (0)
+
 esp_err_t common_post_event(esp_event_base_t event_base, int32_t event_id);
 
 esp_err_t common_post_event_data(esp_event_base_t event_base, int32_t event_id, const void *event_data, size_t event_data_size);

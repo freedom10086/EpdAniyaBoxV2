@@ -78,6 +78,8 @@ static esp_err_t sht_i2c_write_cmd(uint8_t cmd) {
     ret = i2c_master_transmit(dev_handle, u8_w_buf, 1, I2C_MASTER_TIMEOUT_MS);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "write i2c cmd failed, for cmd %x,  %s", cmd, esp_err_to_name(ret));
+    } else {
+        ESP_LOGI(TAG, "write i2c cmd success, for cmd %x", cmd);
     }
     return ret;
 }
@@ -212,14 +214,13 @@ esp_err_t sht40_get_temp_hum(float *temp, float *hum) {
 
     int32_t delay_ms = _lst_start_measure_accuracy - pdTICKS_TO_MS(curr_tick - _lst_start_measure_tick);
     if (delay_ms > 0) {
-        ESP_LOGE(TAG, "sleep ms %ld", delay_ms);
+        //ESP_LOGE(TAG, "sleep ms %ld", delay_ms);
         vTaskDelay(max(1, delay_ms));
     }
 
     uint16_t read[2];
     esp_err_t err = sht_i2c_read(read, 2);
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "======================= %d %s", err, esp_err_to_name(err));
         _lst_start_measure_tick = 0;
         return err;
     }

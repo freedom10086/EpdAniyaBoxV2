@@ -17,9 +17,9 @@ extern "C" {
 #define LCD_V_RES 200
 
 #define DISP_CS_GPIO_NUM (-1)
-#define DISP_DC_GPIO_NUM 20
-#define DISP_RST_GPIO_NUM 21
-#define DISP_BUSY_GPIO_NUM 19
+#define DISP_DC_GPIO_NUM 22
+#define DISP_RST_GPIO_NUM 25
+#define DISP_BUSY_GPIO_NUM 10
 
 typedef enum {
     EPD_REFRESH_MODE_UNSET = 0,

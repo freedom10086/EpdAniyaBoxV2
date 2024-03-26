@@ -25,7 +25,6 @@
 #include "max31328.h"
 #include "sht40.h"
 #include "beep/beep.h"
-#include "opt3001.h"
 #include "spl06.h"
 
 static const char *TAG = "BIKE_MAIN";
@@ -96,7 +95,7 @@ void app_main() {
     /**
      * lcd
      */
-    //display_init(boot_count);
+    display_init(boot_count);
 
     // max31328
     max31328_init();
@@ -219,17 +218,6 @@ static void test_sensors() {
             ESP_LOGE(TAG, "read time fail");
         }
 
-    }
-
-    opt3001_init();
-    float lux;
-    opt3001_start_once(0);
-    vTaskDelay(pdMS_TO_TICKS(200));
-
-    if (opt3001_read_lux(&lux) == ESP_OK) {
-        ESP_LOGI(TAG, "read lux %f", lux);
-    } else {
-        ESP_LOGE(TAG, "read lux fail");
     }
 
     spl06_init();

@@ -446,7 +446,7 @@ esp_err_t epd_panel_init_full() {
     pre_init();
 
 #ifdef CONFIG_SPI_DISPLAY_SSD1680_1IN54_V1
-    set_lut_by_host(panel, WF_Full_1IN54, 30);
+    set_lut_by_host(WF_Full_1IN54, 30);
 #else
     set_lut_by_host(WF_Full_1IN54, 153);
     lcd_cmd(0x3f, &WF_Full_1IN54[153], 1);
@@ -469,7 +469,7 @@ esp_err_t epd_panel_init_partial() {
     pre_init();
 
 #ifdef CONFIG_SPI_DISPLAY_SSD1680_1IN54_V1
-    set_lut_by_host(panel, WF_PARTIAL_1IN54, 30);
+    set_lut_by_host(WF_PARTIAL_1IN54, 30);
 #else
     set_lut_by_host(WF_PARTIAL_1IN54, 153);
     lcd_cmd(0x3f, &WF_PARTIAL_1IN54[153], 1);

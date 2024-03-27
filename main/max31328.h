@@ -42,7 +42,7 @@ typedef struct {
     uint8_t af;
     uint8_t en2;
     uint8_t af2;
-    uint8_t mode; /* 1 day mode 0 week mode */
+    uint8_t mode; // 1 week mode
     uint8_t second;
     uint8_t minute;
     uint8_t hour;

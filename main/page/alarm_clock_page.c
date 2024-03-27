@@ -58,8 +58,9 @@ static void on_save_btn_click(view_t *v) {
     alarm.second = 0;
     alarm.minute = number_input_view_get_value(minute_number_input_view);
     alarm.hour = number_input_view_get_value(hour_number_input_view);;
-    alarm.day_week = ALARM_WEEK_MODE;
+    alarm.mode = ALARM_WEEK_MODE;
 
+    alarm.day_week = 0;
     for (int i = 0; i < 7; ++i) {
         if (checkbox_view_get_checked(week_checkbox_views[i])) {
             alarm.day_week |= (0x01 << i);
@@ -69,6 +70,7 @@ static void on_save_btn_click(view_t *v) {
     alarm.en2 = 0;
 
     esp_err_t err = max31328_set_alarm1(&alarm);
+    ESP_LOGI(TAG, "save alarm en:%d, min:%d, hour:%d, daywee:%d", alarm.en, alarm.minute, alarm.hour, alarm.day_week);
     if (err == ESP_OK) {
         //page_manager_close_page();
         //page_manager_request_update(false);

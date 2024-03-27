@@ -62,7 +62,8 @@ esp_err_t box_setting_load(uint8_t cmd, uint8_t *out, uint16_t *out_len) {
     err = max31328_load_alarm1(&alarm);
     ESP_LOGI(TAG, "load alarm %d %d %d %d %d %d, res:%d", alarm.en, alarm.mode, alarm.af, alarm.minute, alarm.hour, alarm.day_week, err);
 
-    out[7] = alarm.en | (alarm.mode << 1) | (alarm.af << 2);
+    // bit1 en, bit2 day_mode(reverse with setting), bit3 af
+    out[7] = alarm.en | ((~alarm.mode) << 1) | (alarm.af << 2);
     out[8] = alarm.minute;
     out[9] = alarm.hour;
     out[10] = alarm.day_week;
@@ -94,7 +95,7 @@ esp_err_t box_setting_apply(uint8_t cmd, uint8_t *data, uint16_t data_len) {
             }
             max31328_alarm_t alarm;
             alarm.en = data[0] & 0x01;
-            alarm.mode = (data[0] >> 1) & 0x01;
+            alarm.mode = ~((data[0] >> 1) & 0x01);
             alarm.second = 0; // TODO alarm second
             alarm.minute = data[1];
             alarm.hour = data[2];

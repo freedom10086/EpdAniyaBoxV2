@@ -92,10 +92,10 @@ esp_err_t box_setting_apply(uint8_t cmd, uint8_t *data, uint16_t data_len) {
                 ESP_LOGW(TAG, "BOX_SETTING_CMD_SET_ALARM data len should be 4 but %d", data_len);
                 return ESP_ERR_INVALID_ARG;
             }
-            // TODO alarm second
             max31328_alarm_t alarm;
             alarm.en = data[0] & 0x01;
             alarm.mode = (data[0] >> 1) & 0x01;
+            alarm.second = 0; // TODO alarm second
             alarm.minute = data[1];
             alarm.hour = data[2];
             alarm.day_week = data[3];

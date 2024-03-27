@@ -117,7 +117,7 @@ void date_time_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     battery_view_draw(battery_view, epd_paint, 174, 0);
     battery_view_deinit(battery_view);
 
-    if (sht40_get_temp_hum(&temperature, &humility)) {
+    if (sht40_get_temp_hum(&temperature, &humility) == ESP_OK) {
         temperature_valid = true;
         humility_valid = true;
     }

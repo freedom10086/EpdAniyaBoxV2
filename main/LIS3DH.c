@@ -513,3 +513,8 @@ esp_err_t lis3dh_get_int1_src(uint8_t *has_int) {
     ESP_LOGI(TAG, "int1 src: %x", int1_src);
     return ESP_OK;
 }
+
+esp_err_t lis3dh_disable_int() {
+    uint8_t d = 0x00;
+    return i2c_write_byte(LIS3DH_REG_CTRL_REG3, d);
+}

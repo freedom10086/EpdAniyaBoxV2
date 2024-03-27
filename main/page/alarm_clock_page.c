@@ -58,13 +58,15 @@ static void on_save_btn_click(view_t *v) {
     alarm.second = 0;
     alarm.minute = number_input_view_get_value(minute_number_input_view);
     alarm.hour = number_input_view_get_value(hour_number_input_view);;
-    alarm.day_week = 0;
+    alarm.day_week = ALARM_WEEK_MODE;
 
     for (int i = 0; i < 7; ++i) {
         if (checkbox_view_get_checked(week_checkbox_views[i])) {
             alarm.day_week |= (0x01 << i);
         }
     }
+
+    alarm.en2 = 0;
 
     esp_err_t err = max31328_set_alarm1(&alarm);
     if (err == ESP_OK) {

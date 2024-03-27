@@ -19,10 +19,11 @@
 #define KEY_CLICK_MIN_GAP 30
 #define KEY_SHORT_PRESS_TIME_GAP 100
 #define KEY_LONG_PRESS_TIME_GAP 400
-#define KEY_ENCODER_TIME_GAP 100
+#define KEY_ENCODER_TIME_GAP 120
+#define KEY_ENCODER_SINGLE_SESSION_GAP 200
 
-#define PCNT_HIGH_LIMIT 10
-#define PCNT_LOW_LIMIT -10
+#define PCNT_HIGH_LIMIT 8
+#define PCNT_LOW_LIMIT -8
 
 ESP_EVENT_DEFINE_BASE(BIKE_KEY_EVENT);
 
@@ -49,10 +50,12 @@ static key_state_t key_state_list[KEY_COUNT] = {
 
 static QueueHandle_t event_queue, encoder_event_queue;
 static pcnt_unit_handle_t pcnt_unit = NULL;
-static esp_timer_handle_t pcnt_timer = NULL;
 
 static uint32_t time_diff_ms, diff_tick, current_tick;
 static uint32_t short_click_count;
+
+static uint32_t encoder_lst_event_tick = 0;
+static uint32_t encoder_lst_pause_tick = 0;
 
 static void IRAM_ATTR key_gpio_isr_handler(void *arg) {
     uint32_t gpio_num = (uint32_t) arg;
@@ -167,7 +170,7 @@ static void key_task_entry(void *arg) {
 
                 key_state->state = 0;
                 key_state->key_down_tick_count = current_tick;
-                key_state->key_down_count ++;
+                key_state->key_down_count++;
 
                 // start timer for check long click
                 esp_timer_start_once(key_state->timer[1], KEY_LONG_PRESS_TIME_GAP * 1000);
@@ -227,38 +230,62 @@ static void key_task_entry(void *arg) {
     vTaskDelete(NULL);
 }
 
-static void encoder_timer_callback(void *arg) {
-    // do nothing
-}
 
 static void encoder_task_entry(void *arg) {
-    esp_timer_create_args_t timer_args = {
-            .arg = (void *) NULL,
-            .callback = &encoder_timer_callback,
-            .name = "encoder_timer"
-    };
-    ESP_ERROR_CHECK(esp_timer_create(&timer_args, &pcnt_timer));
-
     // Report counter value
     int last_pulse_count = 0;
     int curr_pulse_count = 0;
+    int total_diff_pause = 0;
+
+    const pcnt_watch_event_data_t edata;
+
     while (1) {
-        if (xQueueReceive(encoder_event_queue, &curr_pulse_count, pdMS_TO_TICKS(1000))) {
-            ESP_LOGI(TAG, "Watch point event, Pulse count: %d", curr_pulse_count);
-            if (esp_timer_is_active(pcnt_timer)) {
-                // time not ok
-                // esp_timer_stop(pcnt_timer);
-            } else {
-                bool direction = curr_pulse_count - last_pulse_count;
-                key_event_id_t evt = direction > 0 ? KEY_UP_SHORT_CLICK : KEY_DOWN_SHORT_CLICK;
-                common_post_event_data(BIKE_KEY_EVENT,
-                                       evt,
-                                       (void *) (curr_pulse_count - last_pulse_count),
-                                       sizeof(int));
-                esp_timer_start_once(pcnt_timer, KEY_ENCODER_TIME_GAP * 1000);
+        if (xQueueReceive(encoder_event_queue, &edata, pdMS_TO_TICKS(1000))) {
+            ESP_LOGI(TAG, "Watch point event, Pulse count: %d mdoe:%d", edata.watch_point_value,
+                     edata.zero_cross_mode);
+            curr_pulse_count = edata.watch_point_value;
+
+            int diff = curr_pulse_count - last_pulse_count;
+            if (curr_pulse_count == 0 && last_pulse_count == PCNT_HIGH_LIMIT) {
+                // cross zero PCNT_UNIT_ZERO_CROSS_POS_ZERO
+                diff = 0;
+            } else if (curr_pulse_count == 0 && last_pulse_count == PCNT_LOW_LIMIT) {
+                // PCNT_UNIT_ZERO_CROSS_NEG_ZERO
+                diff = 0;
             }
 
+            current_tick = xTaskGetTickCount();
             last_pulse_count = curr_pulse_count;
+
+            if (encoder_lst_pause_tick > 0
+                && pdTICKS_TO_MS(current_tick - encoder_lst_pause_tick) >= KEY_ENCODER_SINGLE_SESSION_GAP) {
+                total_diff_pause = 0;
+            }
+
+            encoder_lst_pause_tick = current_tick;
+            if (diff == 0) {
+                continue;
+            }
+
+            total_diff_pause += diff;
+            if (encoder_lst_event_tick > 0 &&
+                pdTICKS_TO_MS(current_tick - encoder_lst_event_tick) < KEY_ENCODER_TIME_GAP) {
+                ESP_LOGI(TAG, "encoder time diff too close: %ldms %d",
+                         pdTICKS_TO_MS(current_tick - encoder_lst_event_tick), total_diff_pause);
+                continue;
+            }
+
+            encoder_lst_event_tick = current_tick;
+
+            key_event_id_t evt = diff < 0 ? KEY_UP_SHORT_CLICK : KEY_DOWN_SHORT_CLICK;
+            ESP_LOGI(TAG, "\t\t>> encoder up down evt %s diff:%d", evt == KEY_UP_SHORT_CLICK ? "UP" : "DOWN",
+                     total_diff_pause);
+            total_diff_pause = 0;
+
+            common_post_event_data(BIKE_KEY_EVENT,
+                                   evt,
+                                   (void *) (curr_pulse_count - last_pulse_count),
+                                   sizeof(int));
         } else {
             //ESP_ERROR_CHECK(pcnt_unit_get_count(pcnt_unit, &curr_pulse_count));
             //ESP_LOGI(TAG, "Pulse count: %d", curr_pulse_count);
@@ -271,7 +298,7 @@ static bool pcnt_on_reach(pcnt_unit_handle_t unit, const pcnt_watch_event_data_t
     BaseType_t high_task_wakeup;
     QueueHandle_t queue = (QueueHandle_t) user_ctx;
     // send event data to queue, from this interrupt callback
-    xQueueSendFromISR(queue, &(edata->watch_point_value), &high_task_wakeup);
+    xQueueSendFromISR(queue, edata, &high_task_wakeup);
     return (high_task_wakeup == pdTRUE);
 }
 
@@ -286,7 +313,7 @@ void rotary_encoder_init() {
 
     ESP_LOGI(TAG, "set glitch filter");
     pcnt_glitch_filter_config_t filter_config = {
-            .max_glitch_ns = 1000,
+            .max_glitch_ns = 2000,
     };
     ESP_ERROR_CHECK(pcnt_unit_set_glitch_filter(pcnt_unit, &filter_config));
 
@@ -314,20 +341,18 @@ void rotary_encoder_init() {
     ESP_ERROR_CHECK(pcnt_channel_set_level_action(pcnt_chan_b, PCNT_CHANNEL_LEVEL_ACTION_KEEP,
                                                   PCNT_CHANNEL_LEVEL_ACTION_INVERSE));
 
-    ESP_LOGI(TAG, "add watch points and register callbacks");
-    int watch_points[] = {PCNT_LOW_LIMIT, -8, -6, -4, -2, 0, 2, 4, 6, 8, PCNT_HIGH_LIMIT};
+    ESP_LOGI(TAG, "add watch points and register callbacks"); // max 5
+    int watch_points[] = {PCNT_LOW_LIMIT, -4, 0, 4, PCNT_HIGH_LIMIT};
     for (size_t i = 0; i < sizeof(watch_points) / sizeof(watch_points[0]); i++) {
         ESP_ERROR_CHECK(pcnt_unit_add_watch_point(pcnt_unit, watch_points[i]));
     }
     pcnt_event_callbacks_t cbs = {
             .on_reach = pcnt_on_reach,
     };
-    encoder_event_queue = xQueueCreate(10, sizeof(int));
+    encoder_event_queue = xQueueCreate(10, sizeof(pcnt_watch_event_data_t));
     ESP_ERROR_CHECK(pcnt_unit_register_event_callbacks(pcnt_unit, &cbs, encoder_event_queue));
 
-    ESP_LOGI(TAG, "enable pcnt unit");
     ESP_ERROR_CHECK(pcnt_unit_enable(pcnt_unit));
-    ESP_LOGI(TAG, "clear pcnt unit");
     ESP_ERROR_CHECK(pcnt_unit_clear_count(pcnt_unit));
     ESP_LOGI(TAG, "start pcnt unit");
     ESP_ERROR_CHECK(pcnt_unit_start(pcnt_unit));
@@ -339,7 +364,7 @@ void rotary_encoder_init() {
             "encoder_task",
             3072,
             NULL,
-            uxTaskPriorityGet(NULL),
+            4,
             &tsk_hdl);
     if (err != pdTRUE) {
         ESP_LOGE(TAG, "create encoder detect task failed");
@@ -356,7 +381,7 @@ void key_init() {
             "key_task",
             3072,
             NULL,
-            uxTaskPriorityGet(NULL),
+            4,
             &tsk_hdl);
     if (err != pdTRUE) {
         ESP_LOGE(TAG, "create key detect task failed");
@@ -398,6 +423,8 @@ void key_init() {
     for (uint8_t i = 0; i < KEY_COUNT; ++i) {
         gpio_isr_handler_add(key_state_list[i].key_num, key_gpio_isr_handler, (void *) key_state_list[i].key_num);
     }
+
+    rotary_encoder_init();
 
     ESP_LOGI(TAG, "inited");
 }

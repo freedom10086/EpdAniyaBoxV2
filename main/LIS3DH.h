@@ -145,4 +145,6 @@ esp_err_t lis3dh_get_click_src(uint8_t *single_click, uint8_t *double_click);
 
 esp_err_t lis3dh_get_int1_src(uint8_t *has_int);
 
+esp_err_t lis3dh_disable_int();
+
 #endif //BLINK_LIS3DH_H

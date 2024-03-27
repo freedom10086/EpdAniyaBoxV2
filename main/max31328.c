@@ -29,18 +29,34 @@
 #define ADDR_MONTH    0x05
 #define ADDR_YEAR    0x06
 
+// [7]A1M1  secondbcd [6:0] A1M1 = 1 mean must match, = 0 should equal match
 #define ADDR_SEC_ALARM      0x07
 #define ADDR_MIN_ALARM      0x08
+// [7]A1M3  [6]f_24_12 0 24-h,1 12-h format
+// [5]AM_PM_hr20 if 12-h format am[0] pm[1], if 24-h format hour*20  [4:0] hour bcd
 #define ADDR_HOUR_ALARM     0x09
-#define ADDR_WEEK_ALARM     0x0A
-#define ADDR_DAY_ALARM      0x0A
+// [7]A1M4 [6] DY/DT 0-date, 1-week [5:0] day week bcd
+#define ADDR_DATE_WEEK_ALARM     0x0A
 
 #define ADDR_MIN_ALARM2      0x0B
+// same as ADDR_HOUR_ALARM
 #define ADDR_HOUR_ALARM2     0x0C
-#define ADDR_WEEK_ALARM2     0x0D
-#define ADDR_DAY_ALARM2      0x0D
+// same as ADDR_DATE_WEEK_ALARM
+#define ADDR_DAY_WEEK_ALARM2     0x0D
 
+// [7]EOSC 0 Oscillator enabled, 1 Oscillator disabled (only on VBAT)
+// [6]BBSQW 0 INT/SQW pin goes highz when VCC < VPF, 1 generate square wave
+// [5]CONV Convert temperature and execute TCXO algorithm
+// [4:3]RS SQW Frequency Select 0x0: 1Hz 0x1: 1.024kHz 0x2: 4.096kHz 0x3: 8.192kHz
+// [2]INTCN 0x0: Square wave is output on the INT/SQW pin. 0x1: Alarm interrupts are output on the INT/SQW pin.
+// [1]A2IE
+// [0]A1IE
 #define ADDR_CONTROL        0x0E
+// [7] OSF 0x1: Indicates that the oscillator is stopped or was stopped for some period
+// [3] EN32kHz 0 close output 1 output 32.768kHz square wave
+// [2] BSY
+// [1] A2F  Alarm 2 flag
+// [0] A1F  Alarm 1 flag
 #define ADDR_STATUS         0x0F
 
 #define ADDR_AGING_OFFSET   0x10
@@ -141,9 +157,12 @@ static void max31328_task_entry(void *arg) {
         // int_gpio_level == 0
         // isr happens
         gpio_intr_disable(MAX31328_INT_GPIO_NUM);
+        int intlevel = gpio_get_level(MAX31328_INT_GPIO_NUM);
 
-        if (gpio_get_level(MAX31328_INT_GPIO_NUM) == 0) {
+        if (intlevel == 0) {
             ESP_LOGI(TAG, "isr happens gpio %d goes low", MAX31328_INT_GPIO_NUM);
+        } else{
+            ESP_LOGI(TAG, "isr gpio %d high nothing happens", MAX31328_INT_GPIO_NUM);
         }
 
         // clear af
@@ -214,7 +233,7 @@ esp_err_t max31328_init() {
             "max31328_task",
             3072,
             NULL,
-            0,
+            6,
             &tsk_hdl);
     if (create_task_err != pdTRUE) {
         ESP_LOGE(TAG, "create rx8025 alarm detect task failed");
@@ -321,7 +340,7 @@ max31328_load_alarm1(max31328_alarm_t *alarm) {
 
     uint8_t saved_day_week = read_buf[3];
     alarm->mode = (saved_day_week >> 6) & 0x01;
-    if (alarm->mode) {
+    if (alarm->mode == ALARM_WEEK_MODE) {
         // week mode
         alarm->day_week = saved_day_week & 0x0f;
     } else {
@@ -333,7 +352,7 @@ max31328_load_alarm1(max31328_alarm_t *alarm) {
         }
     }
 
-    err = max31328_read_alarm_status(&alarm->en, &alarm->af, NULL, NULL);
+    err = max31328_read_alarm_status(&alarm->en, &alarm->af, &alarm->en2, &alarm->af2);
     if (err != ESP_OK) {
         return err;
     }
@@ -368,7 +387,7 @@ esp_err_t max31328_set_alarm1(max31328_alarm_t *alarm) {
 
     if (alarm->en) {
         setbit(read_buf[0], 0);
-        setbit(read_buf[0], 2);
+        setbit(read_buf[0], 2); //
     } else {
         clrbit(read_buf[0], 0);
     }
@@ -404,6 +423,7 @@ esp_err_t max31328_set_alarm_en(uint8_t en1, uint8_t en2) {
 esp_err_t max31328_read_alarm_status(uint8_t *en1, uint8_t *flag1, uint8_t *en2, uint8_t *flag2) {
     uint8_t read_buf[2];
     esp_err_t err = i2c_read_reg(ADDR_CONTROL, read_buf, sizeof(read_buf));
+    ESP_LOGI(TAG, "control:%x status:%x", read_buf[0], read_buf[1]);
     if (err != ESP_OK) {
         return err;
     }

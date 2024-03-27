@@ -22,6 +22,11 @@ ESP_EVENT_DECLARE_BASE(BIKE_DATE_TIME_SENSOR_EVENT);
 //将X的第Y位清0
 #define clrbit(x, y) x&=~(1<<y)
 
+typedef enum {
+    ALARM_DATE_MODE = 0,
+    ALARM_WEEK_MODE = 1
+} alarm_date_week_mode_t;
+
 typedef struct {
     uint8_t year;
     uint8_t month;
@@ -34,8 +39,10 @@ typedef struct {
 
 typedef struct {
     uint8_t en;
-    uint8_t mode; /* 1 day mode 0 week mode */
     uint8_t af;
+    uint8_t en2;
+    uint8_t af2;
+    uint8_t mode; /* 1 day mode 0 week mode */
     uint8_t second;
     uint8_t minute;
     uint8_t hour;

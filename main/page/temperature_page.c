@@ -69,7 +69,7 @@ void temperature_page_on_create(void *args) {
             BIKE_TEMP_HUM_SENSOR_EVENT, ESP_EVENT_ANY_ID,
             temp_sensor_event_handler, NULL);
     sht40_init();
-    sht31_data_valid = sht40_get_temp_hum(&temperature, &humility);
+    sht31_data_valid = sht40_get_temp_hum(&temperature, &humility) == ESP_OK;
     lst_read_tick = xTaskGetTickCount();
 }
 

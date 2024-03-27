@@ -144,7 +144,8 @@ stop_alarm_handler(void *event_handler_arg, esp_event_base_t event_base, int32_t
 
 static void max31328_task_entry(void *arg) {
     // wait display ok
-    // vTaskDelay(pdMS_TO_TICKS(300));
+    vTaskDelay(pdMS_TO_TICKS(300));
+
     config_intr_gpio();
 
     while (true) {
@@ -360,7 +361,7 @@ max31328_load_alarm1(max31328_alarm_t *alarm) {
     return err;
 }
 
-esp_err_t max31328_set_alarm1(max31328_alarm_t *alarm) {
+esp_err_t max31328_set_alarm1(const max31328_alarm_t *alarm) {
     max31328_init();
 
     uint8_t day_week = alarm->day_week;

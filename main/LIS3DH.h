@@ -11,6 +11,7 @@
 ESP_EVENT_DECLARE_BASE(BIKE_MOTION_EVENT);
 
 #define IMU_INT_1_GPIO 13
+#define IMU_INT_ACTIVE_LEVEL 0
 
 
 // 0011001 sa0 = 1 , default pull up

@@ -98,24 +98,16 @@ void app_main() {
     display_init(boot_count);
 
     // max31328
-    // max31328_init();
+    //max31328_init();
 
     vTaskDelay(pdMS_TO_TICKS(1000));
     lis3dh_init(LIS3DH_LOW_POWER_MODE, LIS3DH_ACC_RANGE_2, LIS3DH_ACC_SAMPLE_RATE_25);
-    //lis3dh_config_motion_detect();
-    lis3dh_disable_int();
+    lis3dh_config_motion_detect();
 
-    gpio_config_t io_config = {
-            .pin_bit_mask = (1ull << IMU_INT_1_GPIO),
-            .mode = GPIO_MODE_INPUT,
-            .pull_up_en = 1,
-            .pull_down_en = 0,
-    };
-    gpio_config(&io_config);
-    while (1) {
-        ESP_LOGI(TAG, "gpio 13 level: %d", gpio_get_level(IMU_INT_1_GPIO));
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
+    //while (1) {
+    //    ESP_LOGI(TAG, "gpio 13 level: %d", gpio_get_level(IMU_INT_1_GPIO));
+    //    vTaskDelay(pdMS_TO_TICKS(1000));
+    //}
 
     //vTaskDelay(pdMS_TO_TICKS(1000));
     //test_sensors();

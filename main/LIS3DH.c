@@ -26,6 +26,7 @@ static bool lis3dh_inited = false;
 static TaskHandle_t imu_tsk_hdl = NULL;
 static QueueHandle_t imu_int_event_queue;
 
+RTC_DATA_ATTR bool _acc_who_ami_checked = false;
 RTC_DATA_ATTR lis3dh_mode_t _acc_mode = LIS3DH_NORMAL_MODE;
 RTC_DATA_ATTR lis3dh_acc_range_t _acc_range = LIS3DH_ACC_RANGE_2;
 RTC_DATA_ATTR lis3dh_acc_sample_rage_t _acc_sample_rate = LIS3DH_ACC_SAMPLE_RATE_0;
@@ -109,10 +110,12 @@ static void imu_task_entry(void *arg) {
         d = 0x00 | (0x01 << 7);
         i2c_write_byte(LIS3DH_REG_CTRL_REG6, d);
 #else
-        i2c_write_byte(LIS3DH_REG_CTRL_REG6, 0);
+        d = 0x00 | (IMU_INT_ACTIVE_LEVEL ? 0 : 1) << 1;
+        i2c_write_byte(LIS3DH_REG_CTRL_REG6, d);
 #endif
 
         _acc_motion_detect_sensor_inited = true;
+        ESP_LOGI(TAG, "motion detect init success");
     }
 
     imu_int_event_queue = xQueueCreate(6, sizeof(gpio_num_t));
@@ -123,13 +126,13 @@ static void imu_task_entry(void *arg) {
     gpio_config_t io_config = {
             .pin_bit_mask = (1ull << IMU_INT_1_GPIO),
             .mode = GPIO_MODE_INPUT,
-            .intr_type = GPIO_INTR_POSEDGE,
+            .intr_type = IMU_INT_ACTIVE_LEVEL ? GPIO_INTR_POSEDGE : GPIO_INTR_NEGEDGE,
             .pull_up_en = 0,
             .pull_down_en = 0,
     };
     ESP_ERROR_CHECK(gpio_config(&io_config));
 
-    if (gpio_get_level(IMU_INT_1_GPIO)) {
+    if (gpio_get_level(IMU_INT_1_GPIO) == IMU_INT_ACTIVE_LEVEL) {
         uint8_t has_int1;
         lis3dh_get_int1_src(&has_int1);
 
@@ -206,15 +209,18 @@ esp_err_t lis3dh_init(lis3dh_mode_t mode, lis3dh_acc_range_t acc_range, lis3dh_a
         };
         ESP_ERROR_CHECK(i2c_master_bus_add_device(i2c_bus_handle, &dev_cfg, &dev_handle));
 
-        uint8_t who_am_i = lis3dh_who_am_i();
-        if (who_am_i != 0x33) {
-            lis3dh_inited = false;
-            return ESP_FAIL;
+        if (!_acc_who_ami_checked) {
+            uint8_t who_am_i = lis3dh_who_am_i();
+            if (who_am_i != 0x33) {
+                lis3dh_inited = false;
+                ESP_LOGE(TAG, "who ami check failed expect 0x33 but %x", who_am_i);
+                return ESP_FAIL;
+            }
+            _acc_who_ami_checked = true;
         }
     }
 
     lis3dh_set_sample_rate(mode == LIS3DH_LOW_POWER_MODE, acc_sample_rate);
-
     lis3dh_set_acc_range(mode == LIS3DH_HIGH_RES_MODE, acc_range);
 
     lis3dh_inited = true;

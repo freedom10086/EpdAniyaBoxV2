@@ -81,7 +81,7 @@ esp_err_t max31328_get_time_ts(time_t *ts);
 // af = alarm status
 esp_err_t max31328_load_alarm1(max31328_alarm_t *alarm);
 
-esp_err_t max31328_set_alarm1(max31328_alarm_t *alarm);
+esp_err_t max31328_set_alarm1(const max31328_alarm_t *alarm);
 
 esp_err_t max31328_load_alarm2(uint8_t *en, uint8_t *week_mode, uint8_t *af, uint8_t *minute, uint8_t *hour, uint8_t *day_week);
 

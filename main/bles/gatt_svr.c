@@ -445,7 +445,7 @@ int gatt_svr_init(void) {
 
     sht40_init();
 
-    esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_DEFAULT, ESP_PWR_LVL_N6);
+    esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_DEFAULT, ESP_PWR_LVL_N3);
 
     /* Initialize Notify Task */
     xTaskCreate(notify_task, "ble_notify_task", 4096, NULL, 10, &notify_task_handle);

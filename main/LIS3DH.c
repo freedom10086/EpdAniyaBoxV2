@@ -526,7 +526,7 @@ esp_err_t lis3dh_get_int1_src(uint8_t *has_int) {
         return ESP_OK;
     }
 
-    *has_int = 1;
+    *has_int = (int1_src >> 6) & 0x01;
 
     ESP_LOGI(TAG, "int1 src: %x", int1_src);
     return ESP_OK;

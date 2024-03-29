@@ -11,7 +11,7 @@
 #include "common_utils.h"
 #include "sht40.h"
 
-#define I2C_MASTER_TIMEOUT_MS       100
+#define I2C_MASTER_TIMEOUT_MS       80
 #define SHT_USE_LST_RESULT_TIMEOUT_MS 1000
 
 #define SHT40_ADDR                 0x44
@@ -127,7 +127,7 @@ void sht40_init() {
     i2c_device_config_t dev_cfg = {
             .dev_addr_length = I2C_ADDR_BIT_LEN_7,
             .device_address = SHT40_ADDR,
-            .scl_speed_hz = 100000,
+            .scl_speed_hz = 200000,
     };
     ESP_ERROR_CHECK(i2c_master_bus_add_device(i2c_bus_handle, &dev_cfg, &dev_handle));
 

@@ -49,7 +49,7 @@ uint8_t slider_view_draw(view_t *v, epd_paint_t *epd_paint, uint8_t x, uint8_t y
     }
 
     // draw value label
-    char buff[5] = {0};
+    char buff[12] = {0};
     sprintf(buff, "%d", view->value);
 
     uint8_t text_end_x = epd_paint_draw_string_at_position(epd_paint, x + SLIDER_VIEW_GAP, y,

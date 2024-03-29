@@ -60,10 +60,10 @@ void sensor_power_onoff(bool on) {
  *   APPLICATION MAIN
  **********************/
 void app_main() {
-    //esp_log_level_set("*", ESP_LOG_WARN);
+    // esp_log_level_set("*", ESP_LOG_WARN);
     esp_log_level_set("epd_panel", ESP_LOG_WARN);
     // esp_log_level_set("keyboard", ESP_LOG_WARN);
-    // esp_log_level_set("LIS3DH", ESP_LOG_WARN);
+    esp_log_level_set("LIS3DH", ESP_LOG_WARN);
     // esp_log_level_set("page-manager", ESP_LOG_WARN);
 
     boot_count++;

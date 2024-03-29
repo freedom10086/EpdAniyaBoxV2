@@ -21,6 +21,7 @@ ESP_EVENT_DEFINE_BASE(BIKE_MOTION_EVENT);
 // this strongly depend on the range! for 16G, try 5-10
 // for 8G, try 10-20. for 4G try 20-40. for 2G try 40-80
 #define CLICKTHRESHHOLD 100
+#define ACC_GRAVITY (0.98f)
 
 // 0011001 sa0 = 1 , default pull up
 // 0011000 sa0 = 0
@@ -519,30 +520,25 @@ lis3dh_direction_t lis3dh_calc_direction() {
     }
 
     float accx, accy, accz;
-    float threshold = 0.1f;
+    float threshold = 0.15f;
     esp_err_t err = lis3dh_read_acc(&accx, &accy, &accz);
     if (err != ESP_OK) {
         return LIS3DH_DIR_UNKNOWN;
     }
 
-    // 充电口朝下 0 -1 0
-    if (mabs(accx) < threshold && accy < -0.98f + threshold && mabs(accz) < threshold) {
+    if (mabs(accx) < threshold && accy < -ACC_GRAVITY + threshold && mabs(accz) < threshold) {
+        return LIS3DH_DIR_BOTTOM;
+    }
+    if (accx >= ACC_GRAVITY - threshold && mabs(accy) < threshold && mabs(accz) < threshold) {
+        return LIS3DH_DIR_RIGHT;
+    }
+
+    if (mabs(accx) < threshold && accy > ACC_GRAVITY - threshold && mabs(accz) < threshold) {
         return LIS3DH_DIR_TOP;
     }
 
-    // 按键朝上 1 0 0
-    if (accx >= 0.98 - threshold && mabs(accy) < threshold && mabs(accz) < threshold) {
+    if (accx < -ACC_GRAVITY + threshold && mabs(accy) < threshold && mabs(accz) < threshold) {
         return LIS3DH_DIR_LEFT;
-    }
-
-    // 充电口朝上 0 1 0
-    if (mabs(accx) < threshold && accy > 0.98f - threshold && mabs(accz) < threshold) {
-        return LIS3DH_DIR_BOTTOM;
-    }
-
-    // 按键朝下 -1 0 0
-    if (accx < -0.98 + threshold && mabs(accy) < threshold && mabs(accz) < threshold) {
-        return LIS3DH_DIR_RIGHT;
     }
 
     return LIS3DH_DIR_UNKNOWN;
@@ -604,7 +600,7 @@ esp_err_t lis3dh_get_int1_src(uint8_t *has_int) {
     if (!int1_src) {
         return ESP_OK;
     }
-    *has_int = (int1_src >> 7) & 0x01;
+    *has_int = (int1_src >> 6) & 0x01;
     ESP_LOGI(TAG, "int1 src: %x has int:%d", int1_src, *has_int);
     return ESP_OK;
 }

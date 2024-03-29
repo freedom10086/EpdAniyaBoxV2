@@ -17,13 +17,15 @@
 
 #define TAG "alarm-clock-page"
 
+#define WEEK_SINGLE_SELECT 1
+
 static view_t *enable_switch_view;
 static view_t *week_checkbox_views[7];
 static view_t *hour_number_input_view, *minute_number_input_view;
 static view_t *save_button;
 
 static max31328_alarm_t alarm;
-static bool load_alarm_failed;
+static bool load_alarm_failed, alarm_not_support_day_mode;
 static view_group_view_t *view_group;
 
 static void date_time_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
@@ -35,10 +37,10 @@ static void date_time_event_handler(void *arg, esp_event_base_t event_base, int3
             }
 
             switch_view_set_onoff(enable_switch_view, alarm.en);
-            bool all_checked = (alarm.day_week >> 7) & 0x01;
+            bool all_checked = alarm.day_week_mask;
 
             for (int i = 0; i < 7; ++i) {
-                checkbox_view_set_checked(week_checkbox_views[i], all_checked || (alarm.day_week >> i) & 0x01);
+                checkbox_view_set_checked(week_checkbox_views[i], all_checked || alarm.day_week == i);
             }
 
             number_input_view_set_value(hour_number_input_view, alarm.hour);
@@ -54,27 +56,44 @@ static void date_time_event_handler(void *arg, esp_event_base_t event_base, int3
 
 static void on_save_btn_click(view_t *v) {
     alarm.en = switch_view_get_onoff(enable_switch_view);
-    alarm.mode = 0;
+
     alarm.second = 0;
+
     alarm.minute = number_input_view_get_value(minute_number_input_view);
     alarm.hour = number_input_view_get_value(hour_number_input_view);;
-    alarm.mode = ALARM_WEEK_MODE;
 
-    alarm.day_week = 0;
+    alarm.week_mode = ALARM_WEEK_MODE;
+    bool all_select = 1;
     for (int i = 0; i < 7; ++i) {
-        if (checkbox_view_get_checked(week_checkbox_views[i])) {
-            alarm.day_week |= (0x01 << i);
+        if (!checkbox_view_get_checked(week_checkbox_views[i])) {
+            all_select = 0;
+        } else {
+            alarm.day_week = i;
         }
     }
+    alarm.day_week_mask = all_select;
 
     alarm.en2 = 0;
 
     esp_err_t err = max31328_set_alarm1(&alarm);
-    ESP_LOGI(TAG, "save alarm en:%d, min:%d, hour:%d, daywee:%d", alarm.en, alarm.minute, alarm.hour, alarm.day_week);
+    ESP_LOGI(TAG, "save alarm en:%d, min:%d, hour:%d, dayweek:%d", alarm.en, alarm.minute, alarm.hour, alarm.day_week);
     if (err == ESP_OK) {
-        //page_manager_close_page();
-        //page_manager_request_update(false);
+        page_manager_close_page();
+        page_manager_request_update(false);
     }
+}
+
+void week_check_box_value_change_cb(struct view_t *view, int value) {
+#ifdef WEEK_SINGLE_SELECT
+    if (value) { // checked, unselect others
+        for (int i = 0; i < 7; ++i) {
+            if (week_checkbox_views[i] != view && checkbox_view_get_checked(view)) {
+                // unchecked
+                checkbox_view_set_checked(view, false);
+            }
+        }
+    }
+#endif
 }
 
 void alarm_clock_page_on_create(void *arg) {
@@ -84,16 +103,23 @@ void alarm_clock_page_on_create(void *arg) {
         return;
     }
 
+    if (alarm.week_mode == ALARM_DATE_MODE) {
+        alarm_not_support_day_mode = true;
+        return;
+    }
+
     load_alarm_failed = false;
+    alarm_not_support_day_mode = false;
     enable_switch_view = switch_view_create(alarm.en);
 
-    bool all_checked = (alarm.day_week >> 7) & 0x01;
+    bool all_checked = alarm.day_week_mask;
 
     hour_number_input_view = number_input_view_create(alarm.hour, 0, 23, 1, &Font24);
     minute_number_input_view = number_input_view_create(alarm.minute, 0, 59, 1, &Font24);
 
     for (int i = 0; i < 7; ++i) {
-        week_checkbox_views[i] = checkbox_view_create(all_checked || (alarm.day_week >> i) & 0x01);
+        week_checkbox_views[i] = checkbox_view_create(all_checked || alarm.day_week == i);
+        view_set_value_change_cb(week_checkbox_views[i], week_check_box_value_change_cb);
     }
 
     save_button = button_view_create((char *) text_save, &Font_HZK16);
@@ -120,6 +146,9 @@ void alarm_clock_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     epd_paint_clear(epd_paint, 0);
     if (load_alarm_failed) {
         epd_paint_draw_string_at(epd_paint, 6, 6, "load failed!", &Font16, 1);
+        return;
+    } else if (alarm_not_support_day_mode) {
+        epd_paint_draw_string_at(epd_paint, 6, 6, "day mode unsupported!", &Font12, 1);
         return;
     }
 
@@ -169,7 +198,7 @@ void alarm_clock_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
 }
 
 bool alarm_clock_page_key_click(key_event_id_t key_event_type) {
-    if (!load_alarm_failed) {
+    if (!load_alarm_failed && !alarm_not_support_day_mode) {
         bool view_group_handled = view_group_handle_key_event(view_group, key_event_type);
         if (view_group_handled) {
             return true;
@@ -178,7 +207,7 @@ bool alarm_clock_page_key_click(key_event_id_t key_event_type) {
 
     switch (key_event_type) {
         case KEY_OK_SHORT_CLICK:
-            if (load_alarm_failed) {
+            if (load_alarm_failed || alarm_not_support_day_mode) {
                 page_manager_close_page();
                 page_manager_request_update(false);
                 return true;
@@ -196,10 +225,11 @@ bool alarm_clock_page_key_click(key_event_id_t key_event_type) {
             page_manager_request_update(false);
             return true;
         }
+            break;
         default:
             break;
     }
-    return true;
+    return false;
 }
 
 void alarm_clock_page_on_destroy(void *arg) {

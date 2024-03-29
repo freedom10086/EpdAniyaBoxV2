@@ -98,16 +98,10 @@ void app_main() {
     display_init(boot_count);
 
     // max31328
-    //max31328_init();
+    max31328_init();
 
-    vTaskDelay(pdMS_TO_TICKS(1000));
     lis3dh_init(LIS3DH_LOW_POWER_MODE, LIS3DH_ACC_RANGE_2, LIS3DH_ACC_SAMPLE_RATE_25);
     lis3dh_config_motion_detect();
-
-    //while (1) {
-    //    ESP_LOGI(TAG, "gpio 13 level: %d", gpio_get_level(IMU_INT_1_GPIO));
-    //    vTaskDelay(pdMS_TO_TICKS(1000));
-    //}
 
     //vTaskDelay(pdMS_TO_TICKS(1000));
     //test_sensors();
@@ -143,25 +137,20 @@ void box_enter_deep_sleep(int sleep_ts) {
         esp_sleep_disable_wakeup_source(ESP_SLEEP_WAKEUP_TIMER);
     }
 
-#if SOC_PM_SUPPORT_EXT1_WAKEUP_MODE_PER_PIN
     // EXT1_WAKEUP
     ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << KEY_FN_NUM, ESP_EXT1_WAKEUP_ANY_LOW));
     ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << KEY_ENCODER_PUSH_NUM, ESP_EXT1_WAKEUP_ANY_LOW));
-
     // motion wake up
-    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << IMU_INT_1_GPIO, ESP_EXT1_WAKEUP_ANY_HIGH));
-
+    if (IMU_INT_1_GPIO >= 0) {
+        ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << IMU_INT_1_GPIO,
+                                                        IMU_INT_ACTIVE_LEVEL ? ESP_EXT1_WAKEUP_ANY_HIGH
+                                                                             : ESP_EXT1_WAKEUP_ANY_LOW));
+    } else {
+        lis3dh_deinit();
+    }
     // alarm wake up
     ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(1ULL << MAX31328_INT_GPIO_NUM, ESP_EXT1_WAKEUP_ANY_LOW));
-#else
-    // gpio wake up
-    const gpio_config_t config = {
-            .pin_bit_mask = 1 << KEY_1_NUM | 1 << KEY_2_NUM | 1 << KEY_3_NUM,
-            .mode = GPIO_MODE_INPUT,
-    };
-    ESP_ERROR_CHECK(gpio_config(&config));
-    ESP_ERROR_CHECK(esp_deep_sleep_enable_gpio_wakeup(config.pin_bit_mask, ESP_GPIO_WAKEUP_GPIO_LOW));
-#endif
+
     ESP_LOGI(TAG, "enter deep sleep mode, sleep %ds", sleep_ts);
     esp_deep_sleep_start();
 }

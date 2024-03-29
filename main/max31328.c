@@ -67,6 +67,25 @@ ESP_EVENT_DEFINE_BASE(BIKE_DATE_TIME_SENSOR_EVENT);
 
 #define TAG "max31328"
 
+typedef union {
+    struct {
+        uint8_t second_bcd: 7;
+        uint8_t second_mask: 1;  // 0 match mode 1 all match
+
+        uint8_t minute_bcd: 7;
+        uint8_t minute_mask: 1;  // 0 match mode 1 all match
+
+        uint8_t hour_bcd: 6;
+        uint8_t hour_12h_mode: 1; // 0 24h mode 1 12h mode
+        uint8_t hour_mask: 1;  // 0 match mode 1 all match
+
+        uint8_t day_bcd: 6;
+        uint8_t day_week_mode: 1; // 0 date mode 1 week mode
+        uint8_t day_mask: 1; // 0 match mode 1 all match
+    };
+    uint8_t raw_data[4];
+} max31328_alarm1_reg_t;
+
 extern i2c_master_bus_handle_t i2c_bus_handle;
 static i2c_master_dev_handle_t dev_handle;
 static bool max31328_inited = false;
@@ -162,7 +181,7 @@ static void max31328_task_entry(void *arg) {
 
         if (intlevel == 0) {
             ESP_LOGI(TAG, "isr happens gpio %d goes low", MAX31328_INT_GPIO_NUM);
-        } else{
+        } else {
             ESP_LOGI(TAG, "isr gpio %d high nothing happens", MAX31328_INT_GPIO_NUM);
         }
 
@@ -322,36 +341,21 @@ esp_err_t
 max31328_load_alarm1(max31328_alarm_t *alarm) {
     max31328_init();
 
-    uint8_t read_buf[4];
-    esp_err_t err = i2c_read_reg(ADDR_SEC_ALARM, read_buf, sizeof(read_buf));
+    max31328_alarm1_reg_t alarm1_data;
+
+    esp_err_t err = i2c_read_reg(ADDR_SEC_ALARM, alarm1_data.raw_data, sizeof(alarm1_data.raw_data));
     if (err != ESP_OK) {
         return err;
     }
 
     //ESP_LOGI(TAG, "read alarm raw: %x %x %x", read_buf[0], read_buf[1], read_buf[2]);
 
-    clrbit(read_buf[0], 7);
-    alarm->second = bcd2hex(read_buf[0]);
-
-    clrbit(read_buf[1], 7);
-    alarm->minute = bcd2hex(read_buf[1]);
-
-    clrbit(read_buf[2], 7);
-    alarm->hour = bcd2hex(read_buf[2]);
-
-    uint8_t saved_day_week = read_buf[3];
-    alarm->mode = (saved_day_week >> 6) & 0x01;
-    if (alarm->mode == ALARM_WEEK_MODE) {
-        // week mode
-        alarm->day_week = saved_day_week & 0x0f;
-    } else {
-        bool day_ae = ((saved_day_week & 0b10000000) > 0);
-        // day mode
-        alarm->day_week = bcd2hex(saved_day_week & 0x00111111);
-        if (day_ae) {
-            alarm->day_week = alarm->day_week | 0x01 << 7;
-        }
-    }
+    alarm->second = bcd2hex(alarm1_data.second_bcd);
+    alarm->minute = bcd2hex(alarm1_data.minute_bcd);
+    alarm->hour = bcd2hex(alarm1_data.hour_bcd);
+    alarm->week_mode = alarm1_data.day_week_mode;
+    alarm->day_week = bcd2hex(alarm1_data.day_bcd);
+    alarm->day_week_mask = alarm1_data.day_mask;
 
     err = max31328_read_alarm_status(&alarm->en, &alarm->af, &alarm->en2, &alarm->af2);
     if (err != ESP_OK) {
@@ -364,14 +368,25 @@ max31328_load_alarm1(max31328_alarm_t *alarm) {
 esp_err_t max31328_set_alarm1(const max31328_alarm_t *alarm) {
     max31328_init();
 
-    uint8_t day_week = alarm->day_week;
-    uint8_t write_day_week = hex2bcd(day_week);
-    if (alarm->mode) {
-        setbit(write_day_week, 6);
-    }
+    max31328_alarm1_reg_t alarm1_data;
 
-    uint8_t write_buf[] = {ADDR_SEC_ALARM, hex2bcd(alarm->second), hex2bcd(alarm->minute), hex2bcd(alarm->hour),
-                           write_day_week};
+    alarm1_data.second_bcd = hex2bcd(alarm->second);
+    alarm1_data.second_mask = 0;
+
+    alarm1_data.minute_bcd = hex2bcd(alarm->minute);
+    alarm1_data.minute_mask = 0;
+
+    alarm1_data.hour_bcd = hex2bcd(alarm->hour);
+    alarm1_data.hour_12h_mode = 0;
+    alarm1_data.hour_mask = 0;
+
+    alarm1_data.day_bcd = hex2bcd(alarm->day_week);
+    alarm1_data.day_week_mode = alarm->week_mode;
+    alarm1_data.day_mask = alarm->day_week_mask;
+
+    uint8_t write_buf[] = {ADDR_SEC_ALARM,
+                           alarm1_data.raw_data[0], alarm1_data.raw_data[1],
+                           alarm1_data.raw_data[2], alarm1_data.raw_data[3]};
     esp_err_t err = i2c_write(write_buf, sizeof(write_buf));
     if (err != ESP_OK) {
         return err;
@@ -405,6 +420,8 @@ esp_err_t max31328_set_alarm_en(uint8_t en1, uint8_t en2) {
     if (err != ESP_OK) {
         return err;
     }
+
+    setbit(read_buf[0], 2);
 
     if (en1) {
         setbit(read_buf[0], 0);

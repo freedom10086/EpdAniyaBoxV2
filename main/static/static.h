@@ -64,7 +64,14 @@ extern const uint8_t ic_summary_bmp_end[] asm("_binary_ic_summary_32_bmp_end");
 extern const uint8_t ic_alarm_bmp_start[] asm("_binary_ic_alarm_32_bmp_start");
 extern const uint8_t ic_alarm_bmp_end[] asm("_binary_ic_alarm_32_bmp_end");
 
+extern const uint8_t ic_time_bmp_start[] asm("_binary_ic_time_32_bmp_start");
+extern const uint8_t ic_time_bmp_end[] asm("_binary_ic_time_32_bmp_end");
+
 // https://www.qqxiuzi.cn/bianma/zifuji.php
+
+// 蓝牙
+static const uint8_t text_ble[] = {0xC0, 0xB6, 0xD1, 0xC0, 0x00};
+
 // 蓝牙已打开
 static const uint8_t text_ble_on[] = {0xC0, 0xB6, 0xD1, 0xC0, 0xD2, 0xD1, 0xB4, 0xF2, 0xBF, 0xAA, 0x00};
 // 时间未校准
@@ -95,6 +102,9 @@ static const uint8_t text_summary[] = {0xD7, 0xDC, 0xBD, 0xE1, 0x00};
 
 // 番茄时钟
 static const uint8_t text_tomato_clock[] = {0xB7, 0xAC, 0xC7, 0xD1, 0xCA, 0xB1, 0xD6, 0xD3, 0x00};
+
+// 番茄
+static const uint8_t text_tomato[] = {0xB7, 0xAC, 0xC7, 0xD1, 0x00};
 
 // 闹钟
 static const uint8_t text_alarm_clock[] = {0xC4, 0xD6, 0xD6, 0xD3, 0x00};
@@ -129,4 +139,7 @@ static const uint16_t text_setting[] = {0xE8C9, 0xC3D6, 0x00};
 
 // 关闭
 static const uint16_t text_close[] = {0xD8B9, 0xD5B1, 0x00};
+
+// 时间
+static const uint16_t text_time[] = {0xB1CA, 0xE4BC, 0x00};
 #endif

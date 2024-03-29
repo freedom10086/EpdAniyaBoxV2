@@ -10,73 +10,8 @@
 
 ESP_EVENT_DECLARE_BASE(BIKE_MOTION_EVENT);
 
-#define IMU_INT_1_GPIO 13
-#define IMU_INT_ACTIVE_LEVEL 0
-
-
-// 0011001 sa0 = 1 , default pull up
-// 0011000 sa0 = 0
-#define LIS3DH_ADDR 0B0011001
-
-#define LIS3DH_REG_STATUS 0x07
-
-// 0x33
-#define LIS3DH_REG_WHO_AM_I 0x0F
-
-#define LIS3DH_REG_CTRL_REG0 0x1E
-#define LIS3DH_REG_CTRL_REG1 0x20
-#define LIS3DH_REG_CTRL_REG2 0x21
-#define LIS3DH_REG_CTRL_REG3 0x22
-#define LIS3DH_REG_CTRL_REG4 0x23
-#define LIS3DH_REG_CTRL_REG5 0x24
-#define LIS3DH_REG_CTRL_REG6 0x25
-
-#define LIS3DH_REG_OUT_X_L 0x28
-#define LIS3DH_REG_OUT_X_H 0x29
-#define LIS3DH_REG_OUT_Y_L 0x2A
-#define LIS3DH_REG_OUT_Y_H 0x2B
-#define LIS3DH_REG_OUT_Z_L 0x2C
-#define LIS3DH_REG_OUT_Z_H 0x2D
-
-#define LIS3DH_REG_INT1_CFG 0x30
-#define LIS3DH_REG_INT1_SRC 0x31
-#define LIS3DH_REG_INT1_THS 0x32
-#define LIS3DH_REG_INT1_DURATION 0x33
-
-#define LIS3DH_REG_INT2_CFG 0x34
-#define LIS3DH_REG_INT2_SRC 0x35
-#define LIS3DH_REG_INT2_THS 0x36
-#define LIS3DH_REG_INT2_DURATION 0x37
-
-#define LIS3DH_REG_CLICK_CFG 0x38
-#define LIS3DH_REG_CLICK_SRC 0x39
-#define LIS3DH_REG_CLICK_THS 0x3A
-#define LIS3DH_REG_TIME_LIMIT 0x3B
-#define LIS3DH_REG_TIME_LATENCY 0x3C
-#define LIS3DH_REG_TIME_WINDOW 0x3D
-
-
-// High Pass Filter values
-#define LIS3DH_HPF_DISABLED               0x00
-#define LIS3DH_HPF_AOI_INT1               0x01
-#define LIS3DH_HPF_AOI_INT2               0x02
-#define LIS3DH_HPF_CLICK                  0x04
-#define LIS3DH_HPF_FDS                    0x08
-
-#define LIS3DH_HPF_CUTOFF1                0x00
-#define LIS3DH_HPF_CUTOFF2                0x10
-#define LIS3DH_HPF_CUTOFF3                0x20
-#define LIS3DH_HPF_CUTOFF4                0x30
-
-#define LIS3DH_HPF_DEFAULT_MODE           0x00
-#define LIS3DH_HPF_REFERENCE_SIGNAL       0x40
-#define LIS3DH_HPF_NORMAL_MODE            0x80
-#define LIS3DH_HPF_AUTORESET_ON_INTERRUPT 0xC0
-
-
-///< Scalar to convert from 16-bit lsb to 10-bit and divide by 1k to
-///< convert from milli-gs to gs
-#define LIS3DH_LSB16_TO_KILO_LSB10  64000
+#define IMU_INT_1_GPIO -1
+#define IMU_INT_ACTIVE_LEVEL 1
 
 /**
  * LIS3DH_LOW_POWER_MODE : 16mg per deg

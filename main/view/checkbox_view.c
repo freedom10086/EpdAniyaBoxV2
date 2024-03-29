@@ -14,7 +14,10 @@
 
 static bool key_event(view_t *v, key_event_id_t event) {
     if (event == KEY_OK_SHORT_CLICK) {
-        checkbox_view_toggle(v);
+        bool checked = checkbox_view_toggle(v);
+        if (v->view_on_value_change_cb != NULL) {
+            v->view_on_value_change_cb(v, checked);
+        }
         return true;
     }
     return false;

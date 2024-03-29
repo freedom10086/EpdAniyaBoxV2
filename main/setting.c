@@ -60,15 +60,25 @@ esp_err_t box_setting_load(uint8_t cmd, uint8_t *out, uint16_t *out_len) {
     // load alarm
     max31328_alarm_t alarm;
     err = max31328_load_alarm1(&alarm);
-    ESP_LOGI(TAG, "load alarm %d %d %d %d %d %d, res:%d", alarm.en, alarm.mode, alarm.af, alarm.minute, alarm.hour, alarm.day_week, err);
+    ESP_LOGI(TAG, "load alarm %d %d %d %d %d %d, res:%d", alarm.en, alarm.week_mode, alarm.af, alarm.minute, alarm.hour,
+             alarm.day_week, err);
 
-    // bit1 en, bit2 day_mode(reverse with setting), bit3 af
-    out[7] = alarm.en | ((!alarm.mode) << 1) | (alarm.af << 2);
+    // bit0 en, bit1 day_mode(1 day mode, 0 week mode),
+    // bit2 af, bit3 week_single_mode(0-support multi select 1-only support single choose)
+    out[7] = alarm.en | ((!alarm.week_mode) << 1) | (alarm.af << 2) | (0x01 << 3);
     out[8] = alarm.minute;
     out[9] = alarm.hour;
-    out[10] = alarm.day_week;
-    len += 4;
 
+    // if week mode
+    if (alarm.week_mode == ALARM_WEEK_MODE) {
+        // bit7 all match mode, bit 0 -> 7 sunday -> sat
+        out[10] = alarm.day_week_mask << 7 | 0x01 << alarm.day_week;
+    } else {
+        // bit7 all match mode
+        out[10] = alarm.day_week_mask << 7 | alarm.day_week;
+    }
+
+    len += 4;
     *out_len = len;
     return err;
 }
@@ -95,14 +105,26 @@ esp_err_t box_setting_apply(uint8_t cmd, uint8_t *data, uint16_t data_len) {
             }
             max31328_alarm_t alarm;
             alarm.en = data[0] & 0x01;
-            alarm.mode = !((data[0] >> 1) & 0x01);
             alarm.second = 0; // TODO alarm second
             alarm.minute = data[1];
             alarm.hour = data[2];
-            alarm.day_week = data[3];
+            alarm.day_week = data[3] & 0b01111111;
+            alarm.day_week_mask = (data[3] >> 7) & 0x01;
+            alarm.week_mode = !((data[0] >> 1) & 0x01);
+
+            if (alarm.week_mode == ALARM_WEEK_MODE) {
+                // convert bit to number
+                for (uint8_t i = 0; i < 7; i++) {
+                    if ((alarm.day_week >> i) & 0x01) {
+                        alarm.day_week = i;
+                        break;
+                    }
+                }
+            }
 
             err = max31328_set_alarm1(&alarm);
-            ESP_LOGI(TAG, "BOX_SETTING_CMD_SET_ALARM %d %d %d %d res:%d", data[0], data[1], data[2], data[3], err);
+            ESP_LOGI(TAG, "BOX_SETTING_CMD_SET_ALARM cfg:%d min:%d hour:%d day_week:%d res:%d", data[0], data[1],
+                     data[2], data[3], err);
             if (err != ESP_OK) {
                 return err;
             }

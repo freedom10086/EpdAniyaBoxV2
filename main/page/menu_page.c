@@ -6,10 +6,13 @@
 #include "static/static.h"
 #include "page_manager.h"
 #include "LIS3DH.h"
+#include "alert_dialog_page.h"
+#include "bles/ble_server.h"
 
 #define TAG "menu_page"
 
-#define MENU_ITEM_COUNT 4
+#define MENU_ITEM_COUNT 8
+#define MENU_ITEM_COL_COUNT 4
 #define MENU_ITEM_HEIGHT 56
 #define MENU_ITEM_WIDTH 50
 #define MENU_AUTO_CLOSE_TIMEOUT_TS 20
@@ -39,7 +42,7 @@ void menu_page_on_create(void *arg) {
 
 void menu_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     ESP_LOGI(TAG, "=== on draw ===");
-    uint8_t starty = epd_paint->height - MENU_ITEM_HEIGHT;
+    uint8_t starty = epd_paint->height - MENU_ITEM_HEIGHT * 2;
 
     //ESP_LOGI(TAG, "menu_page_draw");
     epd_paint_clear_range(epd_paint, 0, starty, LCD_H_RES, LCD_V_RES, 0);
@@ -65,13 +68,42 @@ void menu_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
                           ic_image_bmp_end - ic_image_bmp_start, 1);
     epd_paint_draw_string_at(epd_paint, MENU_ITEM_WIDTH + 9, starty + 38, (char *) text_image, &Font_HZK16, 1);
 
-    // 2. setting
+    // 2. time
+    epd_paint_draw_bitmap(epd_paint, MENU_ITEM_WIDTH * 2 + 8, starty + 4, 32, 32,
+                          (uint8_t *) ic_time_bmp_start,
+                          ic_time_bmp_end - ic_time_bmp_start, 1);
+    epd_paint_draw_string_at(epd_paint, MENU_ITEM_WIDTH * 2 + 9, starty + 38, (char *) text_time, &Font_HZK16, 1);
+
+    // 3. alarm
+    epd_paint_draw_bitmap(epd_paint, MENU_ITEM_WIDTH * 3 + 8, starty + 4, 32, 32,
+                          (uint8_t *) ic_alarm_bmp_start,
+                          ic_alarm_bmp_end - ic_alarm_bmp_start, 1);
+
+    epd_paint_draw_string_at(epd_paint, MENU_ITEM_WIDTH * 3 + 9, starty + 38, (char *) text_alarm_clock, &Font_HZK16, 1);
+
+
+    //// second line
+    starty += MENU_ITEM_HEIGHT;
+
+    // 4. tomato
+    epd_paint_draw_bitmap(epd_paint, 8, starty + 4, 32, 32,
+                          (uint8_t *) ic_tomato_bmp_start,
+                          ic_tomato_bmp_end - ic_tomato_bmp_start, 1);
+    epd_paint_draw_string_at(epd_paint, 9, starty + 38, (char *) text_tomato, &Font_HZK16, 1);
+
+    // 5. ble
+    epd_paint_draw_bitmap(epd_paint, MENU_ITEM_WIDTH + 7, starty + 4, 36, 32,
+                          (uint8_t *) ic_ble_bmp_start,
+                          ic_ble_bmp_end - ic_ble_bmp_start, 1);
+    epd_paint_draw_string_at(epd_paint, MENU_ITEM_WIDTH + 9, starty + 38, (char *) text_ble, &Font_HZK16, 1);
+
+    // 6. setting
     epd_paint_draw_bitmap(epd_paint, MENU_ITEM_WIDTH * 2 + 8, starty + 4, 33, 32,
                           (uint8_t *) ic_setting_bmp_start,
                           ic_setting_bmp_end - ic_setting_bmp_start, 1);
     epd_paint_draw_string_at(epd_paint, MENU_ITEM_WIDTH * 2 + 9, starty + 38, (char *) text_setting, &Font_HZK16, 1);
 
-    // 3. close
+    // 7. close
     epd_paint_draw_bitmap(epd_paint, MENU_ITEM_WIDTH * 3 + 8, starty + 4, 32, 32,
                           (uint8_t *) ic_close_bmp_start,
                           ic_close_bmp_end - ic_close_bmp_start, 1);
@@ -79,8 +111,9 @@ void menu_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
     epd_paint_draw_string_at(epd_paint, MENU_ITEM_WIDTH * 3 + 9, starty + 38, (char *) text_close, &Font_HZK16, 1);
 
     // select item
-    uint8_t startX = (current_index % 4) * MENU_ITEM_WIDTH + 1;
-    epd_paint_reverse_range(epd_paint, startX + 1, starty + 2, MENU_ITEM_WIDTH - 3, MENU_ITEM_HEIGHT - 2);
+    uint8_t startx = (current_index % MENU_ITEM_COL_COUNT) * MENU_ITEM_WIDTH + 1;
+    starty = epd_paint->height - MENU_ITEM_HEIGHT * 2 +  (current_index / MENU_ITEM_COL_COUNT) * MENU_ITEM_HEIGHT ;
+    epd_paint_reverse_range(epd_paint, startx + 1, starty + 2, MENU_ITEM_WIDTH - 3, MENU_ITEM_HEIGHT - 2);
 }
 
 void menu_page_after_draw(uint32_t loop_cnt) {
@@ -96,12 +129,26 @@ static void change_select(bool next) {
 void handle_setting_item_event() {
     page_manager_close_menu();
     if (current_index == 0) {
-        // home page
         page_manager_switch_page("temperature", false);
     } else if (current_index == 1) {
-        // image manager
         page_manager_switch_page("image", false);
     } else if (current_index == 2) {
+        page_manager_switch_page("date-time", false);
+    } else if (current_index == 3) {
+        page_manager_switch_page("alarm-clock", true);
+    } else if (current_index == 4) {
+        page_manager_switch_page("tomato", false);
+    } else if (current_index == 5) {
+        // show alert dialog
+        ble_server_init();
+
+        static alert_dialog_arg_t alert_dialog_arg = {
+                .title_label = (char *) text_ble_on,
+                .auto_close_ms = 5000
+        };
+        page_manager_show_menu("alert-dialog", &alert_dialog_arg);
+        page_manager_request_update(false);
+    }  else if (current_index == 6) {
         // setting
         page_manager_switch_page("setting-list", true);
     }

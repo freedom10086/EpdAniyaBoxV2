@@ -40,13 +40,20 @@ typedef struct {
 typedef struct {
     uint8_t en;
     uint8_t af;
-    uint8_t en2;
-    uint8_t af2;
-    uint8_t mode; // 1 week mode
     uint8_t second;
     uint8_t minute;
     uint8_t hour;
+    uint8_t week_mode; // 1 week mode
     uint8_t day_week;
+    uint8_t day_week_mask; // 1 all match
+
+    uint8_t en2;
+    uint8_t af2;
+    uint8_t minute2;
+    uint8_t hour2;
+    uint8_t week_mode2; // 1 week mode
+    uint8_t day_week2;
+    uint8_t day_week_mask2; // 1 all match
 } max31328_alarm_t;
 
 typedef enum {
@@ -82,10 +89,6 @@ esp_err_t max31328_get_time_ts(time_t *ts);
 esp_err_t max31328_load_alarm1(max31328_alarm_t *alarm);
 
 esp_err_t max31328_set_alarm1(const max31328_alarm_t *alarm);
-
-esp_err_t max31328_load_alarm2(uint8_t *en, uint8_t *week_mode, uint8_t *af, uint8_t *minute, uint8_t *hour, uint8_t *day_week);
-
-esp_err_t max31328_set_alarm2(uint8_t en, uint8_t week_mode, uint8_t minute, uint8_t hour, uint8_t day_week);
 
 esp_err_t max31328_set_alarm_en(uint8_t alarm1_en, uint8_t alarm2_en);
 

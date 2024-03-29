@@ -428,6 +428,7 @@ static int ble_gap_event(struct ble_gap_event *event, void *arg) {
         case BLE_GAP_EVENT_DISCONNECT:
             /* Connection terminated. */
             // 520 掉线
+            // 531 主动断开连接
             ESP_LOGI(GATTC_TAG, "disconnect; reason=%d ", event->disconnect.reason);
             print_conn_desc(&event->disconnect.conn);
             ESP_LOGI(GATTC_TAG, "\n");

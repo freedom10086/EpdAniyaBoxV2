@@ -26,5 +26,5 @@ idf_component_register(SRCS ${srcs}
         EMBED_FILES "static/ic_close_32.bmp" "static/ic_home_32.bmp" "static/ic_image_32.bmp" "static/ic_info_32.bmp" "static/ic_manual_32.bmp"
         EMBED_FILES "static/ic_setting_32.bmp" "static/ic_upgrade_32.bmp" "static/ic_reboot_32.bmp" "static/ic_back_32.bmp" "static/ic_ble_32.bmp"
         EMBED_FILES "static/ic_music_32.bmp" "static/ic_battery_32.bmp" "static/ic_tomato_32.bmp" "static/ic_studying_32.bmp" "static/ic_playing_32.bmp"
-        EMBED_FILES "static/ic_summary_32.bmp" "static/ic_alarm_32.bmp"
+        EMBED_FILES "static/ic_summary_32.bmp" "static/ic_alarm_32.bmp" "static/ic_time_32.bmp"
         INCLUDE_DIRS ".")

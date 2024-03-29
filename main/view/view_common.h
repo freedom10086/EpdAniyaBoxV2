@@ -35,5 +35,6 @@ typedef void (*view_on_value_change_cb)(struct view_t* view, int value);
 typedef void (*view_on_click_cb)(struct view_t* view);
 
 void view_set_click_cb(view_t *view, view_on_click_cb cb);
+void view_set_value_change_cb(view_t *view, view_on_value_change_cb cb);
 
 #endif //ANIYA_BOX_V2_VIEW_COMMON_H

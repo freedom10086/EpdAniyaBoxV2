@@ -55,11 +55,9 @@ typedef struct {
  *          - ESP_ERR_NO_MEM        if out of memory
  *          - ESP_OK                on success
  */
-esp_err_t epd_panel_init(spi_host_device_t bus);
+esp_err_t epd_panel_driver_init(spi_host_device_t bus);
 
-esp_err_t epd_panel_init_full();
-
-esp_err_t epd_panel_init_partial();
+esp_err_t epd_panel_init(epd_refresh_mode_t mode);
 
 esp_err_t epd_panel_reset();
 

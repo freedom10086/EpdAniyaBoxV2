@@ -134,7 +134,7 @@ static void guiTask(void *pvParameter) {
                     DISP_BUFF_SIZE, SPI_DMA_CH_AUTO);
 
     // Attach the LCD to the SPI bus
-    esp_err_t err = epd_panel_init(DISP_SPI_HOST);
+    esp_err_t err = epd_panel_driver_init(DISP_SPI_HOST);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "create epd panel failed");
         vTaskDelete(NULL);
@@ -158,8 +158,6 @@ static void guiTask(void *pvParameter) {
     curr_disp_rotation = rotation;
     epd_paint_init(epd_paint, image, LCD_H_RES, LCD_V_RES, rotation);
     epd_paint_clear(epd_paint, 0);
-
-    epd_panel_init_full();
 
     static uint32_t loop_cnt = 1;
     uint32_t last_full_refresh_loop_cnt = loop_cnt;
@@ -199,11 +197,8 @@ static void guiTask(void *pvParameter) {
             bool use_full_update_mode = loop_cnt == 1
                                         || loop_cnt - last_full_refresh_loop_cnt >= 60
                                         || will_enter_deep_sleep;
-            if (use_full_update_mode) {
-                epd_panel_init_full();
-            } else {
-                epd_panel_init_partial();
-            }
+
+            epd_panel_init(use_full_update_mode ? EPD_REFRESH_MODE_FULL : EPD_REFRESH_MODE_PARTIAL);
 
             if (rotation_change) {
                 epd_paint_set_rotation(epd_paint, curr_disp_rotation);

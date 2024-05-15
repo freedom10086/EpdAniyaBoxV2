@@ -9,7 +9,7 @@
 
 #include "spl06.h"
 
-ESP_EVENT_DEFINE_BASE(BIKE_PRESSURE_SENSOR_EVENT);
+ESP_EVENT_DEFINE_BASE(PRESSURE_SENSOR_EVENT);
 
 // or 0x76 if SDO is low
 // 0x77 if SDO is high
@@ -307,7 +307,7 @@ esp_err_t spl06_init() {
     if (device_id != 0x10) {
         // not spl06 break
         ESP_LOGE(TAG, "not spl06 device_id: %x", device_id);
-        common_post_event(BIKE_PRESSURE_SENSOR_EVENT, SPL06_SENSOR_INIT_FAILED);
+        common_post_event(PRESSURE_SENSOR_EVENT, SPL06_SENSOR_INIT_FAILED);
         return ESP_ERR_INVALID_STATE;
     }
 
@@ -327,6 +327,8 @@ void spl06_deinit() {
         i2c_master_bus_rm_device(dev_handle);
 
         spl06_inited = false;
+
+        ESP_LOGI(TAG, "deinit...");
     }
 }
 
@@ -337,7 +339,7 @@ void spl06_reset() {
     spl06.fifo_len = 0;
 }
 
-esp_err_t spl06_start(bool en_fifo) {
+esp_err_t spl06_start(bool en_fifo, uint16_t interval_ms) {
     if (spl06_task_hdl != NULL) {
         return ESP_ERR_INVALID_STATE;
     }
@@ -365,7 +367,7 @@ esp_err_t spl06_start(bool en_fifo) {
             spl06_task_entry,
             "spl06_tsk",
             2048,
-            NULL,
+            &interval_ms,
             5,
             &spl06_task_hdl);
 
@@ -582,6 +584,7 @@ static void spl06_task_entry(void *arg) {
     // spl06_reset();
     // vTaskDelay(pdMS_TO_TICKS(30));
 
+    uint16_t interval_ms = *(uint16_t *)arg;
     read_coef_data();
 
     // wait for sensor ready
@@ -592,7 +595,7 @@ static void spl06_task_entry(void *arg) {
         }
         spl06_meassure_state();
         ESP_LOGI(TAG, "spl06 wait for sensor ready...");
-        vTaskDelay(pdMS_TO_TICKS(5));
+        vTaskDelay(pdMS_TO_TICKS(10));
     }
 
     while (1) {
@@ -641,11 +644,11 @@ static void spl06_task_entry(void *arg) {
             }
 
             if (data_updated) {
-                common_post_event_data(BIKE_PRESSURE_SENSOR_EVENT, SPL06_SENSOR_UPDATE, &event_data,
+                common_post_event_data(PRESSURE_SENSOR_EVENT, SPL06_SENSOR_UPDATE, &event_data,
                                        sizeof(spl06_event_data_t));
             }
         }
 
-        vTaskDelay(pdMS_TO_TICKS(3000));
+        vTaskDelay(pdMS_TO_TICKS(interval_ms));
     }
 }

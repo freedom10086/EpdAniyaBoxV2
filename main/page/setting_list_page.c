@@ -13,7 +13,7 @@
 #define PADDING_X 12
 #define PADDING_Y 4
 #define TEXT_PADDING_Y 11
-#define TOTAL_SETTING_ITEM_COUNT 7
+#define TOTAL_SETTING_ITEM_COUNT 8
 
 static bool switching_index = false;
 static int16_t current_index = 0;
@@ -90,6 +90,16 @@ void setting_list_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
         y += SETTING_ITEM_HEIGHT;
     }
 
+    if (offset_item < 6) {
+        // 5. PRESSURE
+        epd_paint_draw_bitmap(epd_paint, 8, y + PADDING_Y, 32, 32,
+                              (uint8_t *) ic_pressure_bmp_start,
+                              ic_pressure_bmp_end - ic_pressure_bmp_start, 1);
+        epd_paint_draw_string_at(epd_paint, SETTING_ITEM_HEIGHT + PADDING_X, y + TEXT_PADDING_Y,
+                                 (char *) text_pressure_sensor, &Font_HZK16, 1);
+        y += SETTING_ITEM_HEIGHT;
+    }
+
 //    if (offset_item < 6) {
 //        // 5. upgrade
 //        epd_paint_draw_bitmap(epd_paint, 8, y + PADDING_Y, 32, 32,
@@ -110,8 +120,8 @@ void setting_list_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
 //                                 (char *) ble_device, &Font_HZK16, 1);
 //        y += SETTING_ITEM_HEIGHT;
 //    }
-    if (offset_item < 6) {
-        // 7. battery
+    if (offset_item < 7) {
+        // 6. battery
         epd_paint_draw_bitmap(epd_paint, 9, y + PADDING_Y, 32, 32,
                               (uint8_t *) ic_battery_bmp_start,
                               ic_battery_bmp_end - ic_battery_bmp_start, 1);
@@ -120,8 +130,8 @@ void setting_list_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
                                  (char *) battery, &Font_HZK16, 1);
         y += SETTING_ITEM_HEIGHT;
     }
-    if (offset_item < 7) {
-        // 8. reboot
+    if (offset_item < 8) {
+        // 7. reboot
         epd_paint_draw_bitmap(epd_paint, 9, y + PADDING_Y, 32, 32,
                               (uint8_t *) ic_reboot_bmp_start,
                               ic_reboot_bmp_end - ic_reboot_bmp_start, 1);
@@ -173,6 +183,8 @@ static void handle_click_event() {
         page_manager_switch_page("image-manage", true);
     } else if (current_index == 4) {
         page_manager_switch_page("music", true);
+    } else if (current_index == 5) {
+        page_manager_switch_page("pressure-sensor", true);
     }
 //    else if (current_index == 5) {
 //        page_manager_switch_page("upgrade", true);
@@ -180,9 +192,9 @@ static void handle_click_event() {
 //    else if (current_index == 6) {
 //        page_manager_switch_page("ble-device", true);
 //    }
-    else if (current_index == 5) {
+    else if (current_index == 6) {
         page_manager_switch_page("battery", true);
-    } else if (current_index == 6) {
+    } else if (current_index == 7) {
         esp_restart();
     }
     page_manager_request_update(false);

@@ -21,11 +21,12 @@
 #include "page/music_page.h"
 #include "page/tomato_clock.h"
 #include "page/alarm_clock_page.h"
+#include "page/pressure_sensor_page.h"
 #include "battery.h"
 #include "max31328.h"
 
 #define TAG "page-manager"
-#define TOTAL_PAGE 13
+#define TOTAL_PAGE 14
 #define TOTAL_MENU 3
 
 static int8_t pre_page_index = -1;
@@ -140,6 +141,13 @@ static page_inst_t pages[] = {
                 .key_click_handler = alarm_clock_page_key_click,
                 .enter_sleep_handler = alarm_clock_page_on_enter_sleep,
                 .on_destroy_page = alarm_clock_page_on_destroy,
+        }, {
+                .page_name = "pressure-sensor",
+                .on_draw_page = pressure_sensor_page_draw,
+                .on_create_page = pressure_sensor_page_on_create,
+                .key_click_handler = pressure_sensor_page_key_click,
+                .enter_sleep_handler = pressure_sensor_page_on_enter_sleep,
+                .on_destroy_page = pressure_sensor_page_on_destroy,
         },
 };
 
@@ -193,7 +201,7 @@ void page_manager_init(int8_t page_index) {
     }
 
     esp_event_handler_register(BIKE_KEY_EVENT, ESP_EVENT_ANY_ID,
-                                    key_event_handler, NULL);
+                               key_event_handler, NULL);
 
     // reset to -1 when awake from deep sleep
     current_page_index = -1;
@@ -447,7 +455,7 @@ static void key_event_task_entry(void *arg) {
                     break;
                 case KEY_FN_DB_CLICK:
                     if (page_manager_get_current_index() < HOME_PAGE_COUNT) {
-                        int8_t dest_index = (page_manager_get_current_index() +  1) % HOME_PAGE_COUNT;
+                        int8_t dest_index = (page_manager_get_current_index() + 1) % HOME_PAGE_COUNT;
                         if (page_manager_switch_page_by_index(dest_index, false)) {
                             page_manager_request_update(false);
                         }

@@ -67,6 +67,9 @@ extern const uint8_t ic_alarm_bmp_end[] asm("_binary_ic_alarm_32_bmp_end");
 extern const uint8_t ic_time_bmp_start[] asm("_binary_ic_time_32_bmp_start");
 extern const uint8_t ic_time_bmp_end[] asm("_binary_ic_time_32_bmp_end");
 
+extern const uint8_t ic_pressure_bmp_start[] asm("_binary_ic_pressure_32_bmp_start");
+extern const uint8_t ic_pressure_bmp_end[] asm("_binary_ic_pressure_32_bmp_end");
+
 // https://www.qqxiuzi.cn/bianma/zifuji.php
 
 // 蓝牙
@@ -132,7 +135,7 @@ static const uint8_t text_save[] = {0xB1, 0xA3, 0xB4, 0xE6, 0x00};
 static const uint16_t text_home[] = {0xD7CA, 0xB3D2, 0x00};
 
 // 图片
-static const  uint16_t text_image[] = {0xBCCD, 0xACC6, 0x00};
+static const uint16_t text_image[] = {0xBCCD, 0xACC6, 0x00};
 
 // 设置
 static const uint16_t text_setting[] = {0xE8C9, 0xC3D6, 0x00};
@@ -142,4 +145,22 @@ static const uint16_t text_close[] = {0xD8B9, 0xD5B1, 0x00};
 
 // 时间
 static const uint16_t text_time[] = {0xB1CA, 0xE4BC, 0x00};
+
+// 气压
+static const uint8_t text_pressure[] = {0xC6, 0xF8, 0xD1, 0xB9, 0x00};
+
+// 气压传感器
+static const uint8_t text_pressure_sensor[] = {0xC6, 0xF8, 0xD1, 0xB9, 0xB4, 0xAB, 0xB8, 0xD0, 0xC6, 0xF7, 0x00};
+
+// 海拔
+static const uint8_t text_altitude[] = {0xBA, 0xA3, 0xB0, 0xCE, 0x00};
+
+// 温度
+static const uint16_t text_temperature[] = {0xC2CE, 0xC8B6, 0x00};
+
+// ℃
+static uint16_t text_temp_f[] = {0xE6A1, 0x00};
+
+// 湿度
+static const uint16_t text_hum[] = {0xAACA, 0xC8B6, 0x00};
 #endif

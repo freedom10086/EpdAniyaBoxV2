@@ -7,7 +7,7 @@
 
 #include <math.h>
 
-ESP_EVENT_DECLARE_BASE(BIKE_PRESSURE_SENSOR_EVENT);
+ESP_EVENT_DECLARE_BASE(PRESSURE_SENSOR_EVENT);
 
 #define SEA_LEVEL_PRESSURE 101325.0
 
@@ -32,7 +32,7 @@ typedef struct {
 esp_err_t spl06_init();
 
 void spl06_reset();
-esp_err_t spl06_start(bool en_fifo);
+esp_err_t spl06_start(bool en_fifo, uint16_t interval_ms);
 void spl06_stop();
 
 float spl06_get_temperature();

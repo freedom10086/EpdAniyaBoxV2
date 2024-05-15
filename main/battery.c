@@ -6,7 +6,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
-#include "soc/soc_caps.h"
 #include "esp_adc/adc_oneshot.h"
 #include "esp_adc/adc_cali.h"
 #include "esp_adc/adc_cali_scheme.h"
@@ -266,7 +265,8 @@ static void battery_task_entry(void *arg) {
             _voltage = voltage;
             current_level = battery_get_level();
 
-            ESP_LOGI(TAG, "ADC%d Channel[%d] Cali Voltage: %d mV level:%d", ADC_UNIT_1 + 1, ADC1_CHAN, voltage, current_level);
+            ESP_LOGI(TAG, "ADC%d Channel[%d] Cali Voltage: %d mV level:%d raw:%d", ADC_UNIT_1 + 1, ADC1_CHAN, voltage,
+                     current_level, _adc_raw);
             if (current_level != before_level) {
                 // battery level change
                 common_post_event_data(BIKE_BATTERY_EVENT,

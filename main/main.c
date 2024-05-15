@@ -62,8 +62,10 @@ void sensor_power_onoff(bool on) {
 void app_main() {
     // esp_log_level_set("*", ESP_LOG_WARN);
     esp_log_level_set("epd_panel", ESP_LOG_WARN);
-    // esp_log_level_set("keyboard", ESP_LOG_WARN);
+    esp_log_level_set("keyboard", ESP_LOG_WARN);
     esp_log_level_set("LIS3DH", ESP_LOG_WARN);
+    esp_log_level_set("display", ESP_LOG_WARN);
+    esp_log_level_set("sht40", ESP_LOG_WARN);
     // esp_log_level_set("page-manager", ESP_LOG_WARN);
 
     boot_count++;
@@ -214,7 +216,7 @@ static void test_sensors() {
     }
 
     spl06_init();
-    spl06_start(false);
+    spl06_start(false, 3000);
     vTaskDelay(pdMS_TO_TICKS(1000));
     ESP_LOGI(TAG, "read pressure %f", spl06_get_pressure());
     ESP_LOGI(TAG, "read pressure temp %f", spl06_get_temperature());

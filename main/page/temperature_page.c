@@ -23,13 +23,6 @@
 #define TAG "temp-page"
 #define TEMP_DATA_TIMEOUT_MS 30000
 
-// 温度
-static uint16_t temp[] = {0xC2CE, 0xC8B6, 0x00};
-// ℃
-static uint16_t temp_f[] = {0xE6A1, 0x00};
-
-// 湿度
-static uint16_t hum[] = {0xAACA, 0xC8B6, 0x00};
 // %
 static uint16_t hum_f[] = {0x25, 0x00};
 
@@ -98,7 +91,7 @@ void temperature_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
             temperature = 100;
         }
         bool is_minus = temperature < 0;
-        epd_paint_draw_string_at(epd_paint, 183, 24, (char *) temp_f, &Font_HZK16, 1);
+        epd_paint_draw_string_at(epd_paint, 183, 24, (char *) text_temp_f, &Font_HZK16, 1);
         digi_view_set_text(temp_label, (int) temperature, 2, (int) (temperature * 10 + (is_minus ? -0.5f : 0.5f)) % 10,
                            1);
         digi_view_draw(8, 24, temp_label, epd_paint, loop_cnt);

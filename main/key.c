@@ -223,8 +223,15 @@ static void key_task_entry(void *arg) {
     }
 
     for (uint8_t i = 0; i < KEY_COUNT; i++) {
-        esp_timer_stop(key_state_list[i].timer);
-        esp_timer_delete(key_state_list[i].timer);
+        if (key_state_list[i].timer[0]) {
+            esp_timer_stop(key_state_list[i].timer[0]);
+            esp_timer_delete(key_state_list[i].timer[0]);
+        }
+
+        if (key_state_list[i].timer[1]) {
+            esp_timer_stop(key_state_list[i].timer[1]);
+            esp_timer_delete(key_state_list[i].timer[1]);
+        }
     }
 
     vTaskDelete(NULL);

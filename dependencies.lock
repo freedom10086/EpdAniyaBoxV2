@@ -1,21 +1,29 @@
 dependencies:
   espressif/esp_jpeg:
-    component_hash: 257714f4bd0d8258a122d57715e6ba166de858d6d49d5fb8e70263d5069d8568
+    component_hash: ca1494551d0436b0dbba379c578da2c0d1b8d8756240e5e99f172744dad8e842
+    dependencies:
+    - name: idf
+      require: private
+      version: '>=5.0'
     source:
-      service_url: https://api.components.espressif.com/
+      registry_url: https://components.espressif.com/
       type: service
-    version: 1.0.5~2
+    version: 1.2.0
   espressif/qrcode:
     component_hash: 3b493771bc5d6ad30cbf87c25bf784aada8a08c941504355b55d6b75518ed7bc
+    dependencies: []
     source:
-      service_url: https://api.components.espressif.com/
+      registry_url: https://components.espressif.com/
       type: service
     version: 0.1.0~2
   idf:
-    component_hash: null
     source:
       type: idf
-    version: 5.4.0
-manifest_hash: 6ac528fe2d80f3cabe3c8d9f9b9ee28fa2e60faf88321caf69f8167e5ad08338
+    version: 5.5.0
+direct_dependencies:
+- espressif/esp_jpeg
+- espressif/qrcode
+- idf
+manifest_hash: 0de2ed5ff7185112407a48f99f87611d18cd29f612c4e35c2f9352e5394e98fc
 target: esp32h2
-version: 1.0.0
+version: 2.0.0

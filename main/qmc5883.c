@@ -101,7 +101,7 @@ esp_err_t qmc5883_init() {
 
     if (!_qmc5883_id_checked) {
         // check device id
-        uint16_t device_id;
+        uint8_t device_id;
         esp_err_t err = qmc_i2c_read(QMC5883_REG_CHIP_ID, &device_id, 1);
         if (err == ESP_OK) {
             if (device_id != 0xff) {

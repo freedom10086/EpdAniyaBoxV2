@@ -5,4 +5,4 @@ cmake_minimum_required(VERSION 3.16)
 set(IDF_TARGET "esp32h2")
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(aniya_box_v2)
+project(aniya_box_v3)

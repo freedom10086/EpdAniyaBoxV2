@@ -4,6 +4,11 @@ file(GLOB VIEW_SOURCE_FILES
         "page/*.c"
 )
 
+if (NOT CONFIG_WIFI_ENABLED)
+#    message(STATUS ${CMAKE_CURRENT_SOURCE_DIR})
+    list(REMOVE_ITEM VIEW_SOURCE_FILES "${CMAKE_CURRENT_SOURCE_DIR}/page/upgrade_page.c")
+endif ()
+
 file(GLOB BLE_SOURCE_FILES
         "ble/*.c"
         "bles/*.c"

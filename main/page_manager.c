@@ -9,7 +9,9 @@
 #include "page/info_page.h"
 #include "page/image_page.h"
 #include "page/temperature_page.h"
+#if CONFIG_WIFI_ENABLED
 #include "page/upgrade_page.h"
+#endif
 #include "page/menu_page.h"
 #include "page/confirm_menu_page.h"
 #include "page/alert_dialog_page.h"
@@ -26,7 +28,13 @@
 #include "max31328.h"
 
 #define TAG "page-manager"
+
+#if CONFIG_WIFI_ENABLED
 #define TOTAL_PAGE 14
+#else
+#define TOTAL_PAGE 13
+#endif
+
 #define TOTAL_MENU 3
 
 static int8_t pre_page_index = -1;
@@ -84,6 +92,7 @@ static page_inst_t pages[] = {
                 .on_destroy_page = test_page_on_destroy,
                 .enter_sleep_handler = test_page_on_enter_sleep,
         },
+#if CONFIG_WIFI_ENABLED
         {
                 .page_name = "upgrade",
                 .on_draw_page = upgrade_page_draw,
@@ -92,6 +101,7 @@ static page_inst_t pages[] = {
                 .on_destroy_page = upgrade_page_on_destroy,
                 .enter_sleep_handler = upgrade_page_on_enter_sleep,
         },
+#endif
         {
                 .page_name = "manual",
                 .on_draw_page = manual_page_draw,

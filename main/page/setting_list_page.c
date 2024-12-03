@@ -99,17 +99,19 @@ void setting_list_page_draw(epd_paint_t *epd_paint, uint32_t loop_cnt) {
                                  (char *) text_pressure_sensor, &Font_HZK16, 1);
         y += SETTING_ITEM_HEIGHT;
     }
+#ifdef CONFIG_WIFI_ENABLED
+    if (offset_item < 6) {
+        // 5. upgrade
+        epd_paint_draw_bitmap(epd_paint, 8, y + PADDING_Y, 32, 32,
+                              (uint8_t *) ic_upgrade_bmp_start,
+                              ic_upgrade_bmp_end - ic_upgrade_bmp_start, 1);
+        uint16_t upgrade[] = {0xFDC9, 0xB6BC, 0x00};
+        epd_paint_draw_string_at(epd_paint, SETTING_ITEM_HEIGHT + PADDING_X, y + TEXT_PADDING_Y,
+                                 (char *) upgrade, &Font_HZK16, 1);
+        y += SETTING_ITEM_HEIGHT;
+    }
+#endif
 
-//    if (offset_item < 6) {
-//        // 5. upgrade
-//        epd_paint_draw_bitmap(epd_paint, 8, y + PADDING_Y, 32, 32,
-//                              (uint8_t *) ic_upgrade_bmp_start,
-//                              ic_upgrade_bmp_end - ic_upgrade_bmp_start, 1);
-//        uint16_t upgrade[] = {0xFDC9, 0xB6BC, 0x00};
-//        epd_paint_draw_string_at(epd_paint, SETTING_ITEM_HEIGHT + PADDING_X, y + TEXT_PADDING_Y,
-//                                 (char *) upgrade, &Font_HZK16, 1);
-//        y += SETTING_ITEM_HEIGHT;
-//    }
 //    if (offset_item < 7) {
 //        // 6. ble
 //        epd_paint_draw_bitmap(epd_paint, 11, y + PADDING_Y, 28, 32,
@@ -186,9 +188,11 @@ static void handle_click_event() {
     } else if (current_index == 5) {
         page_manager_switch_page("pressure-sensor", true);
     }
-//    else if (current_index == 5) {
-//        page_manager_switch_page("upgrade", true);
-//    }
+#ifdef CONFIG_WIFI_ENABLED
+    else if (current_index == 5) {
+        page_manager_switch_page("upgrade", true);
+    }
+#endif
 //    else if (current_index == 6) {
 //        page_manager_switch_page("ble-device", true);
 //    }
